@@ -1,0 +1,34 @@
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Large binary APK packages & decompiled files
+apks/*.apk
+apks/**/*.apk
+apks/*.zip
+apks/**/*.zip
+apks/*.tar.gz
+apks/**/*.tar.gz
+apks/**/jadx_out/
+*.so
+
+# Decompiled output & Temporary Execution Data
+tmp/
+logs/
+*.log
+*.dump
+*.xml
+*.png
+*.jpg
+*.pcap
+
+# Profiles & Dynamic Session Data
+profiles/*.json
+!profiles/.gitkeep
+
+# Environment & IDE
+.env
+.vscode/
+.idea/
+.DS_Store

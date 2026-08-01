@@ -1,0 +1,134 @@
+{
+  "project": "multi_v1",
+  "base_mitm_port": 30000,
+  "base_frida_port": 40000,
+  "devices": [
+    {
+      "id": "R3CR70Q90BB",
+      "alias": "G991N",
+      "mitm_port": 30001,
+      "frida_port": 40001,
+      "resolution": "1080x2400",
+      "baseline": {
+        "ssaid": "8a64ce1ea7bdc119",
+        "adid": "52659822-54f9-4cea-9edd-7dee7fd626be",
+        "idfv": "edbee08f-10c2-a9ee-a42b-20cfd58b74f2",
+        "ni": "6af8f276c204108fea94b0aa479b30a1",
+        "token": "Lt3gj3xJZu3bOpVs",
+        "model": "SM-G991N",
+        "osver": "13",
+        "build_id": "TP1A.220624.014",
+        "display_id": "G991NKSS4EWK2"
+      }
+    },
+    {
+      "id": "R5CR40V7MRA",
+      "alias": "A826S",
+      "mitm_port": 30002,
+      "frida_port": 40002,
+      "resolution": "1080x2400",
+      "baseline": {
+        "ssaid": "9834fd7b1428da58",
+        "adid": "23816bca-4759-44ec-b39a-2e957806d107",
+        "idfv": "354e092f-2429-6d71-bcd7-56bdf657856f",
+        "ni": "643c5a582b90006faccac491c8807b4e",
+        "token": "LoeWDBJcQuFkB1V2",
+        "model": "SM-A826S",
+        "osver": "14",
+        "build_id": "UP1A.231005.007",
+        "display_id": "A826SKSS6GXJ2"
+      }
+    },
+    {
+      "id": "R5CT20Y2XYE",
+      "alias": "S901N",
+      "mitm_port": 30003,
+      "frida_port": 40003,
+      "resolution": "1080x2340",
+      "baseline": {
+        "ssaid": "378464f3a3579efe",
+        "adid": "2d433f99-0eea-49bc-8a5f-efbfc4c3d00b",
+        "idfv": "31ba01a4-a828-62af-0ac4-ef124ea88f23",
+        "ni": "5d1f36445d4e5c652c3709bd42bd3e77",
+        "token": "LUNMt0Y7RZOaK7gz",
+        "model": "SM-S901N",
+        "osver": "14",
+        "build_id": "UP1A.231005.007",
+        "display_id": "S901NKSS7EYB3"
+      }
+    },
+    {
+      "id": "R5CTA2G7CRM",
+      "alias": "A136S",
+      "mitm_port": 30004,
+      "frida_port": 40004,
+      "resolution": "720x1600",
+      "baseline": {
+        "ssaid": "ddc3084c50579455",
+        "adid": "92745045-3dc4-4e58-b28c-be018d82ab06",
+        "idfv": "93912f30-3772-5f9a-551b-d66547874960",
+        "ni": "7b7d9453068288440f40993c1eb0c100",
+        "token": "MI5pYkiLoD9yihfO",
+        "model": "SM-A136S",
+        "osver": "14",
+        "build_id": "UP1A.231005.007",
+        "display_id": "A136SKSSBEYI2"
+      }
+    },
+    {
+      "id": "RF9XC00EXGM",
+      "alias": "A165N",
+      "mitm_port": 30005,
+      "frida_port": 40005,
+      "resolution": "1080x2340",
+      "baseline": {
+        "ssaid": "e6019a5182dfb4d4",
+        "adid": "14ff2a58-b085-4b73-9111-1c3986fe257b",
+        "idfv": "e5a64b0c-6c96-b815-25c6-1da41b851be5",
+        "ni": "7e3560d95e4ebb1407b4b7dad668396c",
+        "token": "MINrZnh9x9jTNelh",
+        "model": "SM-A165N",
+        "osver": "15",
+        "build_id": "AP3A.240905.015.A2",
+        "display_id": "A165NKSS3BYH1"
+      }
+    },
+    {
+      "id": "RFCTA248GPB",
+      "alias": "M236L",
+      "mitm_port": 30006,
+      "frida_port": 40006,
+      "resolution": "1080x2408",
+      "baseline": {
+        "ssaid": "6af90fe62c23f716",
+        "adid": "ead5e55f-efae-4896-8541-4e7633c7ce05",
+        "idfv": "5428b738-a12f-142d-326c-3390ca279519",
+        "ni": "ef2a36fed8faf9058a0dbe87000ccccc",
+        "token": "eoPHeUfcl6QHqKn3",
+        "model": "SM-M236L",
+        "osver": "14",
+        "build_id": "UP1A.231005.007",
+        "display_id": "M236LKSSDEZB2"
+      }
+    },
+    {
+      "id": "ce09160990217a2e04",
+      "alias": "N935L",
+      "mitm_port": 30007,
+      "frida_port": 40007,
+      "resolution": "1080x1920",
+      "baseline": {
+        "ssaid": "00e9490f5fdfa553",
+        "adid": "2853ae1c-f4a5-44c0-a981-debfa1817d2a",
+        "idfv": "9e4cbe72-7716-3362-ed49-adb31605b31d",
+        "ni": "75f6b75458971334b9c19de083f9aaf1",
+        "token": "MDixz2LwxfsIsLxf",
+        "model": "SM-N935L",
+        "osver": "9",
+        "build_id": "PPR1.180610.011",
+        "display_id": "N935LKLU4CVG1"
+      }
+    }
+  ],
+  "disabled_devices": []
+}
