@@ -253,8 +253,17 @@ def backup_live_session():
     os.makedirs(profiles_dir, exist_ok=True)
     profile_key = android_id if android_id else target_ip.replace('.', '_')
     json_path = os.path.join(profiles_dir, f"{profile_key}.json")
+    # Extract mac_address or adid if present in cookies or payload
+    device_model = payload.get('model', 'Galaxy S21')
+    mac_addr = payload.get('mac_address', '')
+    user_agent = payload.get('user_agent', '')
+    
     profile_dump = {
         "ssaid": android_id,
+        "adid": adid,
+        "mac_address": mac_addr,
+        "device_model": device_model,
+        "user_agent": user_agent,
         "nac_token": nac_token,
         "ip_address": target_ip,
         "device_id": device_id,
