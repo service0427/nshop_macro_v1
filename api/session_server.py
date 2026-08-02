@@ -199,24 +199,33 @@ def log_router_toggle():
 # ------------------------------------------------------------------------------
 @app.route('/api/v1/jobs/assign', methods=['POST', 'GET'])
 def assign_job_to_device():
+    # device_id only parameter passed by client
     device_id = request.args.get('device_id') or (request.get_json(force=True, silent=True) or {}).get('device_id', 'R5CT20Y2XYE')
-    router_id = request.args.get('router_id') or (request.get_json(force=True, silent=True) or {}).get('router_id', 'hj20acn8f3p')
-
+    
     m_conn = get_mariadb_conn()
+    router_id = "hj20acn8f3p"  # Fallback default
     router_info = {
         "router_id": router_id,
-        "ddns_host": f"{router_id}.sn.mynetname.net",
-        "rest_url": f"http://{router_id}.sn.mynetname.net/rest",
-        "api_user": "tech",
-        "api_pass": "Tech1324!",
-        "wg_port": 51820,
+        "wg_port": 45820,
+        "wg_server_pubkey": "Hk3IdUGXNN8eEEPYeiDJa1QJbNJKAJLVXuH53Ju+dX0=",
         "macvlan_interface": "macvlan1"
     }
     keyword_job = None
 
     if m_conn:
         with m_conn.cursor() as cur:
-            # 1. Fetch Router Details
+            # 1. Look up router_id used by this device_id
+            cur.execute("""
+                SELECT router_id FROM device_router_mappings WHERE device_id = %s
+                UNION
+                SELECT router_id FROM device_profiles WHERE device_id = %s AND router_id IS NOT NULL AND router_id != ''
+                LIMIT 1;
+            """, (device_id, device_id))
+            m_row = cur.fetchone()
+            if m_row and m_row['router_id']:
+                router_id = m_row['router_id']
+
+            # 2. Fetch Router Details from DB
             cur.execute("SELECT * FROM mikrotik_routers WHERE router_id = %s OR ddns_host LIKE %s;", (router_id, f"%{router_id}%"))
             r_row = cur.fetchone()
             if r_row:
@@ -227,7 +236,7 @@ def assign_job_to_device():
                     "macvlan_interface": r_row["macvlan_interface"]
                 }
             
-            # 2. Assign Next Available Target Keyword & nvMid
+            # 3. Assign Next Available Target Keyword & nvMid
             cur.execute("""
                 SELECT * FROM macro_keywords 
                 WHERE status = 'ACTIVE' 
@@ -243,7 +252,7 @@ def assign_job_to_device():
                     "product_id": k_row["nvmid"],
                     "product_title": k_row["product_title"],
                     "seller_name": k_row["seller_name"],
-                    "target_rank": k_row["target_rank"]
+                    "rank_ref": k_row["target_rank"]  # 참고용 이전 랭킹
                 }
         m_conn.close()
 
