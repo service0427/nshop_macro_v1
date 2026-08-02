@@ -227,6 +227,7 @@ def assign_job_to_device():
                     "api_user": r_row["api_user"],
                     "api_pass": r_row["api_pass"],
                     "wg_port": r_row["wg_port"],
+                    "wg_server_pubkey": r_row.get("wg_server_pubkey", ""),
                     "macvlan_interface": r_row["macvlan_interface"]
                 }
             
@@ -261,6 +262,16 @@ def assign_job_to_device():
             "target_rank": 2
         }
 
+    # Generate dynamic Curve25519 keypair for WireGuard client
+    import base64
+    from cryptography.hazmat.primitives.asymmetric import x25519
+    client_priv = x25519.X25519PrivateKey.generate()
+    client_pub = client_priv.public_key()
+    client_priv_b64 = base64.b64encode(client_priv.private_bytes_raw()).decode()
+    client_pub_b64 = base64.b64encode(client_pub.public_bytes_raw()).decode()
+
+    wg_server_pubkey = router_info.get("wg_server_pubkey") or "Hk3IdUGXNN8eEEPYeiDJa1QJbNJKAJLVXuH53Ju+dX0="
+
     return jsonify({
         "status": "success",
         "assigned_device_id": device_id,
@@ -269,8 +280,12 @@ def assign_job_to_device():
         "wireguard": {
             "tunnel_name": "wg0",
             "client_ip": "10.8.0.2/32",
+            "client_private_key": client_priv_b64,
+            "client_public_key": client_pub_b64,
+            "server_public_key": wg_server_pubkey,
             "endpoint": f"{router_info['ddns_host']}:{router_info['wg_port']}",
-            "dns": "1.1.1.1"
+            "dns": "1.1.1.1",
+            "allowed_ips": "0.0.0.0/0"
         },
         "assigned_at": str(time.strftime('%Y-%m-%d %H:%M:%S'))
     })
