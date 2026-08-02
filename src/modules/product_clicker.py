@@ -1008,7 +1008,7 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
     is_mid_found = (mid in landing_text_all)
 
     # Verification criteria: mid found OR at least 2 title keywords matched OR seller name matched
-    if is_mid_found or matched_title_count >= max(2, min(3, len(title_keywords))) or matched_seller:
+    if is_mid_found or matched_title_count >= max(2, min(3, len(title_words))) or matched_seller:
         # Copy screenshots to artifact directory for instant user inspection
         import shutil
         art_dir = "/home/tech/.gemini/antigravity-cli/brain/948d710e-5621-4106-b3fe-152293408271"
