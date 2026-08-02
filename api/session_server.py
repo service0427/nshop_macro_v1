@@ -23,7 +23,7 @@ MARIADB_CONFIG = {
     "host": "127.0.0.1",
     "port": 3306,
     "user": "nshop",
-    "password": "Tech1324!",
+    "password": "Tech1324",
     "database": "nshop_api_v1",
     "charset": "utf8mb4",
     "autocommit": True
