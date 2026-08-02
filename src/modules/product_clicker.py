@@ -695,19 +695,10 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
     print(f"    - Log Folder   : {shot_dir}")
     print("==========================================================================")
     
-    # Handle Horizontal Page 2 / Page 3 Transitions if target is on Page 2/3
+    # Handle Horizontal Page 2 / Page 3 Transitions via Precise Horizontal Swipe Gestures
     if page_tag == "가로 2페이지":
-        print("  [Action] Target product is on [가로 2페이지]. Moving down to Pagination Bar...")
-        subprocess.run(["adb", "-s", device_id, "shell", "input swipe 540 1800 540 900 350"], capture_output=True)
-        time.sleep(1.2)
-        
-        btn_x, btn_y = find_next_page_button(device_id)
-        print(f"  [Action] Tapping Next Page (>) Button at ({btn_x}, {btn_y}) to switch carousel to Page 2...")
-        subprocess.run(["adb", "-s", device_id, "shell", f"input tap {btn_x} {btn_y}"], capture_output=True)
-        time.sleep(2.0)
-        
-        print("  [Action] REVERSE SWIPE / SCROLLING UP (Swipe 540 600 -> 540 1800) to expose Page 2 products above...")
-        subprocess.run(["adb", "-s", device_id, "shell", "input swipe 540 600 540 1800 350"], capture_output=True)
+        print("  [Action] Target product is on [가로 2페이지]. Performing 1x Horizontal Left Swipe (920->160 at Y=1200)...")
+        subprocess.run(["adb", "-s", device_id, "shell", "input swipe 920 1200 160 1200 300"], capture_output=True)
         time.sleep(1.5)
             
         p2_png = os.path.join(shot_dir, "page2_revealed.png")
@@ -718,15 +709,10 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
         subprocess.run(["adb", "-s", device_id, "pull", "/sdcard/page2.xml", p2_xml], capture_output=True)
 
     elif page_tag == "가로 3페이지":
-        print("  [Action] Target product is on [가로 3페이지]. Tapping Next Page (>) Button twice...")
-        subprocess.run(["adb", "-s", device_id, "shell", "input swipe 540 1800 540 900 350"], capture_output=True)
+        print("  [Action] Target product is on [가로 3페이지]. Performing 2x Horizontal Left Swipes (920->160 at Y=1200)...")
+        subprocess.run(["adb", "-s", device_id, "shell", "input swipe 920 1200 160 1200 300"], capture_output=True)
         time.sleep(1.2)
-        btn_x, btn_y = find_next_page_button(device_id)
-        subprocess.run(["adb", "-s", device_id, "shell", f"input tap {btn_x} {btn_y}"], capture_output=True)
-        time.sleep(1.5)
-        subprocess.run(["adb", "-s", device_id, "shell", f"input tap {btn_x} {btn_y}"], capture_output=True)
-        time.sleep(2.0)
-        subprocess.run(["adb", "-s", device_id, "shell", "input swipe 540 600 540 1800 350"], capture_output=True)
+        subprocess.run(["adb", "-s", device_id, "shell", "input swipe 920 1200 160 1200 300"], capture_output=True)
         time.sleep(1.5)
 
     # Dynamic Vertical Locator Loop
