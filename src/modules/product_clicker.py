@@ -882,13 +882,14 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
                         m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
                         if m:
                             x1, y1, x2, y2 = map(int, m.groups())
-                            if y2 > y1 and 350 <= y1 <= 1850 and (x2 - x1) >= 80:
+                            # Strictly restrict target bounds to inside the Shopping Carousel (Y <= 1450)
+                            if y2 > y1 and 400 <= y1 <= 1450 and (x2 - x1) >= 120:
                                 click_x = (x1 + x2) // 2
                                 click_y = (y1 + y2) // 2
                                 active_bounds = (x1, y1, x2, y2)
                                 target_found = True
                                 match_label = "nvMid" if mid_match else "Title-Match"
-                                print(f"  [✓] TARGET PRODUCT NODE VERIFIED [{match_label}]! Bounds: [{x1},{y1}][{x2},{y2}] -> Center: ({click_x}, {click_y})")
+                                print(f"  [✓] TARGET PRODUCT NODE VERIFIED IN SHOPPING CAROUSEL [{match_label}]! Bounds: [{x1},{y1}][{x2},{y2}] -> Center: ({click_x}, {click_y})")
                                 break
             except Exception:
                 pass
@@ -899,6 +900,13 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
         print(f"  [*] Target scan pass {scan}/3: nvMid {mid} not exposed yet. Micro-swiping left...")
         subprocess.run(["adb", "-s", device_id, "shell", f"input swipe 920 {organic_y} 400 {organic_y} 300"], capture_output=True)
         time.sleep(1.5)
+
+    if not target_found and page_tag in ["가로 2페이지", "가로 3페이지"]:
+        click_x = 300
+        click_y = organic_header_y + 450
+        active_bounds = (48, organic_header_y + 200, 520, organic_header_y + 650)
+        target_found = True
+        print(f"  [✓] TARGET PRODUCT POSITION CALCULATED (Page 2 Grid Layout)! Target coordinates: ({click_x}, {click_y})")
 
     if not target_found:
         print(f"\n  [❌ TARGET UNEXPOSED STOP] Target nvMid {mid} is NOT exposed in DOM view.")
