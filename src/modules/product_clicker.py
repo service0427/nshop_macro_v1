@@ -690,6 +690,39 @@ def create_cropped_tap_box_image(full_png_path, cropped_png_path, click_x, click
         print(f"  [!] Tap box cropping failed: {e}")
 
 
+def create_swipe_indicator_image(full_png_path, cropped_png_path, start_x=920, end_x=160, y=1200):
+    """
+    Draws a bright red horizontal swipe arrow (start -> end) across the full screenshot,
+    then crops a 750x400 region around Y=1200 showing the exact gesture path.
+    """
+    if not os.path.exists(full_png_path):
+        return
+    try:
+        from PIL import Image, ImageDraw
+        img = Image.open(full_png_path).convert("RGB")
+        w, h = img.size
+        
+        draw = ImageDraw.Draw(img)
+        # Draw thick red swipe line with arrow head pointing LEFT
+        draw.line([(start_x, y), (end_x, y)], fill=(255, 0, 0), width=10)
+        r = 18
+        draw.ellipse((start_x - r, y - r, start_x + r, y + r), fill=(255, 30, 30), outline=(255, 255, 255), width=4)
+        draw.polygon([(end_x, y - 25), (end_x - 35, y), (end_x, y + 25)], fill=(255, 0, 0))
+
+        # Crop region centered around (540, Y)
+        crop_w, crop_h = 750, 400
+        cx1 = max(0, 540 - crop_w // 2)
+        cy1 = max(0, y - crop_h // 2)
+        cx2 = min(w, 540 + crop_w // 2)
+        cy2 = min(h, y + crop_h // 2)
+        
+        cropped_img = img.crop((cx1, cy1, cx2, cy2))
+        cropped_img.save(cropped_png_path)
+        print(f"  [📸 SWIPE GESTURE ARROW CROPPED] Saved region to: {cropped_png_path}")
+    except Exception as e:
+        print(f"  [!] Swipe indicator drawing failed: {e}")
+
+
 def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
     """
     Executes actual physical touch click on the specific target product (-p nvMid).
@@ -782,13 +815,11 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
             except Exception:
                 pass
 
-        if not btn_x:
-            btn_x, btn_y = 540, 1200
-            print(f"  [*] {page_tag} button not explicitly exposed in DOM. Using horizontal swipe gesture (920->160 at Y=1200)")
+        if p_bounds:
+            create_cropped_tap_box_image(loc_p_png, loc_p_crop, btn_x, btn_y, p_bounds)
+        else:
+            create_swipe_indicator_image(loc_p_png, loc_p_crop, start_x=920, end_x=160, y=1200)
 
-        # Create Cropped Page 2 Transition Action Area Screenshot
-        create_cropped_tap_box_image(loc_p_png, loc_p_crop, btn_x, btn_y, p_bounds)
-        
         # Copy to artifact directory for instant user visual inspection
         art_dir = "/home/tech/.gemini/antigravity-cli/brain/948d710e-5621-4106-b3fe-152293408271"
         if os.path.exists(art_dir) and os.path.exists(loc_p_crop):
