@@ -122,6 +122,79 @@ def health_check():
     })
 
 # ------------------------------------------------------------------------------
+# MikroTik Router Configuration Endpoints
+# ------------------------------------------------------------------------------
+@app.route('/api/v1/routers', methods=['GET'])
+def list_routers():
+    m_conn = get_mariadb_conn()
+    if not m_conn:
+        return jsonify({"routers": [{"router_id": "hj20acn8f3p", "rest_url": "http://hj20acn8f3p.sn.mynetname.net/rest", "status": "ACTIVE"}]})
+    
+    with m_conn.cursor() as cur:
+        cur.execute("SELECT id, router_id, ddns_host, rest_url, api_user, wg_port, macvlan_interface, location_memo, status, updated_at FROM mikrotik_routers ORDER BY id ASC;")
+        rows = cur.fetchall()
+        for r in rows:
+            if 'updated_at' in r and r['updated_at']:
+                r['updated_at'] = str(r['updated_at'])
+    m_conn.close()
+    return jsonify({"total": len(rows), "routers": rows})
+
+@app.route('/api/v1/routers/<router_id>', methods=['GET'])
+def get_router_info(router_id):
+    m_conn = get_mariadb_conn()
+    if not m_conn:
+        return jsonify({
+            "router_id": router_id,
+            "ddns_host": f"{router_id}.sn.mynetname.net",
+            "rest_url": f"http://{router_id}.sn.mynetname.net/rest",
+            "api_user": "tech",
+            "api_pass": "Tech1324!",
+            "wg_port": 51820,
+            "macvlan_interface": "macvlan1",
+            "status": "ACTIVE"
+        })
+    
+    with m_conn.cursor() as cur:
+        cur.execute("SELECT * FROM mikrotik_routers WHERE router_id = %s OR ddns_host LIKE %s;", (router_id, f"%{router_id}%"))
+        row = cur.fetchone()
+    m_conn.close()
+
+    if not row:
+        return jsonify({"error": f"Router '{router_id}' not registered"}), 404
+
+    row['updated_at'] = str(row['updated_at'])
+    row['created_at'] = str(row['created_at'])
+    return jsonify({"found": True, "router": row})
+
+@app.route('/api/v1/routers/toggle-log', methods=['POST'])
+def log_router_toggle():
+    payload = request.get_json(force=True, silent=True) or {}
+    router_id = payload.get('router_id', 'hj20acn8f3p')
+    device_id = payload.get('device_id', '')
+    macvlan = payload.get('macvlan_interface', 'macvlan1')
+    old_mac = payload.get('old_mac', '')
+    new_mac = payload.get('new_mac', '')
+    old_ip = payload.get('old_ip', '')
+    new_ip = payload.get('new_ip', '')
+    elapsed = payload.get('elapsed_seconds', 0.0)
+    status = payload.get('status', 'SUCCESS')
+    error_msg = payload.get('error_msg', '')
+
+    m_conn = get_mariadb_conn()
+    if m_conn:
+        try:
+            with m_conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO router_toggle_logs (router_id, device_id, macvlan_interface, old_mac, new_mac, old_ip, new_ip, elapsed_seconds, status, error_msg)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                """, (router_id, device_id, macvlan, old_mac, new_mac, old_ip, new_ip, elapsed, status, error_msg))
+            m_conn.close()
+        except Exception as ex:
+            print(f"[!] Toggle log error: {ex}")
+
+    return jsonify({"status": "logged", "router_id": router_id, "new_ip": new_ip})
+
+# ------------------------------------------------------------------------------
 # List All Profiles (Filtered by device_id if provided)
 # ------------------------------------------------------------------------------
 @app.route('/api/v1/profiles', methods=['GET'])
