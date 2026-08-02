@@ -987,7 +987,7 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
         print(f"    - Landed Page Title   : \"{landed_title}\"")
         print(f"    - Landed Page URL     : \"{landed_url}\"")
         print(f"    - Rank Position       : {rank}등 ({page_tag})")
-        print(f"    - Title Keyword Match : {matched_title_count}/{len(title_keywords)} keywords matched")
+        print(f"    - Title Keyword Match : {matched_title_count}/{len(title_words)} keywords matched")
         print(f"    - JIT Touch Point     : ({click_x}, {click_y})")
         print(f"    - Landed PNG          : {loc_post_png}")
         print(f"    - Landed XML          : {loc_post_xml}")
