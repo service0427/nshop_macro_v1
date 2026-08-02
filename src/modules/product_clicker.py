@@ -831,15 +831,15 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
                                 if not initial_header_y:
                                     initial_header_y = current_header_y
 
-                    # 2. Track Next Page Button Node ("다음 페이지", "2번째 페이지", "2페이지")
-                    if txt in ["다음 페이지", "다음페이지", "2번째 페이지", "페이지 2", "2페이지"] and not btn_bounds:
+                    # 2. Track Next Page Button Node ("다음 페이지", "2번째 페이지", "2페이지", "다음페이지")
+                    if any(k in txt for k in ["다음 페이지", "다음페이지", "2번째 페이지", "페이지 2", "2페이지"]) and not btn_bounds:
                         m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
                         if m:
                             x1, y1, x2, y2 = map(int, m.groups())
-                            if y2 > y1 and 300 <= y1 <= 2100:
+                            if y2 >= y1 and 300 <= y1 <= 2100 and (x2 - x1) >= 40:
                                 btn_x = (x1 + x2) // 2
-                                btn_y = (y1 + y2) // 2
-                                btn_bounds = (x1, y1, x2, y2)
+                                btn_y = ((y1 + y2) // 2) if y2 > y1 else (y1 - 40)
+                                btn_bounds = (x1, y1 - 50, x2, y2 + 50) if y2 == y1 else (x1, y1, x2, y2)
                                 btn_txt = txt
 
                     # 3. Track Target nvMid / Target Title Node
