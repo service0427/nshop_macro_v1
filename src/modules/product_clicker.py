@@ -914,98 +914,86 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
     print(f"  [Action] Tapping Target Product (nvMid: {mid}) at VERIFIED coordinate ({click_x}, {click_y})...")
     subprocess.run(["adb", "-s", device_id, "shell", f"input tap {click_x} {click_y}"], capture_output=True)
     time.sleep(3.5)
-        subprocess.run(["adb", "-s", device_id, "shell", f"input tap {click_x} {click_y}"], capture_output=True)
-        time.sleep(3.5)
 
-        # Capture post-click PNG & XML
-        sd_post_png = "/sdcard/target_post_click.png"
-        sd_post_xml = "/sdcard/target_post_click.xml"
-        loc_post_png = os.path.join(shot_dir, f"target_{mid}_after.png")
-        loc_post_xml = os.path.join(shot_dir, f"target_{mid}_after.xml")
+    # Capture post-click PNG & XML
+    sd_post_png = "/sdcard/target_post_click.png"
+    sd_post_xml = "/sdcard/target_post_click.xml"
+    loc_post_png = os.path.join(shot_dir, f"target_{mid}_after.png")
+    loc_post_xml = os.path.join(shot_dir, f"target_{mid}_after.xml")
 
-        subprocess.run(["adb", "-s", device_id, "shell", f"screencap -p {sd_post_png}"], capture_output=True)
-        subprocess.run(["adb", "-s", device_id, "pull", sd_post_png, loc_post_png], capture_output=True)
-        subprocess.run(["adb", "-s", device_id, "shell", f"uiautomator dump {sd_post_xml}"], capture_output=True)
-        subprocess.run(["adb", "-s", device_id, "pull", sd_post_xml, loc_post_xml], capture_output=True)
+    subprocess.run(["adb", "-s", device_id, "shell", f"screencap -p {sd_post_png}"], capture_output=True)
+    subprocess.run(["adb", "-s", device_id, "pull", sd_post_png, loc_post_png], capture_output=True)
+    subprocess.run(["adb", "-s", device_id, "shell", f"uiautomator dump {sd_post_xml}"], capture_output=True)
+    subprocess.run(["adb", "-s", device_id, "pull", sd_post_xml, loc_post_xml], capture_output=True)
 
-        landing_text_all = ""
-        landed_title = "Unknown Product Title"
-        landed_url = "Unknown URL"
+    landing_text_all = ""
+    landed_title = "Unknown Product Title"
+    landed_url = "Unknown URL"
 
-        if os.path.exists(loc_post_xml):
-            try:
-                tree_after = ET.parse(loc_post_xml)
-                after_nodes = [c.attrib.get("text", "").strip() or c.attrib.get("content-desc", "").strip() for c in tree_after.getroot().iter("node") if (c.attrib.get("text") or c.attrib.get("content-desc"))]
-                landing_text_all = " ".join(after_nodes)
-                
-                # Extract Landed Product Title (first prominent non-nav text >= 8 chars)
-                prominent_titles = [t for t in after_nodes if len(t) >= 8 and not any(skip in t for skip in ["네이버", "검색", "로그인", "메뉴", "전체", "쇼핑", "버튼"])]
-                if prominent_titles:
-                    landed_title = prominent_titles[0]
-                elif after_nodes:
-                    landed_title = after_nodes[0]
-            except Exception:
-                pass
-
-        # Fetch active URL from activity stack
+    if os.path.exists(loc_post_xml):
         try:
-            res_url = subprocess.run(["adb", "-s", device_id, "shell", "dumpsys activity top | grep -E 'http://|https://'"], capture_output=True, text=True)
-            url_match = re.search(r'https?://[^\s\'"]+', res_url.stdout or "")
-            if url_match:
-                landed_url = url_match.group(0)
+            tree_after = ET.parse(loc_post_xml)
+            after_nodes = [c.attrib.get("text", "").strip() or c.attrib.get("content-desc", "").strip() for c in tree_after.getroot().iter("node") if (c.attrib.get("text") or c.attrib.get("content-desc"))]
+            landing_text_all = " ".join(after_nodes)
+            
+            # Extract Landed Product Title (first prominent non-nav text >= 8 chars)
+            prominent_titles = [t for t in after_nodes if len(t) >= 8 and not any(skip in t for skip in ["네이버", "검색", "로그인", "메뉴", "전체", "쇼핑", "버튼"])]
+            if prominent_titles:
+                landed_title = prominent_titles[0]
+            elif after_nodes:
+                landed_title = after_nodes[0]
         except Exception:
             pass
 
-        # Check if target title keywords or nvMid match landed page DOM text
-        matched_title_count = sum(1 for kw in title_keywords if kw in landing_text_all)
-        matched_seller = any(kw in landing_text_all for kw in seller_keywords) if seller_keywords else False
-        is_mid_found = (mid in landing_text_all)
+    # Fetch active URL from activity stack
+    try:
+        res_url = subprocess.run(["adb", "-s", device_id, "shell", "dumpsys activity top | grep -E 'http://|https://'"], capture_output=True, text=True)
+        url_match = re.search(r'https?://[^\s\'"]+', res_url.stdout or "")
+        if url_match:
+            landed_url = url_match.group(0)
+    except Exception:
+        pass
 
-        # Verification criteria: mid found OR at least 2 title keywords matched OR seller name matched
-        if is_mid_found or matched_title_count >= max(2, min(3, len(title_keywords))) or matched_seller:
-            verified_landing = True
-            
-            # Copy screenshots to artifact directory for instant user inspection
-            import shutil
-            art_dir = "/home/tech/.gemini/antigravity-cli/brain/948d710e-5621-4106-b3fe-152293408271"
-            if os.path.exists(art_dir):
-                art_before = os.path.join(art_dir, "target_click_before.png")
-                art_crop = os.path.join(art_dir, "target_click_cropped.png")
-                art_after = os.path.join(art_dir, "target_click_after.png")
-                if os.path.exists(loc_png):
-                    shutil.copy(loc_png, art_before)
-                if os.path.exists(loc_crop_png):
-                    shutil.copy(loc_crop_png, art_crop)
-                if os.path.exists(loc_post_png):
-                    shutil.copy(loc_post_png, art_after)
+    # Check if target title keywords or nvMid match landed page DOM text
+    matched_title_count = sum(1 for kw in title_words if kw in landing_text_all)
+    matched_seller = any(kw in landing_text_all for kw in seller_keywords) if seller_keywords else False
+    is_mid_found = (mid in landing_text_all)
 
-            print("\n==========================================================================")
-            print(f" 🔍 [DETAIL LANDING VERIFICATION & COMPARISON REPORT]")
-            print(f"    - Target nvMid        : {mid}")
-            print(f"    - Intended Target Title: \"{title}\"")
-            print(f"    - Landed Page Title   : \"{landed_title}\"")
-            print(f"    - Landed Page URL     : \"{landed_url}\"")
-            print(f"    - Rank Position       : {rank}등 ({page_tag})")
-            print(f"    - Title Keyword Match : {matched_title_count}/{len(title_keywords)} keywords matched")
-            print(f"    - JIT Touch Point     : ({click_x}, {click_y})")
-            print(f"    - Landed PNG          : {loc_post_png}")
-            print(f"    - Landed XML          : {loc_post_xml}")
-            print(f"    - Verification Result : 🎉 100% MATCHED SUCCESSFUL!")
-            print("==========================================================================")
-            break
-        else:
-            print(f"  [⚠️ MIS-CLICK DETECTED!] Landed text does not match target title/seller.")
-            print(f"     Intended Target Title : \"{title}\"")
-            print(f"     Landed Page Title     : \"{landed_title}\"")
-            print(f"     Landed Page URL       : \"{landed_url}\"")
-            print(f"  [Action] Pressing BACK button to return to search results and retry...")
-            subprocess.run(["adb", "-s", device_id, "shell", "input keyevent 4"], capture_output=True)
-            time.sleep(2.0)
+    # Verification criteria: mid found OR at least 2 title keywords matched OR seller name matched
+    if is_mid_found or matched_title_count >= max(2, min(3, len(title_keywords))) or matched_seller:
+        # Copy screenshots to artifact directory for instant user inspection
+        import shutil
+        art_dir = "/home/tech/.gemini/antigravity-cli/brain/948d710e-5621-4106-b3fe-152293408271"
+        if os.path.exists(art_dir):
+            art_before = os.path.join(art_dir, "target_click_before.png")
+            art_crop = os.path.join(art_dir, "target_click_cropped.png")
+            art_after = os.path.join(art_dir, "target_click_after.png")
+            if os.path.exists(loc_png):
+                shutil.copy(loc_png, art_before)
+            if os.path.exists(loc_crop_png):
+                shutil.copy(loc_crop_png, art_crop)
+            if os.path.exists(loc_post_png):
+                shutil.copy(loc_post_png, art_after)
 
-    if not verified_landing:
-        print(f"\n  [❌ FAILED] Could not verify landed detail page for target nvMid '{mid}' after {max_retries} attempts.")
+        print("\n==========================================================================")
+        print(" 🔍 [DETAIL LANDING VERIFICATION & COMPARISON REPORT]")
+        print(f"    - Target nvMid        : {mid}")
+        print(f"    - Intended Target Title: \"{title}\"")
+        print(f"    - Landed Page Title   : \"{landed_title}\"")
+        print(f"    - Landed Page URL     : \"{landed_url}\"")
+        print(f"    - Rank Position       : {rank}등 ({page_tag})")
+        print(f"    - Title Keyword Match : {matched_title_count}/{len(title_keywords)} keywords matched")
+        print(f"    - JIT Touch Point     : ({click_x}, {click_y})")
+        print(f"    - Landed PNG          : {loc_post_png}")
+        print(f"    - Landed XML          : {loc_post_xml}")
+        print("    - Verification Result : 🎉 100% MATCHED SUCCESSFUL!")
+        print("==========================================================================")
+        return True
+    else:
+        print(f"  [⚠️ MIS-CLICK DETECTED!] Landed text does not match target title/seller.")
+        print(f"     Intended Target Title : \"{title}\"")
+        print(f"     Landed Page Title     : \"{landed_title}\"")
+        print(f"     Landed Page URL       : \"{landed_url}\"")
         return False
-
-    return True
 
 
