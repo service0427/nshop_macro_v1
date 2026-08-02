@@ -771,6 +771,51 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
     print(f"    - Log Folder   : {shot_dir}")
     print("==========================================================================")
     
+    # Extract key words from target title for organic block matching
+    title_words = [w for w in re.sub(r'[^\w\s]', ' ', title).split() if len(w) >= 2]
+
+    # --------------------------------------------------------------------------
+    # Step 1: Ensure Organic Shopping Block is Scrolled into Active Viewport (Excluding Top PowerLink/Temu Ads)
+    # --------------------------------------------------------------------------
+    print("  [*] Locating Organic Shopping Container in active viewport...")
+    organic_y = None
+    for scroll_init in range(1, 5):
+        sd_chk_xml = "/sdcard/chk_organic.xml"
+        loc_chk_xml = os.path.join(shot_dir, f"chk_organic_{scroll_init}.xml")
+        subprocess.run(["adb", "-s", device_id, "shell", "uiautomator dump /sdcard/chk_organic.xml"], capture_output=True)
+        subprocess.run(["adb", "-s", device_id, "pull", "/sdcard/chk_organic.xml", loc_chk_xml], capture_output=True)
+        
+        if os.path.exists(loc_chk_xml):
+            try:
+                tree_chk = ET.parse(loc_chk_xml)
+                for elem in tree_chk.getroot().iter("node"):
+                    txt = elem.attrib.get("text", "").strip() or elem.attrib.get("content-desc", "").strip()
+                    b = elem.attrib.get("bounds", "").strip()
+                    
+                    if any(ad in txt.lower() for ad in ["temu.com", "coupang", "파워링크", "광고"]):
+                        continue
+                        
+                    if len(txt) > 8 and any(w in txt for w in title_words[:3]):
+                        m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
+                        if m:
+                            x1, y1, x2, y2 = map(int, m.groups())
+                            if y2 > y1 and 350 <= y1 <= 1750:
+                                organic_y = (y1 + y2) // 2
+                                print(f"  [✓] ORGANIC SHOPPING CAROUSEL LOCATED AT Y={organic_y}! Card bounds: [{x1},{y1}][{x2},{y2}]")
+                                break
+            except Exception:
+                pass
+                
+        if organic_y:
+            break
+            
+        print(f"  [*] Pass {scroll_init}/4: Organic shopping block below fold. Micro-scrolling down...")
+        subprocess.run(["adb", "-s", device_id, "shell", "input swipe 540 1800 540 900 350"], capture_output=True)
+        time.sleep(1.5)
+
+    if not organic_y:
+        organic_y = 1200
+
     # Handle Horizontal Page 2 / Page 3 Transitions via Dynamic Button Finder / Swipe
     if page_tag in ["가로 2페이지", "가로 3페이지"]:
         print(f"\n==========================================================================")
@@ -818,7 +863,7 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
         if p_bounds:
             create_cropped_tap_box_image(loc_p_png, loc_p_crop, btn_x, btn_y, p_bounds)
         else:
-            create_swipe_indicator_image(loc_p_png, loc_p_crop, start_x=920, end_x=160, y=1200)
+            create_swipe_indicator_image(loc_p_png, loc_p_crop, start_x=920, end_x=160, y=organic_y)
 
         # Copy to artifact directory for instant user visual inspection
         art_dir = "/home/tech/.gemini/antigravity-cli/brain/948d710e-5621-4106-b3fe-152293408271"
@@ -835,8 +880,8 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
         else:
             swipes = 1 if page_tag == "가로 2페이지" else 2
             for s in range(swipes):
-                print(f"  [Action] Swiping to {page_tag} (Swipe {s+1}/{swipes}): 920->160 at Y=1200...")
-                subprocess.run(["adb", "-s", device_id, "shell", "input swipe 920 1200 160 1200 300"], capture_output=True)
+                print(f"  [Action] Swiping to {page_tag} (Swipe {s+1}/{swipes}): 920->160 at Y={organic_y}...")
+                subprocess.run(["adb", "-s", device_id, "shell", f"input swipe 920 {organic_y} 160 {organic_y} 300"], capture_output=True)
                 time.sleep(1.2)
 
     # Dynamic Vertical Locator Loop
