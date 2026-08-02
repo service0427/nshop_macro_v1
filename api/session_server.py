@@ -276,22 +276,18 @@ def assign_job_to_device():
     client_pub_b64 = base64.b64encode(client_pub.public_bytes_raw()).decode()
 
     wg_server_pubkey = router_info.get("wg_server_pubkey") or "Hk3IdUGXNN8eEEPYeiDJa1QJbNJKAJLVXuH53Ju+dX0="
-    ddns_endpoint = f"{router_id}.sn.mynetname.net:{router_info.get('wg_port', 45820)}"
 
     return jsonify({
         "status": "success",
         "assigned_device_id": device_id,
-        "router_id": router_id,
         "job": keyword_job,
         "wireguard": {
-            "tunnel_name": "wg0",
-            "client_ip": "10.8.0.2/32",
+            "router_id": router_id,
+            "port": router_info.get('wg_port', 45820),
+            "client_ip": "10.8.0.2",
             "client_private_key": client_priv_b64,
             "client_public_key": client_pub_b64,
-            "server_public_key": wg_server_pubkey,
-            "endpoint": ddns_endpoint,
-            "allowed_ips": "0.0.0.0/0",
-            "dns": "1.1.1.1"
+            "server_public_key": wg_server_pubkey
         },
         "assigned_at": str(time.strftime('%Y-%m-%d %H:%M:%S'))
     })
