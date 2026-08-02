@@ -738,25 +738,75 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
     print(f"    - Log Folder   : {shot_dir}")
     print("==========================================================================")
     
-    # Handle Horizontal Page 2 / Page 3 Transitions via Precise Horizontal Swipe Gestures
-    if page_tag == "가로 2페이지":
-        print("  [Action] Target product is on [가로 2페이지]. Performing 1x Horizontal Left Swipe (920->160 at Y=1200)...")
-        subprocess.run(["adb", "-s", device_id, "shell", "input swipe 920 1200 160 1200 300"], capture_output=True)
-        time.sleep(1.5)
-            
-        p2_png = os.path.join(shot_dir, "page2_revealed.png")
-        p2_xml = os.path.join(shot_dir, "page2_revealed.xml")
-        subprocess.run(["adb", "-s", device_id, "shell", "screencap -p /sdcard/page2.png"], capture_output=True)
-        subprocess.run(["adb", "-s", device_id, "pull", "/sdcard/page2.png", p2_png], capture_output=True)
-        subprocess.run(["adb", "-s", device_id, "shell", "uiautomator dump /sdcard/page2.xml"], capture_output=True)
-        subprocess.run(["adb", "-s", device_id, "pull", "/sdcard/page2.xml", p2_xml], capture_output=True)
+    # Handle Horizontal Page 2 / Page 3 Transitions via Dynamic Button Finder / Swipe
+    if page_tag in ["가로 2페이지", "가로 3페이지"]:
+        print(f"\n==========================================================================")
+        print(f" 🔄 [PAGE TRANSITION ENGINE] NAVIGATING TO {page_tag}")
+        print("==========================================================================")
+        
+        sd_p_png = "/sdcard/page_trans_before.png"
+        sd_p_xml = "/sdcard/page_trans_before.xml"
+        loc_p_png = os.path.join(shot_dir, "page2_transition_full.png")
+        loc_p_xml = os.path.join(shot_dir, "page2_transition_full.xml")
+        loc_p_crop = os.path.join(shot_dir, "page2_transition_cropped.png")
+        
+        subprocess.run(["adb", "-s", device_id, "shell", f"screencap -p {sd_p_png}"], capture_output=True)
+        subprocess.run(["adb", "-s", device_id, "pull", sd_p_png, loc_p_png], capture_output=True)
+        subprocess.run(["adb", "-s", device_id, "shell", f"uiautomator dump {sd_p_xml}"], capture_output=True)
+        subprocess.run(["adb", "-s", device_id, "pull", sd_p_xml, loc_p_xml], capture_output=True)
+        
+        btn_x, btn_y = None, None
+        p_bounds = None
+        
+        if os.path.exists(loc_p_xml):
+            try:
+                tree_p = ET.parse(loc_p_xml)
+                for elem in tree_p.getroot().iter("node"):
+                    txt = elem.attrib.get("text", "").strip() or elem.attrib.get("content-desc", "").strip()
+                    rid = elem.attrib.get("resource-id", "").strip()
+                    b = elem.attrib.get("bounds", "").strip()
+                    
+                    m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
+                    if m:
+                        x1, y1, x2, y2 = map(int, m.groups())
+                        if y1 >= 1980 or "tailView" in rid:
+                            continue
+                            
+                        target_label = "2페이지" if page_tag == "가로 2페이지" else "3페이지"
+                        if any(kw == txt for kw in [target_label, "페이지 2", "페이지 3", "2", "3", "다음 페이지", "다음"]):
+                            if y2 > y1 and 400 <= y1 <= 1950 and (x2 - x1) <= 300:
+                                btn_x, btn_y = (x1 + x2) // 2, (y1 + y2) // 2
+                                p_bounds = (x1, y1, x2, y2)
+                                print(f"  [✓] FOUND {page_tag} BUTTON NODE: '{txt}' at ({btn_x}, {btn_y}) bounds: {b}")
+                                break
+            except Exception:
+                pass
 
-    elif page_tag == "가로 3페이지":
-        print("  [Action] Target product is on [가로 3페이지]. Performing 2x Horizontal Left Swipes (920->160 at Y=1200)...")
-        subprocess.run(["adb", "-s", device_id, "shell", "input swipe 920 1200 160 1200 300"], capture_output=True)
-        time.sleep(1.2)
-        subprocess.run(["adb", "-s", device_id, "shell", "input swipe 920 1200 160 1200 300"], capture_output=True)
-        time.sleep(1.5)
+        if not btn_x:
+            btn_x, btn_y = 540, 1200
+            print(f"  [*] {page_tag} button not explicitly exposed in DOM. Using horizontal swipe gesture (920->160 at Y=1200)")
+
+        # Create Cropped Page 2 Transition Action Area Screenshot
+        create_cropped_tap_box_image(loc_p_png, loc_p_crop, btn_x, btn_y, p_bounds)
+        
+        # Copy to artifact directory for instant user visual inspection
+        art_dir = "/home/tech/.gemini/antigravity-cli/brain/948d710e-5621-4106-b3fe-152293408271"
+        if os.path.exists(art_dir) and os.path.exists(loc_p_crop):
+            import shutil
+            shutil.copy(loc_p_crop, os.path.join(art_dir, "page2_button_cropped.png"))
+            shutil.copy(loc_p_png, os.path.join(art_dir, "page2_button_full.png"))
+            print(f"  [📸 PAGE 2 BUTTON CROPPED IMAGE EXPORTED] file://{os.path.join(art_dir, 'page2_button_cropped.png')}")
+
+        if p_bounds:
+            print(f"  [Action] Tapping {page_tag} Button at ({btn_x}, {btn_y})...")
+            subprocess.run(["adb", "-s", device_id, "shell", f"input tap {btn_x} {btn_y}"], capture_output=True)
+            time.sleep(1.5)
+        else:
+            swipes = 1 if page_tag == "가로 2페이지" else 2
+            for s in range(swipes):
+                print(f"  [Action] Swiping to {page_tag} (Swipe {s+1}/{swipes}): 920->160 at Y=1200...")
+                subprocess.run(["adb", "-s", device_id, "shell", "input swipe 920 1200 160 1200 300"], capture_output=True)
+                time.sleep(1.2)
 
     # Dynamic Vertical Locator Loop
     click_x, click_y = None, None
