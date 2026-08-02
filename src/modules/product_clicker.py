@@ -942,16 +942,10 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
         time.sleep(1.5)
 
     if not click_x:
-        # Smart fallback based on organic rank position
-        if rank == 1:
-            click_x, click_y = 540, 1100
-        elif rank == 2:
-            click_x, click_y = 540, 1450
-        elif rank == 3:
-            click_x, click_y = 540, 1750
-        else:
-            click_x, click_y = 540, 1200
-        print(f"  [!] Target bounds unexposed in DOM (WebView synthetic bounds). Using calculated center touch point: ({click_x}, {click_y})")
+        click_x = 540
+        click_y = organic_y if organic_y else 1200
+        active_bounds = (48, click_y - 100, 1032, click_y + 100)
+        print(f"  [!] Target bounds unexposed in DOM. Using dynamic organic card center: ({click_x}, {click_y})")
 
     # --------------------------------------------------------------------------
     # Strict Landed Page Target Matching & Retry Loop (Max 3 Attempts)
