@@ -776,106 +776,164 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
     # --------------------------------------------------------------------------
     title_words = [w for w in re.sub(r'[^\w\s]', ' ', title).split() if len(w) >= 2]
 
-    # Step 1: Scroll down to align Organic Shopping Header ("네이버 가격비교") in Active Viewport (Y=400~1400)
-    print("\n  [*] Step 1: Aligning Organic Shopping Block in active viewport...")
-    organic_header_y = None
-    for scroll_init in range(1, 6):
-        sd_chk_xml = "/sdcard/chk_organic.xml"
-        loc_chk_xml = os.path.join(shot_dir, f"chk_organic_{scroll_init}.xml")
-        subprocess.run(["adb", "-s", device_id, "shell", "uiautomator dump /sdcard/chk_organic.xml"], capture_output=True)
-        subprocess.run(["adb", "-s", device_id, "pull", "/sdcard/chk_organic.xml", loc_chk_xml], capture_output=True)
+    # --------------------------------------------------------------------------
+    # Refactored Stage 4: Dual Position Tracking & Diagnostic Engine
+    # --------------------------------------------------------------------------
+    title_words = [w for w in re.sub(r'[^\w\s]', ' ', title).split() if len(w) >= 2]
+
+    print("\n==========================================================================")
+    print(f" 🔍 [DUAL DIAGNOSTIC SCANNER] Searching Target Product (nvMid: {mid}) & Next Page Button...")
+    print(f"    - Target Page Tag: {page_tag} (Rank {rank}등)")
+    print("==========================================================================")
+
+    btn_x, btn_y = None, None
+    btn_bounds = None
+    btn_txt = ""
+    
+    initial_header_y = None
+    current_header_y = None
+    
+    click_x, click_y = None, None
+    active_bounds = None
+    target_found = False
+
+    # Execute Pass-by-Pass Dual Position Tracking (Up to 7 Passes)
+    for scroll_pass in range(1, 8):
+        sd_scan_png = f"/sdcard/scan_pass_{scroll_pass}.png"
+        sd_scan_xml = f"/sdcard/scan_pass_{scroll_pass}.xml"
+        loc_scan_png = os.path.join(shot_dir, f"scan_pass_{scroll_pass}.png")
+        loc_scan_xml = os.path.join(shot_dir, f"scan_pass_{scroll_pass}.xml")
         
-        if os.path.exists(loc_chk_xml):
+        subprocess.run(["adb", "-s", device_id, "shell", f"screencap -p {sd_scan_png}"], capture_output=True)
+        subprocess.run(["adb", "-s", device_id, "pull", sd_scan_png, loc_scan_png], capture_output=True)
+        subprocess.run(["adb", "-s", device_id, "shell", f"uiautomator dump {sd_scan_xml}"], capture_output=True)
+        subprocess.run(["adb", "-s", device_id, "pull", sd_scan_xml, loc_scan_xml], capture_output=True)
+
+        current_header_y = None
+
+        if os.path.exists(loc_scan_xml):
             try:
-                tree_chk = ET.parse(loc_chk_xml)
-                for elem in tree_chk.getroot().iter("node"):
+                tree_scan = ET.parse(loc_scan_xml)
+                for elem in tree_scan.getroot().iter("node"):
                     txt = elem.attrib.get("text", "").strip() or elem.attrib.get("content-desc", "").strip()
+                    rid = elem.attrib.get("resource-id", "").strip()
                     b = elem.attrib.get("bounds", "").strip()
                     
-                    if "네이버 가격비교" in txt or ("가격비교" in txt and len(txt) <= 15):
+                    # 1. Track Organic Shopping Header ("네이버 가격비교")
+                    if ("네이버 가격비교" in txt or ("가격비교" in txt and len(txt) <= 15)) and not current_header_y:
                         m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
                         if m:
                             x1, y1, x2, y2 = map(int, m.groups())
-                            if y2 > y1 and 400 <= y1 <= 1400:
-                                organic_header_y = (y1 + y2) // 2
-                                print(f"  [✓] ORGANIC SHOPPING HEADER LOCKED AT Y={organic_header_y}! Anchor: \"{txt}\" bounds: [{x1},{y1}][{x2},{y2}]")
-                                break
-            except Exception:
-                pass
-                
-        if organic_header_y:
-            break
-            
-        print(f"  [*] Align pass {scroll_init}/5: Organic shopping section below fold. Micro-scrolling down...")
-        subprocess.run(["adb", "-s", device_id, "shell", "input swipe 540 1800 540 800 350"], capture_output=True)
-        time.sleep(1.5)
+                            if y2 > y1 and 200 <= y1 <= 2000:
+                                current_header_y = (y1 + y2) // 2
+                                if not initial_header_y:
+                                    initial_header_y = current_header_y
 
-    if not organic_header_y:
-        organic_header_y = 750
-
-    card_y = organic_header_y + 400
-    print(f"  [✓] ORGANIC PRODUCT CARDS CENTER CALCULATED AT Y={card_y}")
-
-    # Step 2: Transition to Target Page (DOM Element Tap with Swipe Fallback)
-    if page_tag in ["가로 2페이지", "가로 3페이지"]:
-        print(f"\n  [*] Step 2: Locating [{page_tag}] Navigation Element in active DOM...")
-        sd_p_png = "/sdcard/page_trans_before.png"
-        sd_p_xml = "/sdcard/page_trans_before.xml"
-        loc_p_png = os.path.join(shot_dir, "page2_transition_full.png")
-        loc_p_xml = os.path.join(shot_dir, "page2_transition_full.xml")
-        loc_p_crop = os.path.join(shot_dir, "page2_transition_cropped.png")
-        
-        subprocess.run(["adb", "-s", device_id, "shell", f"screencap -p {sd_p_png}"], capture_output=True)
-        subprocess.run(["adb", "-s", device_id, "pull", sd_p_png, loc_p_png], capture_output=True)
-        subprocess.run(["adb", "-s", device_id, "shell", f"uiautomator dump {sd_p_xml}"], capture_output=True)
-        subprocess.run(["adb", "-s", device_id, "pull", sd_p_xml, loc_p_xml], capture_output=True)
-
-        btn_x, btn_y = None, None
-        btn_bounds = None
-        btn_txt = ""
-
-        if os.path.exists(loc_p_xml):
-            try:
-                tree_p = ET.parse(loc_p_xml)
-                for elem in tree_p.getroot().iter("node"):
-                    txt = elem.attrib.get("text", "").strip() or elem.attrib.get("content-desc", "").strip()
-                    b = elem.attrib.get("bounds", "").strip()
-                    
-                    if txt in ["다음 페이지", "다음페이지", "2번째 페이지", "페이지 2", "2페이지"]:
+                    # 2. Track Next Page Button Node ("다음 페이지", "2번째 페이지", "2페이지")
+                    if txt in ["다음 페이지", "다음페이지", "2번째 페이지", "페이지 2", "2페이지"] and not btn_bounds:
                         m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
                         if m:
                             x1, y1, x2, y2 = map(int, m.groups())
-                            if y2 > y1 and 400 <= y1 <= 1950:
+                            if y2 > y1 and 300 <= y1 <= 2100:
                                 btn_x = (x1 + x2) // 2
                                 btn_y = (y1 + y2) // 2
                                 btn_bounds = (x1, y1, x2, y2)
                                 btn_txt = txt
-                                print(f"  [✓] DOM NAV ELEMENT MATCHED: \"{txt}\" at ({btn_x}, {btn_y}) bounds: {b}")
-                                break
+
+                    # 3. Track Target nvMid / Target Title Node
+                    mid_match = (mid in rid) or (mid in txt) or (mid in elem.attrib.get("href", "")) or (mid in elem.attrib.get("content-desc", ""))
+                    title_match = False
+                    if txt and len(txt) > 8:
+                        matched_words = [w for w in title_words if w in txt]
+                        if len(matched_words) >= max(3, len(title_words) - 1):
+                            title_match = True
+                            
+                    if (mid_match or title_match) and not target_found:
+                        m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
+                        if m:
+                            x1, y1, x2, y2 = map(int, m.groups())
+                            if y2 > y1 and 400 <= y1 <= 1500 and (x2 - x1) >= 120:
+                                click_x = (x1 + x2) // 2
+                                click_y = (y1 + y2) // 2
+                                active_bounds = (x1, y1, x2, y2)
+                                target_found = True
             except Exception:
                 pass
 
-        art_dir = "/home/tech/.gemini/antigravity-cli/brain/948d710e-5621-4106-b3fe-152293408271"
-        if btn_bounds:
-            create_cropped_tap_box_image(loc_p_png, loc_p_crop, btn_x, btn_y, btn_bounds)
-            if os.path.exists(art_dir) and os.path.exists(loc_p_crop):
+        header_shift = (current_header_y - initial_header_y) if (current_header_y and initial_header_y) else 0
+        print(f"\n 📊 [PASS {scroll_pass}/7 DIAGNOSTIC POSITION LOG]")
+        print(f"    - Header Y Position : {current_header_y if current_header_y else 'Below Viewport'} (Shift: {header_shift}px)")
+        print(f"    - Next Page Button  : {f'FOUND! Bounds: [{btn_bounds[0]},{btn_bounds[1]}][{btn_bounds[2]},{btn_bounds[3]}] Center: ({btn_x}, {btn_y})' if btn_bounds else 'Not visible yet'}")
+        print(f"    - Target Product    : {f'EXPOSED! Center: ({click_x}, {click_y})' if target_found else 'Not exposed in active DOM'}")
+
+        # Case A: Target Product is directly exposed on current pass
+        if target_found:
+            print(f"  [🎉 DIRECT MATCH] Target Product nvMid {mid} is EXPOSED on Pass {scroll_pass} at ({click_x}, {click_y})!")
+            break
+
+        # Case B: Next Page Button is found and target is on Page 2/3
+        if btn_bounds and page_tag in ["가로 2페이지", "가로 3페이지"]:
+            print(f"  [✓] NEXT PAGE BUTTON LOCATED ON PASS {scroll_pass} AT ({btn_x}, {btn_y})!")
+            create_cropped_tap_box_image(loc_scan_png, os.path.join(shot_dir, "page2_transition_cropped.png"), btn_x, btn_y, btn_bounds)
+            
+            art_dir = "/home/tech/.gemini/antigravity-cli/brain/948d710e-5621-4106-b3fe-152293408271"
+            naver_v1_dir = "/home/tech/nshop_macro_v1/logs/naver_v1"
+            if os.path.exists(art_dir):
                 import shutil
-                shutil.copy(loc_p_crop, os.path.join(art_dir, "page2_button_cropped.png"))
-                shutil.copy(loc_p_png, os.path.join(art_dir, "page2_button_full.png"))
-            print(f"  [Action] Tapping Physical Nav Element \"{btn_txt}\" at ({btn_x}, {btn_y})...")
+                shutil.copy(os.path.join(shot_dir, "page2_transition_cropped.png"), os.path.join(art_dir, "page2_button_cropped.png"))
+                shutil.copy(loc_scan_png, os.path.join(art_dir, "page2_button_full.png"))
+            if os.path.exists(naver_v1_dir):
+                import shutil
+                shutil.copy(os.path.join(shot_dir, "page2_transition_cropped.png"), os.path.join(naver_v1_dir, "next_page_btn_cropped.png"))
+                shutil.copy(loc_scan_png, os.path.join(naver_v1_dir, "next_page_btn_full.png"))
+                print(f"  [📸 COPIED BUTTON CAPTURE TO LOGS FOLDER]: {os.path.join(naver_v1_dir, 'next_page_btn_cropped.png')}")
+
+            # Tap Physical Next Page Button
+            print(f"  [Action] Tapping Physical Next Page Button at ({btn_x}, {btn_y})...")
             subprocess.run(["adb", "-s", device_id, "shell", f"input tap {btn_x} {btn_y}"], capture_output=True)
-            time.sleep(1.5)
-        else:
-            create_swipe_indicator_image(loc_p_png, loc_p_crop, start_x=920, end_x=160, y=card_y)
-            if os.path.exists(art_dir) and os.path.exists(loc_p_crop):
-                import shutil
-                shutil.copy(loc_p_crop, os.path.join(art_dir, "page2_button_cropped.png"))
-                shutil.copy(loc_p_png, os.path.join(art_dir, "page2_button_full.png"))
-            swipes = 1 if page_tag == "가로 2페이지" else 2
-            for s in range(swipes):
-                print(f"  [Action] Swiping across product card center 920->160 at Y={card_y} (Pass {s+1}/{swipes})...")
-                subprocess.run(["adb", "-s", device_id, "shell", f"input swipe 920 {card_y} 160 {card_y} 280"], capture_output=True)
-                time.sleep(1.2)
+            time.sleep(2.0)
+
+            # Dump post-tap screen to verify target exposure
+            subprocess.run(["adb", "-s", device_id, "shell", f"screencap -p {sd_scan_png}"], capture_output=True)
+            subprocess.run(["adb", "-s", device_id, "pull", sd_scan_png, loc_scan_png], capture_output=True)
+            subprocess.run(["adb", "-s", device_id, "shell", f"uiautomator dump {sd_scan_xml}"], capture_output=True)
+            subprocess.run(["adb", "-s", device_id, "pull", sd_scan_xml, loc_scan_xml], capture_output=True)
+
+            if os.path.exists(loc_scan_xml):
+                try:
+                    tree_post = ET.parse(loc_scan_xml)
+                    for elem in tree_post.getroot().iter("node"):
+                        txt = elem.attrib.get("text", "").strip() or elem.attrib.get("content-desc", "").strip()
+                        rid = elem.attrib.get("resource-id", "").strip()
+                        b = elem.attrib.get("bounds", "").strip()
+                        mid_match = (mid in rid) or (mid in txt) or (mid in elem.attrib.get("href", ""))
+                        if mid_match:
+                            m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
+                            if m:
+                                x1, y1, x2, y2 = map(int, m.groups())
+                                if y2 > y1 and 400 <= y1 <= 1650:
+                                    click_x = (x1 + x2) // 2
+                                    click_y = (y1 + y2) // 2
+                                    active_bounds = (x1, y1, x2, y2)
+                                    target_found = True
+                                    print(f"  [✓] TARGET PRODUCT VERIFIED POST-BUTTON TAP! Center: ({click_x}, {click_y})")
+                                    break
+                except Exception:
+                    pass
+
+            if not target_found:
+                # Calculate Page 2 Grid layout tap position if DOM bounds are synthetic [0,0][0,0]
+                click_x = 300
+                click_y = (current_header_y + 450) if current_header_y else 1050
+                active_bounds = (48, click_y - 200, 520, click_y + 250)
+                target_found = True
+                print(f"  [✓] TARGET PRODUCT CALCULATED (Page 2 Grid Layout)! Target coordinates: ({click_x}, {click_y})")
+            break
+
+        # Micro-scroll down to continue searching
+        print(f"  [*] Pass {scroll_pass}/7: Scrolling down (Swipe 540 1600 -> 540 900)...")
+        subprocess.run(["adb", "-s", device_id, "shell", "input swipe 540 1600 540 900 350"], capture_output=True)
+        time.sleep(1.5)
 
     # Step 3: Direct Target Acquisition & Node Bounds Verification
     print("\n  [*] Step 3: Verifying target product node exposure in active DOM...")
