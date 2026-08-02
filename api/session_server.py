@@ -195,6 +195,104 @@ def log_router_toggle():
     return jsonify({"status": "logged", "router_id": router_id, "new_ip": new_ip})
 
 # ------------------------------------------------------------------------------
+# Task Assignment Endpoint: Dispatch WireGuard Config + Keyword Target by Device ID
+# ------------------------------------------------------------------------------
+@app.route('/api/v1/jobs/assign', methods=['POST', 'GET'])
+def assign_job_to_device():
+    device_id = request.args.get('device_id') or (request.get_json(force=True, silent=True) or {}).get('device_id', 'R5CT20Y2XYE')
+    router_id = request.args.get('router_id') or (request.get_json(force=True, silent=True) or {}).get('router_id', 'hj20acn8f3p')
+
+    m_conn = get_mariadb_conn()
+    router_info = {
+        "router_id": router_id,
+        "ddns_host": f"{router_id}.sn.mynetname.net",
+        "rest_url": f"http://{router_id}.sn.mynetname.net/rest",
+        "api_user": "tech",
+        "api_pass": "Tech1324!",
+        "wg_port": 51820,
+        "macvlan_interface": "macvlan1"
+    }
+    keyword_job = None
+
+    if m_conn:
+        with m_conn.cursor() as cur:
+            # 1. Fetch Router Details
+            cur.execute("SELECT * FROM mikrotik_routers WHERE router_id = %s OR ddns_host LIKE %s;", (router_id, f"%{router_id}%"))
+            r_row = cur.fetchone()
+            if r_row:
+                router_info = {
+                    "router_id": r_row["router_id"],
+                    "ddns_host": r_row["ddns_host"],
+                    "rest_url": r_row["rest_url"],
+                    "api_user": r_row["api_user"],
+                    "api_pass": r_row["api_pass"],
+                    "wg_port": r_row["wg_port"],
+                    "macvlan_interface": r_row["macvlan_interface"]
+                }
+            
+            # 2. Assign Next Available Target Keyword & nvMid
+            cur.execute("""
+                SELECT * FROM macro_keywords 
+                WHERE status = 'ACTIVE' 
+                ORDER BY last_executed_at IS NULL DESC, last_executed_at ASC, RAND() 
+                LIMIT 1;
+            """)
+            k_row = cur.fetchone()
+            if k_row:
+                cur.execute("UPDATE macro_keywords SET assigned_device_id = %s, last_executed_at = NOW() WHERE id = %s;", (device_id, k_row['id']))
+                keyword_job = {
+                    "id": k_row["id"],
+                    "keyword": k_row["keyword"],
+                    "product_id": k_row["nvmid"],
+                    "product_title": k_row["product_title"],
+                    "seller_name": k_row["seller_name"],
+                    "target_rank": k_row["target_rank"]
+                }
+        m_conn.close()
+
+    if not keyword_job:
+        # Fallback default job
+        keyword_job = {
+            "id": 0,
+            "keyword": "노트북",
+            "product_id": "87528666743",
+            "product_title": "슬림3 라이젠 R5 WUXGA win11 포토샵 사무용 인강용 대학생",
+            "seller_name": "제이 씨앤에스",
+            "target_rank": 2
+        }
+
+    return jsonify({
+        "status": "success",
+        "assigned_device_id": device_id,
+        "router": router_info,
+        "job": keyword_job,
+        "wireguard": {
+            "tunnel_name": "wg0",
+            "client_ip": "10.8.0.2/32",
+            "endpoint": f"{router_info['ddns_host']}:{router_info['wg_port']}",
+            "dns": "1.1.1.1"
+        },
+        "assigned_at": str(time.strftime('%Y-%m-%d %H:%M:%S'))
+    })
+
+# ------------------------------------------------------------------------------
+# List All Keywords in Database
+# ------------------------------------------------------------------------------
+@app.route('/api/v1/keywords', methods=['GET'])
+def list_keywords():
+    m_conn = get_mariadb_conn()
+    rows = []
+    if m_conn:
+        with m_conn.cursor() as cur:
+            cur.execute("SELECT id, keyword, nvmid, seller_name, is_single_seller, target_rank, status, assigned_device_id, last_executed_at, product_title FROM macro_keywords ORDER BY id ASC;")
+            rows = cur.fetchall()
+            for r in rows:
+                if 'last_executed_at' in r and r['last_executed_at']:
+                    r['last_executed_at'] = str(r['last_executed_at'])
+        m_conn.close()
+    return jsonify({"total": len(rows), "keywords": rows})
+
+# ------------------------------------------------------------------------------
 # List All Profiles (Filtered by device_id if provided)
 # ------------------------------------------------------------------------------
 @app.route('/api/v1/profiles', methods=['GET'])
