@@ -799,7 +799,7 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
                         m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
                         if m:
                             x1, y1, x2, y2 = map(int, m.groups())
-                            if y2 > y1 and 350 <= y1 <= 1750:
+                            if y2 > y1 and (y2 - y1) >= 200 and 400 <= y1 <= 1700:
                                 organic_y = (y1 + y2) // 2
                                 print(f"  [✓] ORGANIC SHOPPING CAROUSEL LOCKED AT Y={organic_y}! Cards: [{x1},{y1}][{x2},{y2}]")
                                 break
