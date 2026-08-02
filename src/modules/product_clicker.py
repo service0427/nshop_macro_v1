@@ -652,6 +652,44 @@ def find_next_page_button(device_id):
     return None
 
 
+def create_cropped_tap_box_image(full_png_path, cropped_png_path, click_x, click_y, active_bounds=None):
+    """
+    Draws a bright red target box and crosshair touch point on the full screenshot,
+    then crops a 500x400 region around (click_x, click_y) for exact visual inspection.
+    """
+    if not os.path.exists(full_png_path):
+        return
+    try:
+        from PIL import Image, ImageDraw
+        img = Image.open(full_png_path).convert("RGB")
+        w, h = img.size
+        
+        draw = ImageDraw.Draw(img)
+        # Draw red bounding rectangle around target card if available
+        if active_bounds:
+            x1, y1, x2, y2 = active_bounds
+            draw.rectangle([x1, y1, x2, y2], outline=(255, 0, 0), width=6)
+            
+        # Draw red touch point dot and crosshair
+        r = 18
+        draw.ellipse((click_x - r, click_y - r, click_x + r, click_y + r), fill=(255, 30, 30), outline=(255, 255, 255), width=4)
+        draw.line([(click_x - 35, click_y), (click_x + 35, click_y)], fill=(255, 0, 0), width=3)
+        draw.line([(click_x, click_y - 35), (click_x, click_y + 35)], fill=(255, 0, 0), width=3)
+
+        # Calculate crop bounds (500x400 box centered at click_x, click_y)
+        crop_w, crop_h = 500, 400
+        cx1 = max(0, click_x - crop_w // 2)
+        cy1 = max(0, click_y - crop_h // 2)
+        cx2 = min(w, click_x + crop_w // 2)
+        cy2 = min(h, click_y + crop_h // 2)
+        
+        cropped_img = img.crop((cx1, cy1, cx2, cy2))
+        cropped_img.save(cropped_png_path)
+        print(f"  [📸 TAP BOX CROPPED & MARKED] Cropped region saved: {cropped_png_path}")
+    except Exception as e:
+        print(f"  [!] Tap box cropping failed: {e}")
+
+
 def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
     """
     Executes actual physical touch click on the specific target product (-p nvMid).
@@ -722,6 +760,7 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
 
     # Dynamic Vertical Locator Loop
     click_x, click_y = None, None
+    active_bounds = None
     max_passes = 6 if page_tag in ["가로 2페이지", "가로 3페이지"] else max(8, rank + 4)
     
     # Extract key words from target title for title-based node matching fallback
@@ -762,6 +801,7 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
                             if y2 > y1 and 350 <= y1 <= 1950 and 350 <= y2 <= 2150:
                                 click_x = (x1 + x2) // 2
                                 click_y = (y1 + y2) // 2
+                                active_bounds = (x1, y1, x2, y2)
                                 match_type = "nvMid" if mid_match else "Title-Match"
                                 print(f"  [✓] FOUND TARGET [{match_type}] ON PASS {scroll_pass}! Bounds: [{x1},{y1}][{x2},{y2}] -> Touch Center: ({click_x}, {click_y})")
                                 break
@@ -799,7 +839,6 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
     for attempt in range(1, max_retries + 1):
         if attempt > 1:
             print(f"\n  [🔄 RETRY ATTEMPT {attempt}/{max_retries}] Target bounds micro-adjusting tap point ({click_x}, {click_y})...")
-            # If previous tap missed, scroll slightly down and try next calculated point
             subprocess.run(["adb", "-s", device_id, "shell", "input swipe 540 1400 540 1000 300"], capture_output=True)
             time.sleep(1.5)
             click_y += 180
@@ -811,6 +850,7 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
         sd_jit_xml = "/sdcard/jit_pre_tap.xml"
         loc_png = os.path.join(shot_dir, f"target_{mid}_before.png")
         loc_xml = os.path.join(shot_dir, f"target_{mid}_before.xml")
+        loc_crop_png = os.path.join(shot_dir, f"target_{mid}_tap_cropped.png")
 
         subprocess.run(["adb", "-s", device_id, "shell", f"screencap -p {sd_jit_png}"], capture_output=True)
         subprocess.run(["adb", "-s", device_id, "pull", sd_jit_png, loc_png], capture_output=True)
@@ -835,10 +875,14 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
                             if y2 > y1 and 350 <= y1 <= 1950 and (y2 - y1) >= 80:
                                 click_x = (x1 + x2) // 2
                                 click_y = (y1 + y2) // 2
+                                active_bounds = (x1, y1, x2, y2)
                                 print(f"  [✓] JIT PRE-TAP RELOCATION SUCCESSFUL! Active Bounds: [{x1},{y1}][{x2},{y2}] -> Touch Center: ({click_x}, {click_y})")
                                 break
             except Exception:
                 pass
+
+        # Create Cropped Tap Box PNG before executing ADB tap
+        create_cropped_tap_box_image(loc_png, loc_crop_png, click_x, click_y, active_bounds)
 
         # Execute ADB Tap at JIT precise location
         print(f"  [Action] [Attempt {attempt}] Tapping Target Product (nvMid: {mid}) at JIT coordinate ({click_x}, {click_y})...")
@@ -898,9 +942,12 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
             art_dir = "/home/tech/.gemini/antigravity-cli/brain/948d710e-5621-4106-b3fe-152293408271"
             if os.path.exists(art_dir):
                 art_before = os.path.join(art_dir, "target_click_before.png")
+                art_crop = os.path.join(art_dir, "target_click_cropped.png")
                 art_after = os.path.join(art_dir, "target_click_after.png")
                 if os.path.exists(loc_png):
                     shutil.copy(loc_png, art_before)
+                if os.path.exists(loc_crop_png):
+                    shutil.copy(loc_crop_png, art_crop)
                 if os.path.exists(loc_post_png):
                     shutil.copy(loc_post_png, art_after)
 
