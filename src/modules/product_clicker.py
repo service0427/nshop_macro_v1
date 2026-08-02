@@ -933,7 +933,7 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
             break
             
         print(f"  [*] Target scan pass {scan}/3: nvMid {mid} not exposed yet. Micro-swiping left...")
-        subprocess.run(["adb", "-s", device_id, "shell", f"input swipe 920 {organic_y} 400 {organic_y} 300"], capture_output=True)
+        subprocess.run(["adb", "-s", device_id, "shell", f"input swipe 920 {card_y} 400 {card_y} 300"], capture_output=True)
         time.sleep(1.5)
 
     if not target_found and page_tag in ["가로 2페이지", "가로 3페이지"]:
