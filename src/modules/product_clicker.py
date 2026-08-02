@@ -890,10 +890,17 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
                 shutil.copy(loc_scan_png, os.path.join(naver_v1_dir, "next_page_btn_full.png"))
                 print(f"  [📸 COPIED BUTTON CAPTURE TO LOGS FOLDER]: {os.path.join(naver_v1_dir, 'next_page_btn_cropped.png')}")
 
-            # Tap Physical Next Page Button
-            print(f"  [Action] Tapping Physical Next Page Button at ({btn_x}, {btn_y})...")
-            subprocess.run(["adb", "-s", device_id, "shell", f"input tap {btn_x} {btn_y}"], capture_output=True)
-            time.sleep(2.0)
+            # Tap Physical Next Page Button (1 tap for Page 2, 2 taps for Page 3)
+            taps = 2 if page_tag == "가로 3페이지" else 1
+            for t in range(taps):
+                print(f"  [Action] Tapping Physical Next Page Button ({t+1}/{taps}) at ({btn_x}, {btn_y})...")
+                subprocess.run(["adb", "-s", device_id, "shell", f"input tap {btn_x} {btn_y}"], capture_output=True)
+                time.sleep(1.8)
+
+            # Micro-scroll UPWARDS after page transition so product cards (which sit ABOVE the button) enter active viewport!
+            print("  [Action] Micro-scrolling UPWARDS to bring target product cards into active viewport...")
+            subprocess.run(["adb", "-s", device_id, "shell", "input swipe 540 800 540 1500 350"], capture_output=True)
+            time.sleep(1.5)
 
             # Dump post-tap screen to verify target exposure
             subprocess.run(["adb", "-s", device_id, "shell", f"screencap -p {sd_scan_png}"], capture_output=True)
@@ -924,12 +931,12 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
                     pass
 
             if not target_found:
-                # Calculate Page 2 Grid layout tap position if DOM bounds are synthetic [0,0][0,0]
+                # Calculate Product Grid layout tap position after upward scroll
                 click_x = 300
-                click_y = (current_header_y + 450) if current_header_y else 1050
-                active_bounds = (48, click_y - 200, 520, click_y + 250)
+                click_y = 1100
+                active_bounds = (48, 850, 520, 1350)
                 target_found = True
-                print(f"  [✓] TARGET PRODUCT CALCULATED (Page 2 Grid Layout)! Target coordinates: ({click_x}, {click_y})")
+                print(f"  [✓] TARGET PRODUCT CALCULATED (Product Grid Layout)! Target coordinates: ({click_x}, {click_y})")
             break
 
         # Micro-scroll down to continue searching (distance 400px so we never skip Next Page button)
