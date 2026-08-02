@@ -816,9 +816,9 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
     card_y = organic_header_y + 400
     print(f"  [✓] ORGANIC PRODUCT CARDS CENTER CALCULATED AT Y={card_y}")
 
-    # Step 2: Transition to Target Page (Horizontal Swipe & Indicator Tap)
+    # Step 2: Transition to Target Page (DOM Element Tap with Swipe Fallback)
     if page_tag in ["가로 2페이지", "가로 3페이지"]:
-        print(f"\n  [*] Step 2: Navigating to target page [{page_tag}]...")
+        print(f"\n  [*] Step 2: Locating [{page_tag}] Navigation Element in active DOM...")
         sd_p_png = "/sdcard/page_trans_before.png"
         sd_p_xml = "/sdcard/page_trans_before.xml"
         loc_p_png = os.path.join(shot_dir, "page2_transition_full.png")
@@ -830,20 +830,52 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
         subprocess.run(["adb", "-s", device_id, "shell", f"uiautomator dump {sd_p_xml}"], capture_output=True)
         subprocess.run(["adb", "-s", device_id, "pull", sd_p_xml, loc_p_xml], capture_output=True)
 
-        create_swipe_indicator_image(loc_p_png, loc_p_crop, start_x=920, end_x=160, y=card_y)
+        btn_x, btn_y = None, None
+        btn_bounds = None
+        btn_txt = ""
 
-        # Export crop image to artifact directory
+        if os.path.exists(loc_p_xml):
+            try:
+                tree_p = ET.parse(loc_p_xml)
+                for elem in tree_p.getroot().iter("node"):
+                    txt = elem.attrib.get("text", "").strip() or elem.attrib.get("content-desc", "").strip()
+                    b = elem.attrib.get("bounds", "").strip()
+                    
+                    if txt in ["다음 페이지", "다음페이지", "2번째 페이지", "페이지 2", "2페이지"]:
+                        m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
+                        if m:
+                            x1, y1, x2, y2 = map(int, m.groups())
+                            if y2 > y1 and 400 <= y1 <= 1950:
+                                btn_x = (x1 + x2) // 2
+                                btn_y = (y1 + y2) // 2
+                                btn_bounds = (x1, y1, x2, y2)
+                                btn_txt = txt
+                                print(f"  [✓] DOM NAV ELEMENT MATCHED: \"{txt}\" at ({btn_x}, {btn_y}) bounds: {b}")
+                                break
+            except Exception:
+                pass
+
         art_dir = "/home/tech/.gemini/antigravity-cli/brain/948d710e-5621-4106-b3fe-152293408271"
-        if os.path.exists(art_dir) and os.path.exists(loc_p_crop):
-            import shutil
-            shutil.copy(loc_p_crop, os.path.join(art_dir, "page2_button_cropped.png"))
-            shutil.copy(loc_p_png, os.path.join(art_dir, "page2_button_full.png"))
-
-        swipes = 1 if page_tag == "가로 2페이지" else 2
-        for s in range(swipes):
-            print(f"  [Action] Swiping across product card center 920->160 at Y={card_y} (Pass {s+1}/{swipes})...")
-            subprocess.run(["adb", "-s", device_id, "shell", f"input swipe 920 {card_y} 160 {card_y} 280"], capture_output=True)
-            time.sleep(1.2)
+        if btn_bounds:
+            create_cropped_tap_box_image(loc_p_png, loc_p_crop, btn_x, btn_y, btn_bounds)
+            if os.path.exists(art_dir) and os.path.exists(loc_p_crop):
+                import shutil
+                shutil.copy(loc_p_crop, os.path.join(art_dir, "page2_button_cropped.png"))
+                shutil.copy(loc_p_png, os.path.join(art_dir, "page2_button_full.png"))
+            print(f"  [Action] Tapping Physical Nav Element \"{btn_txt}\" at ({btn_x}, {btn_y})...")
+            subprocess.run(["adb", "-s", device_id, "shell", f"input tap {btn_x} {btn_y}"], capture_output=True)
+            time.sleep(1.5)
+        else:
+            create_swipe_indicator_image(loc_p_png, loc_p_crop, start_x=920, end_x=160, y=card_y)
+            if os.path.exists(art_dir) and os.path.exists(loc_p_crop):
+                import shutil
+                shutil.copy(loc_p_crop, os.path.join(art_dir, "page2_button_cropped.png"))
+                shutil.copy(loc_p_png, os.path.join(art_dir, "page2_button_full.png"))
+            swipes = 1 if page_tag == "가로 2페이지" else 2
+            for s in range(swipes):
+                print(f"  [Action] Swiping across product card center 920->160 at Y={card_y} (Pass {s+1}/{swipes})...")
+                subprocess.run(["adb", "-s", device_id, "shell", f"input swipe 920 {card_y} 160 {card_y} 280"], capture_output=True)
+                time.sleep(1.2)
 
     # Step 3: Direct Target Acquisition & Node Bounds Verification
     print("\n  [*] Step 3: Verifying target product node exposure in active DOM...")
