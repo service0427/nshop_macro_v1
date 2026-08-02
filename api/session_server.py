@@ -222,10 +222,6 @@ def assign_job_to_device():
             if r_row:
                 router_info = {
                     "router_id": r_row["router_id"],
-                    "ddns_host": r_row["ddns_host"],
-                    "rest_url": r_row["rest_url"],
-                    "api_user": r_row["api_user"],
-                    "api_pass": r_row["api_pass"],
                     "wg_port": r_row["wg_port"],
                     "wg_server_pubkey": r_row.get("wg_server_pubkey", ""),
                     "macvlan_interface": r_row["macvlan_interface"]
@@ -271,11 +267,12 @@ def assign_job_to_device():
     client_pub_b64 = base64.b64encode(client_pub.public_bytes_raw()).decode()
 
     wg_server_pubkey = router_info.get("wg_server_pubkey") or "Hk3IdUGXNN8eEEPYeiDJa1QJbNJKAJLVXuH53Ju+dX0="
+    ddns_endpoint = f"{router_id}.sn.mynetname.net:{router_info.get('wg_port', 45820)}"
 
     return jsonify({
         "status": "success",
         "assigned_device_id": device_id,
-        "router": router_info,
+        "router_id": router_id,
         "job": keyword_job,
         "wireguard": {
             "tunnel_name": "wg0",
@@ -283,9 +280,9 @@ def assign_job_to_device():
             "client_private_key": client_priv_b64,
             "client_public_key": client_pub_b64,
             "server_public_key": wg_server_pubkey,
-            "endpoint": f"{router_info['ddns_host']}:{router_info['wg_port']}",
-            "dns": "1.1.1.1",
-            "allowed_ips": "0.0.0.0/0"
+            "endpoint": ddns_endpoint,
+            "allowed_ips": "0.0.0.0/0",
+            "dns": "1.1.1.1"
         },
         "assigned_at": str(time.strftime('%Y-%m-%d %H:%M:%S'))
     })
