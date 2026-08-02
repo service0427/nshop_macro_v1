@@ -776,9 +776,9 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
     # --------------------------------------------------------------------------
     title_words = [w for w in re.sub(r'[^\w\s]', ' ', title).split() if len(w) >= 2]
 
-    # Step 1: Scroll down to align Organic Shopping Block in Active Viewport (Excluding Top PowerLink/Temu/Samsung Ads)
+    # Step 1: Scroll down to align Organic Shopping Header ("네이버 가격비교") in Active Viewport (Y=400~1400)
     print("\n  [*] Step 1: Aligning Organic Shopping Block in active viewport...")
-    organic_y = None
+    organic_header_y = None
     for scroll_init in range(1, 6):
         sd_chk_xml = "/sdcard/chk_organic.xml"
         loc_chk_xml = os.path.join(shot_dir, f"chk_organic_{scroll_init}.xml")
@@ -792,34 +792,29 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
                     txt = elem.attrib.get("text", "").strip() or elem.attrib.get("content-desc", "").strip()
                     b = elem.attrib.get("bounds", "").strip()
                     
-                    # Ignore all ad banners
-                    if any(ad in txt.lower() for ad in ["temu", "coupang", "파워링크", "광고", "samsungstore", "체험은 물론"]):
-                        continue
-                        
-                    # Match organic shopping section header ("네이버 가격비교") or organic product items ("최저", "가격비교")
-                    is_organic_header = ("가격비교" in txt or "쇼핑" in txt) and len(txt) <= 20
-                    is_organic_card = any(kw in txt for kw in ["최저", "N배송", "가격비교"]) and any(w in txt for w in title_words[:3])
-                    
-                    if is_organic_header or is_organic_card:
+                    if "네이버 가격비교" in txt or ("가격비교" in txt and len(txt) <= 15):
                         m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
                         if m:
                             x1, y1, x2, y2 = map(int, m.groups())
-                            if y2 > y1 and 400 <= y1 <= 1700:
-                                organic_y = (y1 + y2) // 2 + (150 if is_organic_header else 0)
-                                print(f"  [✓] ORGANIC SHOPPING CAROUSEL LOCKED AT Y={organic_y}! Anchor node: \"{txt[:40]}\" bounds: [{x1},{y1}][{x2},{y2}]")
+                            if y2 > y1 and 400 <= y1 <= 1400:
+                                organic_header_y = (y1 + y2) // 2
+                                print(f"  [✓] ORGANIC SHOPPING HEADER LOCKED AT Y={organic_header_y}! Anchor: \"{txt}\" bounds: [{x1},{y1}][{x2},{y2}]")
                                 break
             except Exception:
                 pass
                 
-        if organic_y:
+        if organic_header_y:
             break
             
         print(f"  [*] Align pass {scroll_init}/5: Organic shopping section below fold. Micro-scrolling down...")
         subprocess.run(["adb", "-s", device_id, "shell", "input swipe 540 1800 540 800 350"], capture_output=True)
         time.sleep(1.5)
 
-    if not organic_y:
-        organic_y = 1200
+    if not organic_header_y:
+        organic_header_y = 750
+
+    card_y = organic_header_y + 400
+    print(f"  [✓] ORGANIC PRODUCT CARDS CENTER CALCULATED AT Y={card_y}")
 
     # Step 2: Transition to Target Page (Horizontal Swipe & Indicator Tap)
     if page_tag in ["가로 2페이지", "가로 3페이지"]:
@@ -835,30 +830,6 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
         subprocess.run(["adb", "-s", device_id, "shell", f"uiautomator dump {sd_p_xml}"], capture_output=True)
         subprocess.run(["adb", "-s", device_id, "pull", sd_p_xml, loc_p_xml], capture_output=True)
 
-        card_y = 1800
-        dot_x, dot_y = None, None
-
-        if os.path.exists(loc_p_xml):
-            try:
-                tree_p = ET.parse(loc_p_xml)
-                for elem in tree_p.getroot().iter("node"):
-                    txt = elem.attrib.get("text", "").strip() or elem.attrib.get("content-desc", "").strip()
-                    b = elem.attrib.get("bounds", "").strip()
-                    
-                    m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
-                    if m:
-                        x1, y1, x2, y2 = map(int, m.groups())
-                        # Locate organic product card container Y center
-                        if any(kw in txt for kw in ["원", "최저", "노트북"]) and y2 > y1 and (y2 - y1) >= 200 and 1200 <= y1 <= 1900:
-                            card_y = (y1 + y2) // 2
-                            
-                        # Locate page dot indicator row ("1번째 페이지", "2번째 페이지")
-                        if "페이지" in txt and y2 > y1 and 1000 <= y1 <= 1400:
-                            dot_x = 690 if page_tag == "가로 2페이지" else 800
-                            dot_y = (y1 + y2) // 2
-            except Exception:
-                pass
-
         create_swipe_indicator_image(loc_p_png, loc_p_crop, start_x=920, end_x=160, y=card_y)
 
         # Export crop image to artifact directory
@@ -873,10 +844,6 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
             print(f"  [Action] Swiping across product card center 920->160 at Y={card_y} (Pass {s+1}/{swipes})...")
             subprocess.run(["adb", "-s", device_id, "shell", f"input swipe 920 {card_y} 160 {card_y} 280"], capture_output=True)
             time.sleep(1.2)
-            if dot_x and dot_y:
-                print(f"  [Action] Tapping Page Indicator Dot at ({dot_x}, {dot_y})...")
-                subprocess.run(["adb", "-s", device_id, "shell", f"input tap {dot_x} {dot_y}"], capture_output=True)
-                time.sleep(1.0)
 
     # Step 3: Direct Target Acquisition & Node Bounds Verification
     print("\n  [*] Step 3: Verifying target product node exposure in active DOM...")
