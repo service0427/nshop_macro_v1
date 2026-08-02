@@ -771,13 +771,13 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
     print(f"    - Log Folder   : {shot_dir}")
     print("==========================================================================")
     
-    # --------------------------------------------------------------------------
-    # Refactored Stage 4 Target Click Engine: Direct Target Acquisition Pipeline
-    # --------------------------------------------------------------------------
-    title_words = [w for w in re.sub(r'[^\w\s]', ' ', title).split() if len(w) >= 2]
+    # Step 1: Fast Initial Jump to Organic Shopping Block ("네이버 가격비교")
+    print("\n  [*] Step 1: Fast Jump to Organic Shopping Block...")
+    subprocess.run(["adb", "-s", device_id, "shell", "input swipe 540 1800 540 800 250"], capture_output=True)
+    time.sleep(1.2)
 
     # --------------------------------------------------------------------------
-    # Refactored Stage 4: Dual Position Tracking & Diagnostic Engine
+    # Refactored Stage 4: Fast Dual Position Tracking & Diagnostic Engine
     # --------------------------------------------------------------------------
     title_words = [w for w in re.sub(r'[^\w\s]', ' ', title).split() if len(w) >= 2]
 
@@ -944,6 +944,11 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
         subprocess.run(["adb", "-s", device_id, "shell", "input swipe 540 1400 540 1000 350"], capture_output=True)
         time.sleep(1.5)
 
+    if not target_found:
+        print(f"\n  [❌ TARGET UNEXPOSED STOP] Target nvMid {mid} is NOT exposed in DOM view.")
+        print(f"  [!] REFUSING to tap unverified fallback coordinates to prevent false clicks!")
+        return False
+
     # Step 3: Direct Target Acquisition & Node Bounds Verification
     print("\n  [*] Step 3: Verifying target product node exposure in active DOM...")
     sd_jit_png = "/sdcard/jit_pre_tap.png"
@@ -951,69 +956,6 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
     loc_png = os.path.join(shot_dir, f"target_{mid}_before.png")
     loc_xml = os.path.join(shot_dir, f"target_{mid}_before.xml")
     loc_crop_png = os.path.join(shot_dir, f"target_{mid}_tap_cropped.png")
-
-    click_x, click_y = None, None
-    active_bounds = None
-    target_found = False
-
-    for scan in range(1, 4):
-        subprocess.run(["adb", "-s", device_id, "shell", f"screencap -p {sd_jit_png}"], capture_output=True)
-        subprocess.run(["adb", "-s", device_id, "pull", sd_jit_png, loc_png], capture_output=True)
-        subprocess.run(["adb", "-s", device_id, "shell", f"uiautomator dump {sd_jit_xml}"], capture_output=True)
-        subprocess.run(["adb", "-s", device_id, "pull", sd_jit_xml, loc_xml], capture_output=True)
-
-        if os.path.exists(loc_xml):
-            try:
-                tree_jit = ET.parse(loc_xml)
-                for elem in tree_jit.getroot().iter("node"):
-                    rid = elem.attrib.get("resource-id", "").strip()
-                    txt = elem.attrib.get("text", "").strip() or elem.attrib.get("content-desc", "").strip()
-                    b = elem.attrib.get("bounds", "").strip()
-                    
-                    # Priority 1: Strict nvMid Matching from Memory Map
-                    mid_match = (mid in rid) or (mid in txt) or (mid in elem.attrib.get("href", "")) or (mid in elem.attrib.get("content-desc", ""))
-                    
-                    # Priority 2: Full Exact Title Word Match (Inside Shopping Carousel ONLY)
-                    title_match = False
-                    if txt and len(txt) > 8:
-                        matched_words = [w for w in title_words if w in txt]
-                        if len(matched_words) >= max(3, len(title_words) - 1):
-                            title_match = True
-                            
-                    if mid_match or title_match:
-                        m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
-                        if m:
-                            x1, y1, x2, y2 = map(int, m.groups())
-                            # Strictly restrict target bounds to inside the Shopping Carousel (Y <= 1450)
-                            if y2 > y1 and 400 <= y1 <= 1450 and (x2 - x1) >= 120:
-                                click_x = (x1 + x2) // 2
-                                click_y = (y1 + y2) // 2
-                                active_bounds = (x1, y1, x2, y2)
-                                target_found = True
-                                match_label = f"nvMid: {mid}" if mid_match else "Exact-Title-Match"
-                                print(f"  [✓] TARGET PRODUCT NODE VERIFIED BY MEMORY SCANNER [{match_label}]! Bounds: [{x1},{y1}][{x2},{y2}] -> Center: ({click_x}, {click_y})")
-                                break
-            except Exception:
-                pass
-
-        if target_found:
-            break
-            
-        print(f"  [*] Target scan pass {scan}/3: nvMid {mid} not exposed yet. Micro-swiping left...")
-        subprocess.run(["adb", "-s", device_id, "shell", f"input swipe 920 {card_y} 400 {card_y} 300"], capture_output=True)
-        time.sleep(1.5)
-
-    if not target_found and page_tag in ["가로 2페이지", "가로 3페이지"]:
-        click_x = 300
-        click_y = (current_header_y + 450) if current_header_y else 1100
-        active_bounds = (48, click_y - 200, 520, click_y + 250)
-        target_found = True
-        print(f"  [✓] TARGET PRODUCT POSITION CALCULATED (Product Grid Layout)! Target coordinates: ({click_x}, {click_y})")
-
-    if not target_found:
-        print(f"\n  [❌ TARGET UNEXPOSED STOP] Target nvMid {mid} is NOT exposed in DOM view.")
-        print(f"  [!] REFUSING to tap unverified fallback coordinates to prevent false clicks!")
-        return False
 
     # Create Cropped Tap Box PNG
     create_cropped_tap_box_image(loc_png, loc_crop_png, click_x, click_y, active_bounds)
