@@ -302,24 +302,29 @@ def backup_live_session():
     cookies_str = json.dumps(cookies, ensure_ascii=False)
     ntracker_str = json.dumps(ntracker_keys, ensure_ascii=False)
 
+    router_id = payload.get('router_id', 'hj20acn8f3p')
+    assigned_ip = payload.get('assigned_ip', target_ip)
+
     # Save to MariaDB
     m_conn = get_mariadb_conn()
     if m_conn:
         try:
             with m_conn.cursor() as cur:
                 cur.execute("""
-                    INSERT INTO device_profiles (device_id, ssaid, adid, ip_address, nac_token, cookies_json, ntracker_json, shared_prefs_json, usage_count)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, '{}', 1)
+                    INSERT INTO device_profiles (device_id, router_id, ssaid, adid, assigned_ip, ip_address, nac_token, cookies_json, ntracker_json, shared_prefs_json, usage_count)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, '{}', 1)
                     ON DUPLICATE KEY UPDATE
+                        router_id = VALUES(router_id),
                         adid = VALUES(adid),
+                        assigned_ip = VALUES(assigned_ip),
                         ip_address = VALUES(ip_address),
                         nac_token = VALUES(nac_token),
                         cookies_json = VALUES(cookies_json),
                         ntracker_json = VALUES(ntracker_json),
                         usage_count = usage_count + 1;
-                """, (device_id, android_id, adid, target_ip, nac_token, cookies_str, ntracker_str))
+                """, (device_id, router_id, android_id, adid, assigned_ip, target_ip, nac_token, cookies_str, ntracker_str))
             m_conn.close()
-            print(f"[✓] MariaDB Saved profile: device_id={device_id}, ssaid={android_id}")
+            print(f"[✓] MariaDB Saved profile: device_id={device_id}, router_id={router_id}, ssaid={android_id}, assigned_ip={assigned_ip}")
         except Exception as ex:
             print(f"[!] MariaDB insert error: {ex}")
 
@@ -331,8 +336,10 @@ def backup_live_session():
     
     profile_dump = {
         "device_id": device_id,
+        "router_id": router_id,
         "ssaid": android_id,
         "adid": adid,
+        "assigned_ip": assigned_ip,
         "ip_address": target_ip,
         "nac_token": nac_token,
         "cookies": cookies,
