@@ -960,6 +960,7 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
         pass
 
     # Check if target title keywords or nvMid match landed page DOM text
+    seller_keywords = [w for w in re.sub(r'[^\w\s]', ' ', data.get("seller_name", "")).split() if len(w) >= 2]
     matched_title_count = sum(1 for kw in title_words if kw in landing_text_all)
     matched_seller = any(kw in landing_text_all for kw in seller_keywords) if seller_keywords else False
     is_mid_found = (mid in landing_text_all)
