@@ -618,7 +618,8 @@ def execute_full_sequential_click_test(device_id: str, keyword: str):
 def find_next_page_button(device_id):
     """
     Dumps UI XML after scrolling down to pagination bar and finds the exact bounds center
-    of the Next Page / 페이지 2 / 다음 페이지 button node in the active view.
+    of the Next Page / 페이지 2 / 다음 페이지 button node inside the active content view (y1 <= 1900).
+    Excludes bottom browser toolbar navigation elements (y >= 2000).
     """
     subprocess.run(["adb", "-s", device_id, "shell", "uiautomator dump /sdcard/page_bar.xml"], capture_output=True)
     subprocess.run(["adb", "-s", device_id, "pull", "/sdcard/page_bar.xml", "/tmp/page_bar.xml"], capture_output=True)
@@ -632,19 +633,23 @@ def find_next_page_button(device_id):
                 rid = elem.attrib.get("resource-id", "").strip()
                 b = elem.attrib.get("bounds", "").strip()
                 
-                if any(kw in txt for kw in ["다음 페이지", "다음페이지", "다음 페이지 버튼", "페이지 2", "페이지 3"]) or "btn_next" in rid:
-                    m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
-                    if m:
-                        x1, y1, x2, y2 = map(int, m.groups())
-                        if y2 > y1 and 500 <= y1 <= 2200:
+                # Ignore bottom browser toolbar elements (Y >= 2000)
+                m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
+                if m:
+                    x1, y1, x2, y2 = map(int, m.groups())
+                    if y1 >= 1980 or "tailView" in rid or "toolbar" in rid:
+                        continue
+                        
+                    if any(kw == txt or kw in txt for kw in ["다음 페이지", "다음페이지", "다음", "페이지 2", "페이지 3", "2", "3"]) or "btn_next" in rid or "next" in rid:
+                        if y2 > y1 and 400 <= y1 <= 1950 and (x2 - x1) <= 300:
                             cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
                             print(f"  [✓] DYNAMIC PAGINATION LOCATOR MATCH: '{txt}' at ({cx}, {cy}) bounds: {b}")
                             return cx, cy
         except Exception as e:
             print(f"  [!] Dynamic pagination finder error: {e}")
             
-    print("  [*] Dynamic pagination locator fallback -> Using standard coordinate (660, 1350)")
-    return 660, 1350
+    print("  [*] Horizontal carousel navigation fallback -> Using horizontal left swipe gesture (920->160 at Y=1200)")
+    return None
 
 
 def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
@@ -836,6 +841,18 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
         # Verification criteria: mid found OR at least 2 title keywords matched OR seller name matched
         if is_mid_found or matched_title_count >= max(2, min(3, len(title_keywords))) or matched_seller:
             verified_landing = True
+            
+            # Copy screenshots to artifact directory for instant user inspection
+            import shutil
+            art_dir = "/home/tech/.gemini/antigravity-cli/brain/948d710e-5621-4106-b3fe-152293408271"
+            if os.path.exists(art_dir):
+                art_before = os.path.join(art_dir, "target_click_before.png")
+                art_after = os.path.join(art_dir, "target_click_after.png")
+                if os.path.exists(loc_png):
+                    shutil.copy(loc_png, art_before)
+                if os.path.exists(loc_post_png):
+                    shutil.copy(loc_post_png, art_after)
+
             print("\n==========================================================================")
             print(f" 🎉 [TARGET PRODUCT LANDING 100% VERIFIED SUCCESSFUL!]")
             print(f"    - Target nvMid    : {mid}")
