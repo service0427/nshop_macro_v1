@@ -872,11 +872,33 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
                         m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
                         if m:
                             x1, y1, x2, y2 = map(int, m.groups())
-                            if y2 > y1 and 350 <= y1 <= 1950 and (y2 - y1) >= 80:
+                            if y2 > y1 and 350 <= y1 <= 1800 and (y2 - y1) >= 80:
+                                # If target card is cut off near bottom edge (y2 > 1650), micro-scroll down to bring it up
+                                if y2 > 1650:
+                                    print(f"  [*] Target card at [{x1},{y1}][{x2},{y2}] is near bottom edge (y2={y2}). Micro-scrolling down to center view...")
+                                    subprocess.run(["adb", "-s", device_id, "shell", "input swipe 540 1500 540 1000 300"], capture_output=True)
+                                    time.sleep(1.2)
+                                    # Re-dump XML after micro-scroll
+                                    subprocess.run(["adb", "-s", device_id, "shell", f"screencap -p {sd_jit_png}"], capture_output=True)
+                                    subprocess.run(["adb", "-s", device_id, "pull", sd_jit_png, loc_png], capture_output=True)
+                                    subprocess.run(["adb", "-s", device_id, "shell", f"uiautomator dump {sd_jit_xml}"], capture_output=True)
+                                    subprocess.run(["adb", "-s", device_id, "pull", sd_jit_xml, loc_xml], capture_output=True)
+                                    if os.path.exists(loc_xml):
+                                        tree_re = ET.parse(loc_xml)
+                                        for e_re in tree_re.getroot().iter("node"):
+                                            t_re = e_re.attrib.get("text", "").strip() or e_re.attrib.get("content-desc", "").strip()
+                                            r_re = e_re.attrib.get("resource-id", "").strip()
+                                            b_re = e_re.attrib.get("bounds", "").strip()
+                                            if (mid in r_re or mid in t_re) or (t_re and sum(1 for w in title_keywords if w in t_re) >= max(2, len(title_keywords) - 1)):
+                                                m_re = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b_re)
+                                                if m_re:
+                                                    x1, y1, x2, y2 = map(int, m_re.groups())
+                                                    break
+
                                 click_x = (x1 + x2) // 2
                                 click_y = (y1 + y2) // 2
                                 active_bounds = (x1, y1, x2, y2)
-                                print(f"  [✓] JIT PRE-TAP RELOCATION SUCCESSFUL! Active Bounds: [{x1},{y1}][{x2},{y2}] -> Touch Center: ({click_x}, {click_y})")
+                                print(f"  [✓] JIT PRE-TAP RELOCATION SUCCESSFUL! Active Bounds: [{x1},{y1}][{x2},{y2}] -> Safe Center Touch: ({click_x}, {click_y})")
                                 break
             except Exception:
                 pass
