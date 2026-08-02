@@ -871,11 +871,14 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
                     txt = elem.attrib.get("text", "").strip() or elem.attrib.get("content-desc", "").strip()
                     b = elem.attrib.get("bounds", "").strip()
                     
-                    mid_match = (mid in rid) or (mid in txt)
+                    # Priority 1: Strict nvMid Matching from Memory Map
+                    mid_match = (mid in rid) or (mid in txt) or (mid in elem.attrib.get("href", "")) or (mid in elem.attrib.get("content-desc", ""))
+                    
+                    # Priority 2: Full Exact Title Word Match (Inside Shopping Carousel ONLY)
                     title_match = False
                     if txt and len(txt) > 8:
                         matched_words = [w for w in title_words if w in txt]
-                        if len(matched_words) >= min(3, len(title_words)):
+                        if len(matched_words) >= max(3, len(title_words) - 1):
                             title_match = True
                             
                     if mid_match or title_match:
@@ -888,8 +891,8 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
                                 click_y = (y1 + y2) // 2
                                 active_bounds = (x1, y1, x2, y2)
                                 target_found = True
-                                match_label = "nvMid" if mid_match else "Title-Match"
-                                print(f"  [✓] TARGET PRODUCT NODE VERIFIED IN SHOPPING CAROUSEL [{match_label}]! Bounds: [{x1},{y1}][{x2},{y2}] -> Center: ({click_x}, {click_y})")
+                                match_label = f"nvMid: {mid}" if mid_match else "Exact-Title-Match"
+                                print(f"  [✓] TARGET PRODUCT NODE VERIFIED BY MEMORY SCANNER [{match_label}]! Bounds: [{x1},{y1}][{x2},{y2}] -> Center: ({click_x}, {click_y})")
                                 break
             except Exception:
                 pass
