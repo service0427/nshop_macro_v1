@@ -169,6 +169,29 @@ cleanup_on_exit() {
 }
 trap cleanup_on_exit SIGINT SIGTERM
 
+# ------------------------------------------------------------------------------
+# API Task & WireGuard Slot Allocation
+# ------------------------------------------------------------------------------
+if [ -z "${KEYWORD}" ] || [ "${USE_WG}" = true ]; then
+    echo "[*] Querying Master REST API for Task Assignment & WireGuard Slot (Device: ${DEVICE})..."
+    JOB_RES=$(curl -s "http://127.0.0.1:5050/api/v1/jobs/assign?device_id=${DEVICE}")
+    
+    # Check if all slots are busy
+    JOB_STATUS=$(echo "${JOB_RES}" | python3 -c "import sys, json; print(json.load(sys.stdin).get('status', ''))" 2>/dev/null)
+    if [ "${JOB_STATUS}" = "busy" ]; then
+        BUSY_MSG=$(echo "${JOB_RES}" | python3 -c "import sys, json; print(json.load(sys.stdin).get('message', 'All WG slots occupied'))" 2>/dev/null)
+        echo "  [⚠️ CONCURRENCY LOCK] ${BUSY_MSG}"
+        echo "  [*] Waiting for active WireGuard slot to free up..."
+        exit 429
+    fi
+
+    if [ -z "${KEYWORD}" ]; then
+        KEYWORD=$(echo "${JOB_RES}" | python3 -c "import sys, json; print(json.load(sys.stdin).get('job', {}).get('keyword', '노트북'))" 2>/dev/null)
+        PRODUCT_ID=$(echo "${JOB_RES}" | python3 -c "import sys, json; print(json.load(sys.stdin).get('job', {}).get('product_id', '87528666743'))" 2>/dev/null)
+        echo "  [✓] Auto-Assigned Random Task via API -> Keyword: '${KEYWORD}' | nvMid: '${PRODUCT_ID}'"
+    fi
+fi
+
 echo "=========================================================================="
 echo " N-SHOP AUTOMATION MASTER CONTROLLER (run.sh)"
 echo " Target Device : ${DEVICE}"
@@ -430,6 +453,12 @@ else:
         echo " 🌐 [WIREGUARD / MACVLAN MODE ACTIVE (--wg)] Disconnecting WG & Toggling Router IP..."
         echo "=========================================================================="
         python3 /home/tech/nshop_macro_v1/src/modules/wireguard_manager.py toggle "${DEVICE}"
+        
+        # Release WireGuard slot lock via API
+        RELEASE_RES=$(curl -s -X POST http://127.0.0.1:5050/api/v1/jobs/complete \
+            -H "Content-Type: application/json" \
+            -d "{\"device_id\": \"${DEVICE}\"}")
+        echo "  [✓] WireGuard Slot Lock Released: ${RELEASE_RES}"
     fi
 
     FINAL_FOCUS=$(adb -s "${DEVICE}" shell "dumpsys window | grep -E 'mCurrentFocus|mFocusedApp'" | tr -d '\r\n')
