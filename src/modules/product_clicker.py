@@ -776,10 +776,10 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
     # --------------------------------------------------------------------------
     title_words = [w for w in re.sub(r'[^\w\s]', ' ', title).split() if len(w) >= 2]
 
-    # Step 1: Align Organic Shopping Block in Active Viewport (Y=800~1200)
+    # Step 1: Scroll down to align Organic Shopping Block in Active Viewport (Excluding Top PowerLink/Temu/Samsung Ads)
     print("\n  [*] Step 1: Aligning Organic Shopping Block in active viewport...")
     organic_y = None
-    for scroll_init in range(1, 4):
+    for scroll_init in range(1, 6):
         sd_chk_xml = "/sdcard/chk_organic.xml"
         loc_chk_xml = os.path.join(shot_dir, f"chk_organic_{scroll_init}.xml")
         subprocess.run(["adb", "-s", device_id, "shell", "uiautomator dump /sdcard/chk_organic.xml"], capture_output=True)
@@ -792,16 +792,21 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
                     txt = elem.attrib.get("text", "").strip() or elem.attrib.get("content-desc", "").strip()
                     b = elem.attrib.get("bounds", "").strip()
                     
-                    if any(ad in txt.lower() for ad in ["temu.com", "coupang", "파워링크", "광고"]):
+                    # Ignore all ad banners
+                    if any(ad in txt.lower() for ad in ["temu", "coupang", "파워링크", "광고", "samsungstore", "체험은 물론"]):
                         continue
                         
-                    if len(txt) > 8 and any(w in txt for w in title_words[:3]):
+                    # Match organic shopping section header ("네이버 가격비교") or organic product items ("최저", "가격비교")
+                    is_organic_header = ("가격비교" in txt or "쇼핑" in txt) and len(txt) <= 20
+                    is_organic_card = any(kw in txt for kw in ["최저", "N배송", "가격비교"]) and any(w in txt for w in title_words[:3])
+                    
+                    if is_organic_header or is_organic_card:
                         m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
                         if m:
                             x1, y1, x2, y2 = map(int, m.groups())
-                            if y2 > y1 and (y2 - y1) >= 200 and 400 <= y1 <= 1700:
-                                organic_y = (y1 + y2) // 2
-                                print(f"  [✓] ORGANIC SHOPPING CAROUSEL LOCKED AT Y={organic_y}! Cards: [{x1},{y1}][{x2},{y2}]")
+                            if y2 > y1 and 400 <= y1 <= 1700:
+                                organic_y = (y1 + y2) // 2 + (150 if is_organic_header else 0)
+                                print(f"  [✓] ORGANIC SHOPPING CAROUSEL LOCKED AT Y={organic_y}! Anchor node: \"{txt[:40]}\" bounds: [{x1},{y1}][{x2},{y2}]")
                                 break
             except Exception:
                 pass
@@ -809,12 +814,12 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
         if organic_y:
             break
             
-        print(f"  [*] Align pass {scroll_init}/3: Micro-scrolling down to reveal organic shopping section...")
-        subprocess.run(["adb", "-s", device_id, "shell", "input swipe 540 1800 540 900 350"], capture_output=True)
+        print(f"  [*] Align pass {scroll_init}/5: Organic shopping section below fold. Micro-scrolling down...")
+        subprocess.run(["adb", "-s", device_id, "shell", "input swipe 540 1800 540 800 350"], capture_output=True)
         time.sleep(1.5)
 
     if not organic_y:
-        organic_y = 1000
+        organic_y = 1200
 
     # Step 2: Execute Horizontal Page Transition (NO MORE VERTICAL SCROLLING AFTER THIS!)
     if page_tag in ["가로 2페이지", "가로 3페이지"]:
