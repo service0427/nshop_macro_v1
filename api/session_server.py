@@ -279,7 +279,6 @@ def assign_job_to_device():
 
     return jsonify({
         "status": "success",
-        "assigned_device_id": device_id,
         "job": keyword_job,
         "wireguard": {
             "router_id": router_id,
