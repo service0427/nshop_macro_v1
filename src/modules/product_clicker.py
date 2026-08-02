@@ -802,11 +802,46 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
             # If previous tap missed, scroll slightly down and try next calculated point
             subprocess.run(["adb", "-s", device_id, "shell", "input swipe 540 1400 540 1000 300"], capture_output=True)
             time.sleep(1.5)
-            # Re-find bounds or shift click_y slightly
             click_y += 180
 
-        # Execute ADB Tap
-        print(f"  [Action] [Attempt {attempt}] Tapping Target Product (nvMid: {mid}) at ({click_x}, {click_y})...")
+        # ----------------------------------------------------------------------
+        # JIT (Just-In-Time) Pre-Tap Relocation: Re-dump DOM & Re-calculate Bounds Right NOW!
+        # ----------------------------------------------------------------------
+        sd_jit_png = "/sdcard/jit_pre_tap.png"
+        sd_jit_xml = "/sdcard/jit_pre_tap.xml"
+        loc_png = os.path.join(shot_dir, f"target_{mid}_before.png")
+        loc_xml = os.path.join(shot_dir, f"target_{mid}_before.xml")
+
+        subprocess.run(["adb", "-s", device_id, "shell", f"screencap -p {sd_jit_png}"], capture_output=True)
+        subprocess.run(["adb", "-s", device_id, "pull", sd_jit_png, loc_png], capture_output=True)
+        subprocess.run(["adb", "-s", device_id, "shell", f"uiautomator dump {sd_jit_xml}"], capture_output=True)
+        subprocess.run(["adb", "-s", device_id, "pull", sd_jit_xml, loc_xml], capture_output=True)
+
+        if os.path.exists(loc_xml):
+            try:
+                tree_jit = ET.parse(loc_xml)
+                for elem in tree_jit.getroot().iter("node"):
+                    rid = elem.attrib.get("resource-id", "").strip()
+                    txt = elem.attrib.get("text", "").strip() or elem.attrib.get("content-desc", "").strip()
+                    b = elem.attrib.get("bounds", "").strip()
+                    
+                    mid_match = (mid in rid) or (mid in txt)
+                    title_match = (sum(1 for w in title_keywords if w in txt) >= max(2, len(title_keywords) - 1)) if (txt and len(txt) > 8) else False
+                    
+                    if mid_match or title_match:
+                        m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
+                        if m:
+                            x1, y1, x2, y2 = map(int, m.groups())
+                            if y2 > y1 and 350 <= y1 <= 1950 and (y2 - y1) >= 80:
+                                click_x = (x1 + x2) // 2
+                                click_y = (y1 + y2) // 2
+                                print(f"  [✓] JIT PRE-TAP RELOCATION SUCCESSFUL! Active Bounds: [{x1},{y1}][{x2},{y2}] -> Touch Center: ({click_x}, {click_y})")
+                                break
+            except Exception:
+                pass
+
+        # Execute ADB Tap at JIT precise location
+        print(f"  [Action] [Attempt {attempt}] Tapping Target Product (nvMid: {mid}) at JIT coordinate ({click_x}, {click_y})...")
         subprocess.run(["adb", "-s", device_id, "shell", f"input tap {click_x} {click_y}"], capture_output=True)
         time.sleep(3.5)
 
@@ -822,16 +857,32 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
         subprocess.run(["adb", "-s", device_id, "pull", sd_post_xml, loc_post_xml], capture_output=True)
 
         landing_text_all = ""
-        landing_snippet = "Unknown Page"
+        landed_title = "Unknown Product Title"
+        landed_url = "Unknown URL"
+
         if os.path.exists(loc_post_xml):
             try:
                 tree_after = ET.parse(loc_post_xml)
                 after_nodes = [c.attrib.get("text", "").strip() or c.attrib.get("content-desc", "").strip() for c in tree_after.getroot().iter("node") if (c.attrib.get("text") or c.attrib.get("content-desc"))]
                 landing_text_all = " ".join(after_nodes)
-                if after_nodes:
-                    landing_snippet = after_nodes[0]
+                
+                # Extract Landed Product Title (first prominent non-nav text >= 8 chars)
+                prominent_titles = [t for t in after_nodes if len(t) >= 8 and not any(skip in t for skip in ["네이버", "검색", "로그인", "메뉴", "전체", "쇼핑", "버튼"])]
+                if prominent_titles:
+                    landed_title = prominent_titles[0]
+                elif after_nodes:
+                    landed_title = after_nodes[0]
             except Exception:
                 pass
+
+        # Fetch active URL from activity stack
+        try:
+            res_url = subprocess.run(["adb", "-s", device_id, "shell", "dumpsys activity top | grep -E 'http://|https://'"], capture_output=True, text=True)
+            url_match = re.search(r'https?://[^\s\'"]+', res_url.stdout or "")
+            if url_match:
+                landed_url = url_match.group(0)
+        except Exception:
+            pass
 
         # Check if target title keywords or nvMid match landed page DOM text
         matched_title_count = sum(1 for kw in title_keywords if kw in landing_text_all)
@@ -854,21 +905,24 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
                     shutil.copy(loc_post_png, art_after)
 
             print("\n==========================================================================")
-            print(f" 🎉 [TARGET PRODUCT LANDING 100% VERIFIED SUCCESSFUL!]")
-            print(f"    - Target nvMid    : {mid}")
-            print(f"    - Target Title    : \"{title}\"")
-            print(f"    - Rank Position   : {rank}등 ({page_tag})")
-            print(f"    - Match Reason    : Title Match ({matched_title_count}/{len(title_keywords)} keywords) / Seller Match ({matched_seller})")
-            print(f"    - Click Point     : ({click_x}, {click_y})")
-            print(f"    - Landing Snippet : \"{landing_snippet[:70]}\"")
-            print(f"    - Before PNG      : {loc_png}")
-            print(f"    - After PNG       : {loc_post_png}")
-            print(f"    - After XML       : {loc_post_xml}")
+            print(f" 🔍 [DETAIL LANDING VERIFICATION & COMPARISON REPORT]")
+            print(f"    - Target nvMid        : {mid}")
+            print(f"    - Intended Target Title: \"{title}\"")
+            print(f"    - Landed Page Title   : \"{landed_title}\"")
+            print(f"    - Landed Page URL     : \"{landed_url}\"")
+            print(f"    - Rank Position       : {rank}등 ({page_tag})")
+            print(f"    - Title Keyword Match : {matched_title_count}/{len(title_keywords)} keywords matched")
+            print(f"    - JIT Touch Point     : ({click_x}, {click_y})")
+            print(f"    - Landed PNG          : {loc_post_png}")
+            print(f"    - Landed XML          : {loc_post_xml}")
+            print(f"    - Verification Result : 🎉 100% MATCHED SUCCESSFUL!")
             print("==========================================================================")
             break
         else:
             print(f"  [⚠️ MIS-CLICK DETECTED!] Landed text does not match target title/seller.")
-            print(f"     Landed Text Snippet: \"{landing_snippet[:80]}\"")
+            print(f"     Intended Target Title : \"{title}\"")
+            print(f"     Landed Page Title     : \"{landed_title}\"")
+            print(f"     Landed Page URL       : \"{landed_url}\"")
             print(f"  [Action] Pressing BACK button to return to search results and retry...")
             subprocess.run(["adb", "-s", device_id, "shell", "input keyevent 4"], capture_output=True)
             time.sleep(2.0)
