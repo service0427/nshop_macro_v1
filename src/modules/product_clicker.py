@@ -1005,10 +1005,10 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
 
     if not target_found and page_tag in ["가로 2페이지", "가로 3페이지"]:
         click_x = 300
-        click_y = organic_header_y + 450
-        active_bounds = (48, organic_header_y + 200, 520, organic_header_y + 650)
+        click_y = (current_header_y + 450) if current_header_y else 1100
+        active_bounds = (48, click_y - 200, 520, click_y + 250)
         target_found = True
-        print(f"  [✓] TARGET PRODUCT POSITION CALCULATED (Page 2 Grid Layout)! Target coordinates: ({click_x}, {click_y})")
+        print(f"  [✓] TARGET PRODUCT POSITION CALCULATED (Product Grid Layout)! Target coordinates: ({click_x}, {click_y})")
 
     if not target_found:
         print(f"\n  [❌ TARGET UNEXPOSED STOP] Target nvMid {mid} is NOT exposed in DOM view.")
