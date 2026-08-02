@@ -821,30 +821,72 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
     if not organic_y:
         organic_y = 1200
 
-    # Step 2: Execute Horizontal Page Transition (NO MORE VERTICAL SCROLLING AFTER THIS!)
+    # Step 2: Physical Tap on "다음 페이지" / "페이지 2" Navigation Button
     if page_tag in ["가로 2페이지", "가로 3페이지"]:
-        print(f"\n  [*] Step 2: Navigating to target page [{page_tag}] at organic_y={organic_y}...")
+        print(f"\n  [*] Step 2: Locating physical [{page_tag}] Navigation Button on screen...")
         sd_p_png = "/sdcard/page_trans_before.png"
         sd_p_xml = "/sdcard/page_trans_before.xml"
         loc_p_png = os.path.join(shot_dir, "page2_transition_full.png")
+        loc_p_xml = os.path.join(shot_dir, "page2_transition_full.xml")
         loc_p_crop = os.path.join(shot_dir, "page2_transition_cropped.png")
         
         subprocess.run(["adb", "-s", device_id, "shell", f"screencap -p {sd_p_png}"], capture_output=True)
         subprocess.run(["adb", "-s", device_id, "pull", sd_p_png, loc_p_png], capture_output=True)
+        subprocess.run(["adb", "-s", device_id, "shell", f"uiautomator dump {sd_p_xml}"], capture_output=True)
+        subprocess.run(["adb", "-s", device_id, "pull", sd_p_xml, loc_p_xml], capture_output=True)
 
-        create_swipe_indicator_image(loc_p_png, loc_p_crop, start_x=920, end_x=160, y=organic_y)
-        
+        btn_x, btn_y = None, None
+        btn_bounds = None
+        btn_label = ""
+
+        if os.path.exists(loc_p_xml):
+            try:
+                tree_p = ET.parse(loc_p_xml)
+                for elem in tree_p.getroot().iter("node"):
+                    txt = elem.attrib.get("text", "").strip() or elem.attrib.get("content-desc", "").strip()
+                    rid = elem.attrib.get("resource-id", "").strip()
+                    b = elem.attrib.get("bounds", "").strip()
+                    
+                    m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
+                    if m:
+                        x1, y1, x2, y2 = map(int, m.groups())
+                        if y1 >= 1980 or "tailView" in rid:
+                            continue
+                            
+                        # Search for "다음 페이지", "다음페이지", "페이지 2", "2페이지", "2"
+                        target_kw = "2페이지" if page_tag == "가로 2페이지" else "3페이지"
+                        if any(kw == txt for kw in [target_kw, "다음 페이지", "다음페이지", "페이지 2", "페이지 3", "2", "3"]):
+                            if y2 > y1 and 400 <= y1 <= 1950 and (x2 - x1) <= 300:
+                                btn_x = (x1 + x2) // 2
+                                btn_y = (y1 + y2) // 2
+                                btn_bounds = (x1, y1, x2, y2)
+                                btn_label = txt
+                                print(f"  [✓] PHYSICAL NAV BUTTON LOCATED: '{txt}' at ({btn_x}, {btn_y}) bounds: {b}")
+                                break
+            except Exception:
+                pass
+
+        if btn_bounds:
+            create_cropped_tap_box_image(loc_p_png, loc_p_crop, btn_x, btn_y, btn_bounds)
+        else:
+            btn_x, btn_y = 718, 1180
+            btn_bounds = (663, 1125, 774, 1236)
+            create_cropped_tap_box_image(loc_p_png, loc_p_crop, btn_x, btn_y, btn_bounds)
+            print(f"  [*] Using explicit '다음 페이지' button bounds [663,1125][774,1236] at ({btn_x}, {btn_y})")
+
+        # Copy cropped button image to artifact directory for instant user visual inspection
         art_dir = "/home/tech/.gemini/antigravity-cli/brain/948d710e-5621-4106-b3fe-152293408271"
         if os.path.exists(art_dir) and os.path.exists(loc_p_crop):
             import shutil
             shutil.copy(loc_p_crop, os.path.join(art_dir, "page2_button_cropped.png"))
             shutil.copy(loc_p_png, os.path.join(art_dir, "page2_button_full.png"))
+            print(f"  [📸 PHYSICAL NAV BUTTON CROPPED IMAGE EXPORTED] file://{os.path.join(art_dir, 'page2_button_cropped.png')}")
 
         swipes = 1 if page_tag == "가로 2페이지" else 2
         for s in range(swipes):
-            print(f"  [Action] Swiping to {page_tag} ({s+1}/{swipes}): 920->160 at Y={organic_y}...")
-            subprocess.run(["adb", "-s", device_id, "shell", f"input swipe 920 {organic_y} 160 {organic_y} 300"], capture_output=True)
-            time.sleep(1.2)
+            print(f"  [Action] Tapping Physical [{page_tag}] Nav Button at ({btn_x}, {btn_y}) (Attempt {s+1}/{swipes})...")
+            subprocess.run(["adb", "-s", device_id, "shell", f"input tap {btn_x} {btn_y}"], capture_output=True)
+            time.sleep(1.5)
 
     # Step 3: Direct Target Acquisition & Node Bounds Verification
     print("\n  [*] Step 3: Verifying target product node exposure in active DOM...")
