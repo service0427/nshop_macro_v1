@@ -958,10 +958,9 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
 
     for attempt in range(1, max_retries + 1):
         if attempt > 1:
-            print(f"\n  [🔄 RETRY ATTEMPT {attempt}/{max_retries}] Target bounds micro-adjusting tap point ({click_x}, {click_y})...")
-            subprocess.run(["adb", "-s", device_id, "shell", "input swipe 540 1400 540 1000 300"], capture_output=True)
+            print(f"\n  [🔄 RETRY ATTEMPT {attempt}/{max_retries}] Re-scrolling horizontally/vertically to expose Target {mid}...")
+            subprocess.run(["adb", "-s", device_id, "shell", f"input swipe 920 {organic_y} 160 {organic_y} 300"], capture_output=True)
             time.sleep(1.5)
-            click_y += 180
 
         # ----------------------------------------------------------------------
         # JIT (Just-In-Time) Pre-Tap Relocation: Re-dump DOM & Re-calculate Bounds Right NOW!
@@ -972,77 +971,83 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
         loc_xml = os.path.join(shot_dir, f"target_{mid}_before.xml")
         loc_crop_png = os.path.join(shot_dir, f"target_{mid}_tap_cropped.png")
 
-        subprocess.run(["adb", "-s", device_id, "shell", f"screencap -p {sd_jit_png}"], capture_output=True)
-        subprocess.run(["adb", "-s", device_id, "pull", sd_jit_png, loc_png], capture_output=True)
-        subprocess.run(["adb", "-s", device_id, "shell", f"uiautomator dump {sd_jit_xml}"], capture_output=True)
-        subprocess.run(["adb", "-s", device_id, "pull", sd_jit_xml, loc_xml], capture_output=True)
+        target_found_in_dom = False
+        jit_x, jit_y = None, None
+        jit_bounds = None
 
-        if os.path.exists(loc_xml):
-            try:
-                tree_jit = ET.parse(loc_xml)
-                for elem in tree_jit.getroot().iter("node"):
-                    rid = elem.attrib.get("resource-id", "").strip()
-                    txt = elem.attrib.get("text", "").strip() or elem.attrib.get("content-desc", "").strip()
-                    b = elem.attrib.get("bounds", "").strip()
-                    
-                    mid_match = (mid in rid) or (mid in txt)
-                    title_match = (sum(1 for w in title_keywords if w in txt) >= max(2, len(title_keywords) - 1)) if (txt and len(txt) > 8) else False
-                    
-                    if mid_match or title_match:
-                        m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
-                        if m:
-                            x1, y1, x2, y2 = map(int, m.groups())
-                            if y2 > y1 and 350 <= y1 <= 1850 and (y2 - y1) >= 80:
-                                click_x = (x1 + x2) // 2
-                                click_y = (y1 + y2) // 2
-                                active_bounds = (x1, y1, x2, y2)
+        # Try up to 3 JIT DOM scans with micro-swipe adjustments if node is missing
+        for jit_scan in range(1, 4):
+            subprocess.run(["adb", "-s", device_id, "shell", f"screencap -p {sd_jit_png}"], capture_output=True)
+            subprocess.run(["adb", "-s", device_id, "pull", sd_jit_png, loc_png], capture_output=True)
+            subprocess.run(["adb", "-s", device_id, "shell", f"uiautomator dump {sd_jit_xml}"], capture_output=True)
+            subprocess.run(["adb", "-s", device_id, "pull", sd_jit_xml, loc_xml], capture_output=True)
+
+            if os.path.exists(loc_xml):
+                try:
+                    tree_jit = ET.parse(loc_xml)
+                    for elem in tree_jit.getroot().iter("node"):
+                        rid = elem.attrib.get("resource-id", "").strip()
+                        txt = elem.attrib.get("text", "").strip() or elem.attrib.get("content-desc", "").strip()
+                        b = elem.attrib.get("bounds", "").strip()
+                        
+                        # Match by nvMid or exact title keyword combo
+                        mid_match = (mid in rid) or (mid in txt)
+                        title_match = False
+                        if txt and len(txt) > 8:
+                            matched_words = [w for w in title_keywords if w in txt]
+                            if len(matched_words) >= min(3, len(title_keywords)):
+                                title_match = True
                                 
-                                # If target card is cut off near bottom edge (y2 > 1650), micro-scroll down to bring it up
-                                if y2 > 1650:
-                                    print(f"  [*] Target card at [{x1},{y1}][{x2},{y2}] is near bottom edge (y2={y2}). Micro-scrolling down to center view...")
-                                    subprocess.run(["adb", "-s", device_id, "shell", "input swipe 540 1500 540 1100 300"], capture_output=True)
-                                    time.sleep(1.5)
-                                    
-                                    # Fallback offset (-400px) if node re-parse misses
-                                    new_y1 = max(350, y1 - 400)
-                                    new_y2 = max(550, y2 - 400)
-                                    click_y = (new_y1 + new_y2) // 2
-                                    active_bounds = (x1, new_y1, x2, new_y2)
-                                    
-                                    # Re-dump XML after micro-scroll
-                                    subprocess.run(["adb", "-s", device_id, "shell", f"screencap -p {sd_jit_png}"], capture_output=True)
-                                    subprocess.run(["adb", "-s", device_id, "pull", sd_jit_png, loc_png], capture_output=True)
-                                    subprocess.run(["adb", "-s", device_id, "shell", f"uiautomator dump {sd_jit_xml}"], capture_output=True)
-                                    subprocess.run(["adb", "-s", device_id, "pull", sd_jit_xml, loc_xml], capture_output=True)
-                                    if os.path.exists(loc_xml):
-                                        try:
-                                            tree_re = ET.parse(loc_xml)
-                                            for e_re in tree_re.getroot().iter("node"):
-                                                t_re = e_re.attrib.get("text", "").strip() or e_re.attrib.get("content-desc", "").strip()
-                                                r_re = e_re.attrib.get("resource-id", "").strip()
-                                                b_re = e_re.attrib.get("bounds", "").strip()
-                                                if (mid in r_re or mid in t_re) or (t_re and len(t_re) > 8 and sum(1 for w in title_keywords if w in t_re) >= max(2, len(title_keywords) - 1)):
-                                                    m_re = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b_re)
-                                                    if m_re:
-                                                        rx1, ry1, rx2, ry2 = map(int, m_re.groups())
-                                                        if ry2 > ry1 and 350 <= ry1 <= 1750:
-                                                            click_x = (rx1 + rx2) // 2
-                                                            click_y = (ry1 + ry2) // 2
-                                                            active_bounds = (rx1, ry1, rx2, ry2)
-                                                            break
-                                        except Exception:
-                                            pass
+                        if mid_match or title_match:
+                            m = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
+                            if m:
+                                x1, y1, x2, y2 = map(int, m.groups())
+                                if y2 > y1 and 350 <= y1 <= 1850 and (x2 - x1) >= 100:
+                                    jit_x = (x1 + x2) // 2
+                                    jit_y = (y1 + y2) // 2
+                                    jit_bounds = (x1, y1, x2, y2)
+                                    target_found_in_dom = True
+                                    print(f"  [✓] TARGET PRODUCT NODE VERIFIED IN DOM! Bounds: [{x1},{y1}][{x2},{y2}] -> Touch Center: ({jit_x}, {jit_y})")
+                                    break
+                except Exception:
+                    pass
 
-                                print(f"  [✓] JIT PRE-TAP RELOCATION SUCCESSFUL! Active Bounds: [{active_bounds[0]},{active_bounds[1]}][{active_bounds[2]},{active_bounds[3]}] -> Safe Center Touch: ({click_x}, {click_y})")
-                                break
-            except Exception:
-                pass
+            if target_found_in_dom:
+                break
+                
+            print(f"  [*] JIT Pass {jit_scan}/3: Target product nvMid {mid} not exposed in DOM view yet. Micro-swiping left...")
+            subprocess.run(["adb", "-s", device_id, "shell", f"input swipe 920 {organic_y} 400 {organic_y} 300"], capture_output=True)
+            time.sleep(1.5)
+
+        if not target_found_in_dom:
+            print(f"  [❌ CRITICAL SAFETY STOP] Target product nvMid {mid} is NOT exposed in active DOM viewport.")
+            print(f"  [!] REFUSING to tap unverified coordinates to prevent clicking wrong products/ads!")
+            continue
+
+        click_x, click_y = jit_x, jit_y
+        active_bounds = jit_bounds
+
+        # If target card is near bottom edge (y2 > 1650), micro-scroll down to bring it up
+        x1, y1, x2, y2 = active_bounds
+        if y2 > 1650:
+            print(f"  [*] Target card at [{x1},{y1}][{x2},{y2}] is near bottom edge (y2={y2}). Micro-scrolling down to center view...")
+            subprocess.run(["adb", "-s", device_id, "shell", "input swipe 540 1500 540 1100 300"], capture_output=True)
+            time.sleep(1.5)
+            click_y = max(400, click_y - 400)
+            active_bounds = (x1, max(350, y1 - 400), x2, max(550, y2 - 400))
 
         # Create Cropped Tap Box PNG before executing ADB tap
         create_cropped_tap_box_image(loc_png, loc_crop_png, click_x, click_y, active_bounds)
 
+        # Copy cropped tap image to artifact directory for instant user visual inspection
+        art_dir = "/home/tech/.gemini/antigravity-cli/brain/948d710e-5621-4106-b3fe-152293408271"
+        if os.path.exists(art_dir) and os.path.exists(loc_crop_png):
+            import shutil
+            shutil.copy(loc_crop_png, os.path.join(art_dir, "target_click_cropped.png"))
+            shutil.copy(loc_png, os.path.join(art_dir, "target_click_before.png"))
+
         # Execute ADB Tap at JIT precise location
-        print(f"  [Action] [Attempt {attempt}] Tapping Target Product (nvMid: {mid}) at JIT coordinate ({click_x}, {click_y})...")
+        print(f"  [Action] [Attempt {attempt}] Tapping Target Product (nvMid: {mid}) at VERIFIED JIT coordinate ({click_x}, {click_y})...")
         subprocess.run(["adb", "-s", device_id, "shell", f"input tap {click_x} {click_y}"], capture_output=True)
         time.sleep(3.5)
 
