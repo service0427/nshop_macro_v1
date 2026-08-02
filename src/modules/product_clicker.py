@@ -793,6 +793,7 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
     initial_header_y = None
     current_header_y = None
     
+    card_y = 1200
     click_x, click_y = None, None
     active_bounds = None
     target_found = False
@@ -826,6 +827,7 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
                             x1, y1, x2, y2 = map(int, m.groups())
                             if y2 > y1 and 200 <= y1 <= 2000:
                                 current_header_y = (y1 + y2) // 2
+                                card_y = current_header_y + 400
                                 if not initial_header_y:
                                     initial_header_y = current_header_y
 
@@ -930,9 +932,9 @@ def execute_target_product_click(device_id: str, keyword: str, target_mid: str):
                 print(f"  [✓] TARGET PRODUCT CALCULATED (Page 2 Grid Layout)! Target coordinates: ({click_x}, {click_y})")
             break
 
-        # Micro-scroll down to continue searching
-        print(f"  [*] Pass {scroll_pass}/7: Scrolling down (Swipe 540 1600 -> 540 900)...")
-        subprocess.run(["adb", "-s", device_id, "shell", "input swipe 540 1600 540 900 350"], capture_output=True)
+        # Micro-scroll down to continue searching (distance 400px so we never skip Next Page button)
+        print(f"  [*] Pass {scroll_pass}/7: Micro-scrolling down (Swipe 540 1400 -> 540 1000)...")
+        subprocess.run(["adb", "-s", device_id, "shell", "input swipe 540 1400 540 1000 350"], capture_output=True)
         time.sleep(1.5)
 
     # Step 3: Direct Target Acquisition & Node Bounds Verification
