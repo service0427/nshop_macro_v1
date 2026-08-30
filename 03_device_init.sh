@@ -91,7 +91,8 @@ init_single_device() {
     adb -s "$serial" shell "settings put global transition_animation_scale 0" 2>/dev/null   # 전환 애니메이션 제거
     adb -s "$serial" shell "settings put global animator_duration_scale 0" 2>/dev/null     # 애니메이터 제거
 
-    # [핵심 저전력/저발열 튜닝] AMOLED 60Hz 고정 + 최저 밝기 + 햅틱 진동 모터 OFF + RF 통신 차단
+    # [핵심 저전력/저발열 튜닝] 시스템 다크모드 + AMOLED 60Hz 고정 + 최저 밝기 + 햅틱 진동 모터 OFF + RF 통신 차단
+    adb -s "$serial" shell "cmd uimode night yes" 2>/dev/null                               # 시스템 다크모드 강제 (AMOLED 블랙 픽셀 0W 절전)
     adb -s "$serial" shell "settings put system peak_refresh_rate 60.0" 2>/dev/null         # 120Hz -> 60Hz 고정 (GPU/패널 전력 50% 절감)
     adb -s "$serial" shell "settings put system min_refresh_rate 60.0" 2>/dev/null
     adb -s "$serial" shell "settings put system screen_brightness_mode 0" 2>/dev/null       # 자동 밝기 해제

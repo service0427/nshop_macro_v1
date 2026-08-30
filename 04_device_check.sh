@@ -112,6 +112,7 @@ for serial in $DEVICES; do
     fi
 
     # 6. 배터리 절전 및 저발열 튜닝 감사
+    NIGHT_MODE=$(adb -s "$serial" shell "settings get secure ui_night_mode 2>/dev/null" | tr -d '\r\n')
     PEAK_REFRESH=$(adb -s "$serial" shell "settings get system peak_refresh_rate 2>/dev/null" | tr -d '\r\n')
     BRIGHTNESS=$(adb -s "$serial" shell "settings get system screen_brightness 2>/dev/null" | tr -d '\r\n')
     HAPTIC=$(adb -s "$serial" shell "settings get system haptic_feedback_enabled 2>/dev/null" | tr -d '\r\n')
@@ -151,6 +152,8 @@ for serial in $DEVICES; do
     echo -e "      ↳ 화면 방향:             $ROT_STR"
 
     echo -e "  ${BOLD}[4] 🔋 저전력/저발열 배터리 튜닝 상태${NC}"
+    DARK_STR="🟢 다크 모드 (Night: ON)"
+    [ "$NIGHT_MODE" != "2" ] && { DARK_STR="🟡 라이트 모드 (다크모드 권장)"; DEV_WARN=$((DEV_WARN + 1)); }
     HZ_STR="🟢 60Hz 고정 (저전력)"
     [[ "$PEAK_REFRESH" == "120.0" || "$PEAK_REFRESH" == "120" ]] && { HZ_STR="🟡 120Hz (전력소모 높음)"; DEV_WARN=$((DEV_WARN + 1)); }
     BRIGHT_STR="🟢 최소 ($BRIGHTNESS/255)"
@@ -159,6 +162,7 @@ for serial in $DEVICES; do
     [ "$HAPTIC" == "1" ] && { HAPTIC_STR="🟡 켜짐 (진동 모터 전력소모)"; DEV_WARN=$((DEV_WARN + 1)); }
     NFC_STR="🟢 차단됨 (0)"
     [ "$NFC_ON" == "1" ] && { NFC_STR="🟡 켜짐 (1)"; }
+    echo -e "      ↳ 테마 모드:      $DARK_STR"
     echo -e "      ↳ 주사율(프레임): $HZ_STR"
     echo -e "      ↳ 화면 밝기:      $BRIGHT_STR"
     echo -e "      ↳ 햅틱 진동 모터: $HAPTIC_STR"
