@@ -73,15 +73,6 @@ class NaverMacroCore:
     # -------------------------------------------------------------
     # 2. Step 1: 클린 홈 기동 및 웜업
     # -------------------------------------------------------------
-    def unlock_and_wake(self):
-        self.gesture.unlock_and_wake()
-
-    def pre_grant_permissions(self):
-        self.gesture.pre_grant_permissions()
-
-    def inject_tutorial_bypass(self):
-        self.gesture.inject_tutorial_bypass()
-
     def wait_for_home_fully_loaded(self, timeout_sec: float = 8.0) -> bool:
         return self.navigator.wait_for_home_fully_loaded(timeout_sec)
 
@@ -90,18 +81,14 @@ class NaverMacroCore:
 
     def launch_clean_home(self, timeout_sec: float = 8.0) -> bool:
         """
-        [STEP 1: 튜토리얼/권한 생략 클린 홈 화면 띄우기 & 웜업 스크롤]
+        [STEP 1: 네이버 메인 홈 화면 기동 & 웜업 스크롤]
         """
         logger.info(f"[{self.device_id}] ========================================================")
-        logger.info(f"[{self.device_id}] 🚀 [STEP 1] 튜토리얼/권한 생략 클린 홈 화면 기동 및 웜업")
+        logger.info(f"[{self.device_id}] 🚀 [STEP 1] 클린 홈 화면 기동 및 웜업")
         logger.info(f"[{self.device_id}] ========================================================")
 
-        self.unlock_and_wake()
         self._run_adb(f"am force-stop {NAVER_PKG} 2>/dev/null || true")
         time.sleep(0.3)
-
-        self.pre_grant_permissions()
-        self.inject_tutorial_bypass()
 
         logger.info(f"[{self.device_id}] 네이버 메인 홈 화면 기동 ({HOME_ACTIVITY})...")
         self._run_adb(f"am start -n {HOME_ACTIVITY} --activity-clear-top --activity-single-top")

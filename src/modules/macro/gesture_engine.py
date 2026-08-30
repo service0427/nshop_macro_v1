@@ -23,99 +23,13 @@ from src.modules.macro.ui_inspector import UIInspector
 
 logger = logging.getLogger("NaverMacroCore.GestureEngine")
 
-RUNTIME_PERMISSIONS = [
-    "android.permission.ACCESS_FINE_LOCATION",
-    "android.permission.ACCESS_COARSE_LOCATION",
-    "android.permission.POST_NOTIFICATIONS",
-    "android.permission.READ_EXTERNAL_STORAGE",
-    "android.permission.WRITE_EXTERNAL_STORAGE",
-    "android.permission.CAMERA",
-    "android.permission.RECORD_AUDIO",
-    "android.permission.READ_PHONE_STATE",
-    "android.permission.BLUETOOTH_CONNECT",
-    "android.permission.BLUETOOTH_SCAN",
-]
-
-
 class GestureEngine:
+    """
+    인간적인 터치, 가변 스크롤 및 상품 상세페이지 체류 제스처 전담 엔진
+    """
     def __init__(self, device_id: str, inspector: UIInspector):
         self.device_id = device_id
         self.inspector = inspector
-
-    def unlock_and_wake(self):
-        """화면 켜짐 유지 및 잠금화면 해제"""
-        self.inspector.run_adb("settings put global stay_on_while_plugged_in 7 2>/dev/null || true")
-        self.inspector.run_adb("settings put secure lockscreen.disabled 1 2>/dev/null || true")
-        self.inspector.run_adb("input keyevent 224; input keyevent 82; wm dismiss-keyguard 2>/dev/null || true")
-
-    def pre_grant_permissions(self):
-        """16종 런타임 권한 및 AppOps 일괄 승인 (권한 팝업 원천 차단)"""
-        logger.info(f"[{self.device_id}] 런타임 권한 및 AppOps 일괄 승인 중...")
-        grant_cmds = []
-        for perm in RUNTIME_PERMISSIONS:
-            grant_cmds.append(f"pm grant {NAVER_PKG} {perm} 2>/dev/null || true")
-        grant_cmds.append(f"cmd appops set {NAVER_PKG} POST_NOTIFICATION allow 2>/dev/null || true")
-        grant_cmds.append(f"cmd appops set {NAVER_PKG} FINE_LOCATION allow 2>/dev/null || true")
-        grant_cmds.append(f"cmd appops set {NAVER_PKG} COARSE_LOCATION allow 2>/dev/null || true")
-        grant_cmds.append(f"cmd appops set {NAVER_PKG} MOCK_LOCATION allow 2>/dev/null || true")
-        self.inspector.run_adb_su("; ".join(grant_cmds))
-
-    def inject_tutorial_bypass(self):
-        """온보딩 및 튜토리얼 스킵 설정 주입"""
-        logger.info(f"[{self.device_id}] 온보딩/튜토리얼 스킵 환경설정 주입 중...")
-        null_xml = """<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
-<map>
-    <boolean name="keyFirstRun" value="false" />
-    <boolean name="keyUniverseTutorialComplete" value="true" />
-    <boolean name="keyNextTutorialComplete" value="true" />
-    <boolean name="keyTutorialLocProcessed" value="true" />
-    <boolean name="keyDarkTutorialComplete" value="true" />
-    <boolean name="keyNewmainTutorialComplete" value="true" />
-    <boolean name="keyNotificationQuery" value="true" />
-    <boolean name="keyLocationAgree" value="true" />
-    <boolean name="keyUniverseMigrationFinished" value="true" />
-    <boolean name="keyMyTabMigrationFinished" value="true" />
-    <boolean name="keyLocalSiteMigrated" value="true" />
-    <boolean name="keyXWhaleMigrated" value="true" />
-    <boolean name="keyMigrateInAppStrorage" value="true" />
-    <boolean name="keyWebEngineBuiltInV10" value="true" />
-    <boolean name="keySecureScreenShot" value="true" />
-    <boolean name="keyActiveAppCheck" value="false" />
-    <boolean name="keyBridgeLinkInAppToolbar" value="true" />
-    <string name="KeyLastNClicks">hct.complete</string>
-    <int name="keyRefreshInterval" value="600" />
-</map>"""
-        tut_xml = """<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
-<map>
-    <boolean name="tutorial_shown" value="true" />
-    <boolean name="is_first_launch" value="false" />
-</map>"""
-        tmp_null = f"/tmp/mc_null_{self.device_id}.xml"
-        tmp_tut = f"/tmp/mc_tut_{self.device_id}.xml"
-        with open(tmp_null, "w", encoding="utf-8") as f:
-            f.write(null_xml)
-        with open(tmp_tut, "w", encoding="utf-8") as f:
-            f.write(tut_xml)
-
-        subprocess.run(["adb", "-s", self.device_id, "push", tmp_null, f"/data/local/tmp/mc_null_{self.device_id}.xml"],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.run(["adb", "-s", self.device_id, "push", tmp_tut, f"/data/local/tmp/mc_tut_{self.device_id}.xml"],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-        self.inspector.run_adb_su(f"""
-APP_UID=$(dumpsys package {NAVER_PKG} 2>/dev/null | grep userId | head -n1 | cut -d= -f2 | tr -d ' ' || echo '10332')
-mkdir -p /data/data/{NAVER_PKG}/shared_prefs
-cp /data/local/tmp/mc_null_{self.device_id}.xml /data/data/{NAVER_PKG}/shared_prefs/null.xml
-cp /data/local/tmp/mc_tut_{self.device_id}.xml /data/data/{NAVER_PKG}/shared_prefs/tutorial_pref.xml
-cp /data/local/tmp/mc_null_{self.device_id}.xml /data/data/{NAVER_PKG}/shared_prefs/{NAVER_PKG}_preferences.xml
-chown -R $APP_UID:$APP_UID /data/data/{NAVER_PKG}/shared_prefs
-chmod -R 777 /data/data/{NAVER_PKG}/shared_prefs
-rm -f /data/local/tmp/mc_null_{self.device_id}.xml /data/local/tmp/mc_tut_{self.device_id}.xml
-""")
-        if os.path.exists(tmp_null):
-            os.remove(tmp_null)
-        if os.path.exists(tmp_tut):
-            os.remove(tmp_tut)
 
     def tap_search_bar_random(self) -> Tuple[int, int]:
         """[검색창 안전 영역 내 랜덤 좌표 탭]"""

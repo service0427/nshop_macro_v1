@@ -12,13 +12,17 @@ N-Shop Automation Macro Core Modules Package (v2.0 Zero-Reboot Architecture)
 """
 
 from .macro_core import NaverMacroCore
-from .zero_reboot_mutator import ZeroRebootMutator
+from .soft_reboot_mutator import SoftRebootMutator
 from .wireguard_manager import WireGuardManager
 from .task_api_client import TaskApiClient
+from .battery_tracker import BatteryTracker
+from .device_power_manager import DevicePowerManager
 
 __all__ = [
     "NaverMacroCore",
-    "ZeroRebootMutator",
+    "SoftRebootMutator",
     "WireGuardManager",
     "TaskApiClient",
+    "BatteryTracker",
+    "DevicePowerManager",
 ]
