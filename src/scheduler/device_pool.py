@@ -92,6 +92,8 @@ class DevicePool:
         self.max_workers = len(self.all_devices)
         self.lock = threading.Lock()
         self.busy_devices = set()
+        self.low_batt_cooldown: Dict[str, float] = {}    # 10분 충전 집중 모드 쿨다운 (Zero-Polling)
+        self.overheat_cooldown: Dict[str, float] = {}    # 5분 과열 쿨다운 (Zero-Polling)
 
         self.device_status: Dict[str, Dict[str, Any]] = {
             dev: {
@@ -134,17 +136,38 @@ class DevicePool:
         return False
 
     def get_idle_devices(self) -> List[str]:
-        """가용 유휴 단말기 필터링 (초고속 비동기/논블로킹 분리)"""
+        """가용 유휴 단말기 필터링 (10분 충전집중 Zero-Polling 쿨다운 적용)"""
         with self.lock:
             candidates = [d for d in self.all_devices if d not in self.busy_devices]
 
         if not candidates:
             return []
 
+        now = time.time()
         available = []
         for dev in candidates:
+            # 1. 10분 배터리 충전 집중 모드 (Zero-Polling 쿨다운) 적용 중인지 확인
+            with self.lock:
+                cooldown_end = self.low_batt_cooldown.get(dev, 0.0)
+            if now < cooldown_end:
+                remain_sec = int(cooldown_end - now)
+                m, s = divmod(remain_sec, 60)
+                with self.lock:
+                    self.device_status[dev]["last_result"] = f"⚡충전집중({m}분{s}초대기)"
+                continue
+
+            # 2. 5분 과열 쿨다운 적용 중인지 확인
+            with self.lock:
+                heat_end = self.overheat_cooldown.get(dev, 0.0)
+            if now < heat_end:
+                remain_sec = int(heat_end - now)
+                m, s = divmod(remain_sec, 60)
+                with self.lock:
+                    self.device_status[dev]["last_result"] = f"❄️쿨다운({m}분{s}초대기)"
+                continue
+
+            # 3. 쿨다운이 만료되었거나 정상 상태일 때만 실제 단말기 배터리/온도 1회 점검 (Zero-Polling 보장)
             try:
-                # 🔋 배터리 및 온도 안전 검사 (20% 미만 방전 방지 및 43°C 과열 보호)
                 batt = self.get_device_battery_info(dev)
                 level = batt.get("level", 100)
                 level_precise = batt.get("level_precise", float(level))
@@ -155,19 +178,38 @@ class DevicePool:
                 idle_dur = time.time() - idle_since
                 BatteryTracker.log_idle_charge(dev, level_precise, temp, idle_dur)
 
-                # 배터리 20% 미만 방전 보호
+                # 배터리 20% 미만 방전 감지 -> [10분간 충전 집중 모드 / Fast-Charge Sleep] 진입
                 if level < 20:
-                    logger.warning(f"  [⚠️ {dev}] 배터리 부족 ({level}% < 20%) -> 방전 방지를 위해 이번 주기 할당 제외(PASS)")
                     with self.lock:
-                        self.device_status[dev]["last_result"] = f"배터리부족({level}%) 충전대기"
+                        self.low_batt_cooldown[dev] = time.time() + 600.0  # 10분간 ADB 폴링 완전 차단
+                        self.device_status[dev]["last_result"] = f"⚡충전집중(10분대기, {level}%)"
+                    logger.warning(f"  [⚡ {dev}] 배터리 부족({level}% < 20%) 감지 -> 10분간 [충전 집중 모드(Zero-Polling Sleep)] 전환 (화면 OFF & 10분간 ADB 통신 차단)")
+                    # 화면 끄기 및 백그라운드 프로세스 강제 정리
+                    subprocess.run(["adb", "-s", dev, "shell", "am force-stop com.nhn.android.search; am force-stop com.wireguard.android; input keyevent 26 2>/dev/null || true"],
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2.0)
                     continue
+                else:
+                    # 20% 이상 복구 확인 시 쿨다운 해제 및 화면 켜기
+                    with self.lock:
+                        if dev in self.low_batt_cooldown:
+                            del self.low_batt_cooldown[dev]
+                            logger.info(f"  [🔋 {dev}] 배터리 회복 확인 ({level}%) -> 충전 집중 모드 해제 및 정상 투입 대기")
+                            subprocess.run(["adb", "-s", dev, "shell", "input keyevent 224 2>/dev/null || true"],
+                                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2.0)
 
-                # 배터리 43°C 이상 과열 보호
+                # 단말기 43°C 이상 과열 감지 -> [5분간 쿨다운 모드] 진입
                 if temp >= 43.0:
-                    logger.warning(f"  [⚠️ {dev}] 단말기 과열 ({temp}°C >= 43°C) -> 쿨다운을 위해 이번 주기 할당 제외(PASS)")
                     with self.lock:
-                        self.device_status[dev]["last_result"] = f"과열({temp}°C) 쿨다운"
+                        self.overheat_cooldown[dev] = time.time() + 300.0  # 5분간 쿨다운
+                        self.device_status[dev]["last_result"] = f"❄️과열쿨다운(5분대기, {temp}°C)"
+                    logger.warning(f"  [❄️ {dev}] 단말기 과열({temp}°C >= 43°C) 감지 -> 5분간 쿨다운 모드 전환 (화면 OFF & ADB 통신 차단)")
+                    subprocess.run(["adb", "-s", dev, "shell", "am force-stop com.nhn.android.search; am force-stop com.wireguard.android; input keyevent 26 2>/dev/null || true"],
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2.0)
                     continue
+                else:
+                    with self.lock:
+                        if dev in self.overheat_cooldown:
+                            del self.overheat_cooldown[dev]
 
                 available.append(dev)
             except Exception as e:
