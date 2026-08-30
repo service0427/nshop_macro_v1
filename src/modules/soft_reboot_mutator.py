@@ -123,6 +123,17 @@ cmd appops set {self.package_name} MOCK_LOCATION allow 2>/dev/null || true
 """
         self._run_adb_su(grant_script)
 
+    def get_app_uid(self) -> str:
+        """단말기 내 네이버 앱의 실제 Linux UID 동적 조회 (예: 10328)"""
+        try:
+            res = self._run_adb(f"dumpsys package {self.package_name}")
+            match = re.search(r"userId=(\d+)", res)
+            if match:
+                return match.group(1)
+        except Exception:
+            pass
+        return "10328"
+
     def inject_tutorial_bypass(self):
         """Zero-Tap 온보딩/튜토리얼 바이패스 환경설정 주입"""
         null_xml = """<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
@@ -164,16 +175,14 @@ cmd appops set {self.package_name} MOCK_LOCATION allow 2>/dev/null || true
         subprocess.run(["adb", "-s", self.device_id, "push", tmp_tut, f"/data/local/tmp/tut_{self.device_id}.xml"],
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         
+        app_uid = self.get_app_uid()
         self._run_adb_su(f"""
-APP_UID=$(dumpsys package {self.package_name} 2>/dev/null | grep userId | head -n1 | cut -d= -f2 | tr -d ' ' || echo '10332')
 mkdir -p /data/data/{self.package_name}/shared_prefs
 cp /data/local/tmp/null_{self.device_id}.xml /data/data/{self.package_name}/shared_prefs/null.xml
 cp /data/local/tmp/tut_{self.device_id}.xml /data/data/{self.package_name}/shared_prefs/tutorial_pref.xml
 cp /data/local/tmp/null_{self.device_id}.xml /data/data/{self.package_name}/shared_prefs/{self.package_name}_preferences.xml
-chown -R $APP_UID:$APP_UID /data/data/{self.package_name}
-chmod 700 /data/data/{self.package_name}
-chmod 700 /data/data/{self.package_name}/shared_prefs
-chmod 600 /data/data/{self.package_name}/shared_prefs/*.xml
+chown -R {app_uid}:{app_uid} /data/data/{self.package_name}
+chmod -R 775 /data/data/{self.package_name}
 restorecon -R /data/data/{self.package_name}
 rm -f /data/local/tmp/null_{self.device_id}.xml /data/local/tmp/tut_{self.device_id}.xml
 """)
@@ -366,6 +375,8 @@ rm -f /data/local/tmp/null_{self.device_id}.xml /data/local/tmp/tut_{self.device
         for tmp_f in [t_ss, t_ad, t_nu, t_tu]:
             if os.path.exists(tmp_f): os.remove(tmp_f)
 
+        app_uid = self.get_app_uid()
+
         pre_reset_cmd = f"""
 # 1. 안전모드 차단 가드
 setprop persist.sys.enable_rescue false
@@ -393,7 +404,6 @@ chmod 660 /data/data/com.google.android.gms/shared_prefs/adid_settings.xml 2>/de
 rm -rf /data/data/com.google.android.gms/files/appset/shared/* 2>/dev/null || true
 
 # 4. 프로필 복원 (RESTORE) 및 튜토리얼/로그인 스킵 주입 (전 모드 공통 100% 보장)
-APP_UID=$(dumpsys package {self.package_name} 2>/dev/null | grep userId= | head -n1 | cut -d= -f2 | tr -d ' ' || echo '10332')
 if [ "{is_restore}" = "True" ] && [ -f "{target_profile_path}" ]; then
     tar -xzf {target_profile_path} -C /data/data/{self.package_name} 2>/dev/null || true
 fi
@@ -401,10 +411,8 @@ mkdir -p /data/data/{self.package_name}/shared_prefs
 cp /data/local/tmp/null_{self.device_id}.xml /data/data/{self.package_name}/shared_prefs/null.xml
 cp /data/local/tmp/tut_{self.device_id}.xml /data/data/{self.package_name}/shared_prefs/tutorial_pref.xml
 cp /data/local/tmp/null_{self.device_id}.xml /data/data/{self.package_name}/shared_prefs/{self.package_name}_preferences.xml
-chown -R $APP_UID:$APP_UID /data/data/{self.package_name} 2>/dev/null || true
-chmod 700 /data/data/{self.package_name} 2>/dev/null || true
-chmod 700 /data/data/{self.package_name}/shared_prefs 2>/dev/null || true
-chmod 600 /data/data/{self.package_name}/shared_prefs/*.xml 2>/dev/null || true
+chown -R {app_uid}:{app_uid} /data/data/{self.package_name} 2>/dev/null || true
+chmod -R 775 /data/data/{self.package_name} 2>/dev/null || true
 restorecon -R /data/data/{self.package_name} 2>/dev/null || true
 
 # 임시 파일 정리
