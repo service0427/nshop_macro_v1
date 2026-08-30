@@ -291,14 +291,16 @@ rm -f /data/local/tmp/null_{self.device_id}.xml /data/local/tmp/tut_{self.device
         adid: Optional[str] = None,
         idfv: Optional[str] = None,
         mock_lat: Optional[float] = None,
-        mock_lng: Optional[float] = None
+        mock_lng: Optional[float] = None,
+        reset_method: str = "SELECTIVE"
     ) -> Dict[str, Any]:
         """
         [소프트 재부팅 기반 신원 변조 메인 파이프라인]
+        :param reset_method: "SELECTIVE" (기본 운영: 캐시 유지 + 신원 데이터 선택적 삭제) | "PM_CLEAR" (100주기 딥클린)
         """
         t_start = time.time()
         logger.info(f"==========================================================================")
-        logger.info(f" 🚀 [{self.device_id}] 초고속 소프트 재부팅 신원 변조 시작 (Mode: {mode})")
+        logger.info(f" 🚀 [{self.device_id}] 초고속 소프트 재부팅 신원 변조 시작 (Mode: {mode} | Reset: {reset_method})")
         logger.info(f"==========================================================================")
 
         # 1. 안전모드(Rescue Party) 무력화 가드 적용
@@ -316,7 +318,7 @@ rm -f /data/local/tmp/null_{self.device_id}.xml /data/local/tmp/tut_{self.device
         target_profile_path = profile_tar
         is_restore = (mode == "RESTORE" and target_profile_path and self.profile_exists_on_device(target_profile_path))
 
-        # 5. [배치 1] 리셋 전 원자적 환경 주입 (RescueParty 차단 + pm clear + SSAID + ADID + 튜토리얼 스킵)
+        # 5. [배치 1] 리셋 전 원자적 환경 주입 (RescueParty 차단 + 리셋 분기 + SSAID + ADID)
         logger.info(f"[{self.device_id}] [1/3] 원자적 신원/환경 데이터 주입 중... (SSAID: {target_ssaid})")
         
         # SSAID & ADID & 튜토리얼 파일 생성 및 푸시
@@ -375,7 +377,21 @@ rm -f /data/local/tmp/null_{self.device_id}.xml /data/local/tmp/tut_{self.device
         for tmp_f in [t_ss, t_ad, t_nu, t_tu]:
             if os.path.exists(tmp_f): os.remove(tmp_f)
 
-        app_uid = self.get_app_uid()
+        # 리셋 방식 분기: PM_CLEAR (100주기 유지보수) vs SELECTIVE (기본 운영: 캐시 유지 + 신원 삭제)
+        if reset_method == "PM_CLEAR" and not is_restore:
+            cleanup_cmd = f"pm clear {self.package_name}"
+        else:
+            cleanup_cmd = f"""
+am force-stop {self.package_name} 2>/dev/null || true
+if [ "{is_restore}" != "True" ]; then
+    rm -rf /data/data/{self.package_name}/app_xwhale/Default/Cookies*
+    rm -rf /data/data/{self.package_name}/app_xwhale/Default/Local*
+    rm -rf /data/data/{self.package_name}/app_xwhale/Default/Session*
+    rm -rf /data/data/{self.package_name}/databases/*
+    rm -rf /data/data/{self.package_name}/files/*
+    rm -rf /data/data/{self.package_name}/shared_prefs/*
+fi
+"""
 
         pre_reset_cmd = f"""
 # 1. 안전모드 차단 가드
@@ -387,12 +403,8 @@ settings put global rescue_party_disabled 1 2>/dev/null || true
 settings put global enable_rescue_party false 2>/dev/null || true
 rm -rf /data/system/users/0/rescue_party* /data/system/rescue* /data/system/dropbox/* 2>/dev/null || true
 
-# 2. 패키지 프로세스 정리 (신규 생성 시에만 pm clear, 프로필 복원 시에는 프로세스 종료만 수행하여 캐시/쿠키 보존)
-if [ "{is_restore}" != "True" ]; then
-    pm clear {self.package_name}
-else
-    am force-stop {self.package_name} 2>/dev/null || true
-fi
+# 2. 패키지 프로세스/데이터 정리
+{cleanup_cmd}
 settings put secure android_id {target_ssaid}
 cp /data/local/tmp/ssaid_{self.device_id}.xml /data/system/users/0/settings_ssaid.xml
 cp /data/local/tmp/ssaid_{self.device_id}.xml /data/system/users/0/settings_ssaid.xml.fallback
@@ -459,13 +471,14 @@ rm -f /data/local/tmp/ssaid_{self.device_id}.xml /data/local/tmp/adid_{self.devi
 
         duration = round(time.time() - t_start, 2)
         logger.info(f"==========================================================================")
-        logger.info(f" [✓] 초고속 소프트 리셋 신원 변조 완료! (소요 시간: {duration}초)")
+        logger.info(f" [✓] 초고속 소프트 리셋 신원 변조 완료! (소요 시간: {duration}초 | Reset: {reset_method})")
         logger.info(f"==========================================================================")
 
         return {
             "device_id": self.device_id,
             "status": "SUCCESS",
             "mode": mode,
+            "reset_method": reset_method,
             "ssaid": target_ssaid,
             "adid": target_adid,
             "idfv": target_idfv,
@@ -474,6 +487,13 @@ rm -f /data/local/tmp/ssaid_{self.device_id}.xml /data/local/tmp/adid_{self.devi
             "execution_sec": duration,
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
         }
+
+    def execute_pm_clear_maintenance(self) -> Dict[str, Any]:
+        """
+        [100주기 정기 유지보수] pm clear를 통한 딥클린 및 캐시 비대화 방지 초기화
+        """
+        logger.info(f"[{self.device_id}] 🧼 [100주기 정기 유지보수] pm clear 딥클린 및 캐시 누적 초기화 실행...")
+        return self.mutate_identity(mode="FRESH", reset_method="PM_CLEAR")
 
     def get_file_size_kb(self, remote_path: str) -> Optional[float]:
         """단말기 내 파일의 실제 크기(KB) 조회"""

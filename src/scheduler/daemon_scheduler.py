@@ -168,7 +168,7 @@ class DynamicDaemonScheduler:
         do_refresh = (current_cycle % 10 == 1)
         idle_devs = self.device_pool.get_idle_devices(do_refresh=do_refresh)
 
-        # 0. 100주기마다 1회 서버 DB 우선 프로필 동기화 및 단말기 불필요 파일 정리
+        # 0. 100주기마다 1회 서버 DB 우선 프로필 동기화 및 1회 pm clear 딥클린 (캐시 누적/비대화 방지)
         if current_cycle % 100 == 1 and idle_devs:
             for dev in idle_devs:
                 try:
@@ -177,8 +177,12 @@ class DynamicDaemonScheduler:
                     sync_res = mut.sync_profiles_with_server()
                     if sync_res.get("cleaned_count", 0) > 0:
                         logger.info(f"[{dev}] 🧹 [DB 싱크] 서버 기준 불필요 파일 {sync_res['cleaned_count']}개 자동 정리 완료: {sync_res['cleaned_files']}")
-                except Exception:
-                    pass
+                    
+                    # 100주기 도달 시 1회 pm clear 딥클린 실행
+                    mut.execute_pm_clear_maintenance()
+                    logger.info(f"[{dev}] 🧼 [100주기 정기 유지보수] pm clear 딥클린 및 캐시 누적 초기화 완료")
+                except Exception as e:
+                    logger.warning(f"[{dev}] 100주기 정기 유지보수 중 예외 발생: {e}")
 
         self.device_pool.print_status_board(current_cycle, idle_devs)
 
