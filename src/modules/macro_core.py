@@ -94,7 +94,16 @@ class NaverMacroCore:
         self._run_adb(f"am start -n {HOME_ACTIVITY} --activity-clear-top --activity-single-top")
         time.sleep(1.0)
 
-        self.wait_for_home_fully_loaded(timeout_sec=timeout_sec)
+        # 1. 포그라운드 진입 여부 엄격 검증
+        if not self.inspector.ensure_naver_foreground():
+            logger.error(f"[{self.device_id}] ❌ 네이버 앱 포그라운드 기동 실패")
+            return False
+
+        loaded = self.wait_for_home_fully_loaded(timeout_sec=timeout_sec)
+        if not loaded:
+            logger.error(f"[{self.device_id}] ❌ 네이버 홈 화면 로딩 실패 (네트워크 또는 앱 오류)")
+            return False
+
         self.warm_up_home_scroll()
 
         shot_path = f"/tmp/macro_home_{self.device_id}.png"
@@ -120,6 +129,10 @@ class NaverMacroCore:
         logger.info(f"[{self.device_id}] ========================================================")
         logger.info(f"[{self.device_id}] 🚀 [STEP 2-1] 검색창 안전 랜덤 탭 및 입력창 로딩 검증")
         logger.info(f"[{self.device_id}] ========================================================")
+
+        if not self.inspector.ensure_naver_foreground():
+            logger.error(f"[{self.device_id}] ❌ 포그라운드 이탈로 검색 모드 진입 불가")
+            return False
 
         self.tap_search_bar_random()
         ready = self.wait_for_search_input_ready(timeout_sec=5.0)

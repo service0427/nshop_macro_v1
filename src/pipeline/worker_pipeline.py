@@ -183,14 +183,20 @@ class DeviceWorkerPipeline:
                 error_reason = "HOME_LAUNCH_FAILED"
             else:
                 # Step 2: 검색창 진입 & ADBKeyboard 실시간 입력 & ENTER (TOP버튼 초고속 원점복귀)
-                self.macro.enter_search_mode()
-                is_searched = self.macro.execute_search(keyword)
-
-                if is_searched and target_mid and target_mid != "0":
-                    # [공통] 타겟 상품 카드가 실제 단말기 화면(340 <= Y <= 2260)에 보일 때까지 정밀 스크롤 안착 및 크롭 캡처
-                    target_coords = self.macro.navigate_and_focus_target_card(target_mid, max_scroll_passes=16, keyword=keyword)
-                    is_exposed = bool(target_coords is not None)
-                    exposure_rank = 1 if is_exposed else None
+                input_ready = self.macro.enter_search_mode()
+                if not input_ready:
+                    logger.error(f"[{self.device_id}] [❌ Step 2-1 실패] 검색 입력창 로딩 실패 ➔ 작업 중단")
+                    error_reason = "SEARCH_INPUT_NOT_READY"
+                else:
+                    is_searched = self.macro.execute_search(keyword)
+                    if not is_searched:
+                        logger.error(f"[{self.device_id}] [❌ Step 2-2 실패] 검색 결과 로딩 실패 ➔ 작업 중단")
+                        error_reason = "SEARCH_RESULTS_NOT_LOADED"
+                    elif target_mid and target_mid != "0":
+                        # [공통] 타겟 상품 카드가 실제 단말기 화면(340 <= Y <= 2260)에 보일 때까지 정밀 스크롤 안착 및 크롭 캡처
+                        target_coords = self.macro.navigate_and_focus_target_card(target_mid, max_scroll_passes=16, keyword=keyword)
+                        is_exposed = bool(target_coords is not None)
+                        exposure_rank = 1 if is_exposed else None
 
                     if target_coords:
                         if allow_click:

@@ -407,6 +407,11 @@ class UIInspector:
         - 저장 경로: logs/unexposed_dumps/unexposed_{YYYYMMDD_HHMMSS}_{mid}_{keyword}_{device_id}.xml / .png
         - 200개 초과 시 FIFO 자동 회전 삭제
         """
+        # 🛡️ 네이버 앱 화면이 아닐 경우 미노출 덤프 저장 원천 차단 (타사 앱/런처 오염 방지)
+        if not self.is_naver_foreground():
+            logger.warning(f"[{self.device_id}] [⚠️ 덤프 차단] 현재 포그라운드가 네이버 앱이 아니므로 unexposed_dumps 저장을 취소합니다.")
+            return ("", "")
+
         now = datetime.datetime.now()
         time_str = now.strftime("%Y%m%d_%H%M%S")
         safe_kw = re.sub(r'[\s/\\:*?"<>|]+', '_', (keyword or "UNKNOWN").strip()).strip('_')
