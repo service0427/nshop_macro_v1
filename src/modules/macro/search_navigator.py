@@ -375,13 +375,10 @@ class SearchNavigator:
         logger.info(f"[{self.device_id}] 🎯 [STEP 3-4] 타겟 상품 카드 안전 탭 ({cx}, {cy}) | MID: {mid_val} ➔ 상세페이지 진입 대기 (최대 {timeout_sec}초)")
         logger.info(f"[{self.device_id}] ========================================================")
 
-        # 1. 클릭 위치 시각화 디버깅 스샷 저장 (click_logs 영구 보관)
-        saved_img = self.inspector.draw_and_save_click_debug_image(cx, cy, target_mid=mid_val)
-
-        # 2. 안전 탭 실행
+        # 안전 탭 실행 (click_before는 STEP 3-3 포커싱 단계에서 이미 단 1회 정상 저장됨)
         self.inspector.run_adb(f"input tap {cx} {cy}")
 
-        # 3. 상세페이지 진입 다중 지표 검증 (최대 30초 대기)
+        # 상세페이지 진입 다중 지표 검증 (최대 30초 대기)
         start_time = time.time()
         re_tapped = False
 
