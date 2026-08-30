@@ -4,14 +4,15 @@
 
 ---
 
-## 🌟 신규 서버 3단계 원클릭 셋업 (Numbered 3-Step Setup)
+## 🌟 신규 서버 4단계 원클릭 셋업 & 관제 체계 (Numbered Setup & Audit)
 
-새로운 클라이언트 PC 및 신규 서버 환경에서는 **아래 01, 02, 03 스크립트를 번호 순서대로 실행**하면 365일 무한가동 환경이 100% 구축됩니다.
+새로운 클라이언트 PC 및 신규 서버 환경에서는 **아래 01~04 스크립트를 번호 순서대로 실행**하면 365일 무한가동 및 단말기 종합 진단이 완료됩니다.
 
 ```text
  🖥️ [01단계] OS 최적화  ➔ ./01_install_os.sh   (SSH 키, 타임존, 절전 방지, USB 상시전원, 커널 튜닝)
  ⚙️ [02단계] PM2 서비스 ➔ ./02_pm2_setup.sh    (Node/PM2, Python 의존성, 구글드라이브 APK, 자동가동)
  📱 [03단계] 단말기 세팅 ➔ ./03_device_init.sh  (화면 잠금 해제, 상시 켜짐, APK 자동 설치, 권한)
+ 🔍 [04단계] 종합 진단  ➔ ./04_device_check.sh (배터리 수명, 전압, 온도, 잠금해제, 패키지, 네트워크 점검)
 ```
 
 ---
@@ -28,7 +29,7 @@
 ```bash
 git clone https://github.com/service0427/nshop_macro_v1.git
 cd nshop_macro_v1
-chmod +x 01_*.sh 02_*.sh 03_*.sh
+chmod +x 01_*.sh 02_*.sh 03_*.sh 04_*.sh
 ./01_install_os.sh
 ```
 
@@ -37,7 +38,7 @@ chmod +x 01_*.sh 02_*.sh 03_*.sh
 ### 2️⃣ [02단계] PM2 무한가동 서비스 등록 및 APK 동기화 (`./02_pm2_setup.sh`)
 * **Node.js 20.x & PM2** 글로벌 설치
 * **Python 라이브러리** (`requirements.txt`, `gdown`) 자동 설치
-* **구글 드라이브 APK 패키지** (`essential_tools`, `naver_app`) 자동 다운로드 및 무결성 검증
+* **구글 드라이브 APK 패키지** (`essential_tools`, `naver_app v12.22.50`) 자동 다운로드 및 무결성 검증
 * **PM2 데몬(`daemon.py`) 등록** 및 **PC 재부팅 시 Systemd 자동 시작** 설정
 
 ```bash
@@ -63,6 +64,15 @@ chmod +x 01_*.sh 02_*.sh 03_*.sh
 
 ---
 
+### 4️⃣ [04단계] 단말기 종합 정밀 진단 시스템 (`./04_device_check.sh`)
+현재 연결된 모든 단말기의 **하드웨어 사양, 배터리 수명(ASOC), 누적 충방전 사이클, 전압/온도, 화면 잠금 상태, 필수 패키지 버전, 내부/공인 IP**를 원클릭으로 전수 점검하고 종합 판정표를 출력합니다:
+
+```bash
+./04_device_check.sh
+```
+
+---
+
 ## ⚙️ PM2 운영 및 모니터링 명령어 치트시트
 
 | 작업 | 명령어 |
@@ -70,21 +80,7 @@ chmod +x 01_*.sh 02_*.sh 03_*.sh
 | **실시간 가동 로그 모니터링** | `pm2 logs nshop-macro-daemon` |
 | **프로세스 및 CPU/메모리 상태** | `pm2 status` |
 | **일시 중지 / 재개** | `pm2 stop nshop-macro-daemon` / `pm2 restart nshop-macro-daemon` |
-| **데몬 완전 삭제** | `pm2 delete nshop-macro-daemon` |
-
----
-
-## 📦 APK 패키지 및 구글 드라이브 연동 관리
-
-* **필수 도구 (`essential_tools`)**: `ADBKeyboard`, `GPSEmulator`, `WireGuard`
-* **네이버 앱 (`naver_app`)**: 최신 버전 (`v12.22.50`)
-
-### 💡 추후 네이버 앱 신규 버전 패치 시:
-새 네이버 앱 APK 압축본을 구글 드라이브에 업로드한 후, 파일 ID만 입력하면 신규 버전으로 자동 교체됩니다:
-```bash
-./scripts/download_apks.sh <신규_구글드라이브_FILE_ID>
-./03_device_init.sh
-```
+| **단말기 종합 건강 진단** | `./04_device_check.sh` |
 
 ---
 
@@ -95,11 +91,13 @@ nshop_macro_v1/
 ├── 01_install_os.sh           # [01단계] 365일 무한가동 Server OS 튜닝 & 패키지 설치
 ├── 02_pm2_setup.sh            # [02단계] PM2 무한가동 서비스 등록 & APK 동기화
 ├── 03_device_init.sh          # [03단계] 안드로이드 단말기 잠금해제 & APK 자동 배포
+├── 04_device_check.sh         # [04단계] 단말기 하드웨어/배터리/네트워크 종합 진단기
 ├── ecosystem.config.js        # PM2 프로세스 정의 파일
 ├── daemon.py                  # 중앙 스케줄러 메인 진입점
 ├── requirements.txt           # Python 필수 패키지 목록
 ├── scripts/
 │   ├── download_apks.sh       # 구글 드라이브 APK 자동 다운로더
+│   ├── check_battery_health.py# 배터리 ASOC 수명 및 사이클 진단 도구
 │   └── monitor_charging.py    # 20분 분 단위 배터리 벤치마크 도구
 ├── dev_tools/                 # 개발 및 연구용 도구 (Frida, MITM dumper)
 ├── apks/                      # 오프라인 앱 설치 바이너리 관리 디렉터리
