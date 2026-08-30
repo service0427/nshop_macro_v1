@@ -20,8 +20,12 @@ DEVICE_SET_FILE = os.path.join(PROJECT_ROOT, "device_set.json")
 ALLOCATE_HISTORY_DIR = os.path.join(LOGS_DIR, "allocate_history")
 RELEASE_HISTORY_DIR = os.path.join(LOGS_DIR, "release_history")
 SCREENSHOT_DIR = os.path.join(LOGS_DIR, "target_screenshot")
+UNEXPOSED_DUMPS_DIR = os.path.join(LOGS_DIR, "unexposed_dumps")
 BATTERY_LOG_DIR = os.path.join(LOGS_DIR, "battery_history")
 BATTERY_SUMMARY_LOG = os.path.join(LOGS_DIR, "battery_history.log")
+
+for _d in [LOGS_DIR, CLICK_LOGS_DIR, CLICK_BEFORE_DIR, CLICK_AFTER_DIR, ALLOCATE_HISTORY_DIR, RELEASE_HISTORY_DIR, SCREENSHOT_DIR, UNEXPOSED_DUMPS_DIR, BATTERY_LOG_DIR]:
+    os.makedirs(_d, exist_ok=True)
 
 # --- 1. 네이버 앱 패키지 및 액티비티 ---
 NAVER_PKG = "com.nhn.android.search"

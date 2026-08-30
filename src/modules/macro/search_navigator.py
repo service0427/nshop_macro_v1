@@ -351,7 +351,11 @@ class SearchNavigator:
             self.inspector.run_adb(f"input swipe {x1_s} {y1_s} {x2_s} {y2_s} {duration}")
             time.sleep(random.uniform(0.6, 0.9))
 
-        logger.warning(f"[{self.device_id}] [!] 최대 스크롤 횟수 도달 후에도 안전 포커싱 실패")
+        logger.warning(f"[{self.device_id}] [!] 최대 스크롤 횟수({max_scroll_passes}회) 도달 후에도 타겟 MID({target_mid_str}) 미노출 ➔ 사후 분석용 UI XML 덤프 저장")
+        try:
+            self.inspector.save_unexposed_dump(target_mid=target_mid_str, keyword=keyword)
+        except Exception as e:
+            logger.warning(f"[{self.device_id}] 미노출 덤프 저장 중 예외: {e}")
         return None
 
     def click_target_product_and_verify(self, target_coords_or_x: Any, click_y_or_mid: Any = None, timeout_sec: float = 30.0, target_mid: Optional[str] = None, keyword: Optional[str] = None, **kwargs) -> bool:

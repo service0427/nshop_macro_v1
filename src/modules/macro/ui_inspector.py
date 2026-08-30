@@ -21,7 +21,7 @@ import subprocess
 import xml.etree.ElementTree as ET
 from typing import Dict, Any, Optional, Tuple
 from src.config import (
-    DEVICE_SET_FILE, CLICK_LOGS_DIR, CLICK_BEFORE_DIR, CLICK_AFTER_DIR, SCREENSHOT_DIR
+    DEVICE_SET_FILE, CLICK_LOGS_DIR, CLICK_BEFORE_DIR, CLICK_AFTER_DIR, SCREENSHOT_DIR, UNEXPOSED_DUMPS_DIR
 )
 
 logger = logging.getLogger("NaverMacroCore.UIInspector")
@@ -372,3 +372,43 @@ class UIInspector:
         except Exception as e:
             logger.warning(f"[{self.device_id}] [!] 상세페이지 랜딩 스크린샷 저장 실패: {e}")
         return ""
+
+    def save_unexposed_dump(
+        self,
+        target_mid: str,
+        keyword: Optional[str] = None
+    ) -> Tuple[str, str]:
+        """
+        [타겟 상품 미노출(is_exposed=False) 시 사후 분석을 위해 전체 UI XML 덤프 및 화면 캡처 저장]
+        - 저장 경로: logs/unexposed_dumps/unexposed_{YYYYMMDD_HHMMSS}_{mid}_{keyword}_{device_id}.xml / .png
+        - 200개 초과 시 FIFO 자동 회전 삭제
+        """
+        now = datetime.datetime.now()
+        time_str = now.strftime("%Y%m%d_%H%M%S")
+        safe_kw = re.sub(r'[\s/\\:*?"<>|]+', '_', (keyword or "UNKNOWN").strip()).strip('_')
+        base_name = f"unexposed_{time_str}_{target_mid}_{safe_kw}_{self.device_id}"
+        xml_path = os.path.join(UNEXPOSED_DUMPS_DIR, f"{base_name}.xml")
+        png_path = os.path.join(UNEXPOSED_DUMPS_DIR, f"{base_name}.png")
+
+        try:
+            # 1. XML 덤프 저장
+            self.run_adb("uiautomator dump /sdcard/unexp_dump.xml", timeout_sec=8.0)
+            xml_str = self.run_adb("cat /sdcard/unexp_dump.xml", timeout_sec=5.0)
+            if xml_str and "<hierarchy" in xml_str:
+                xml_clean = xml_str[xml_str.find("<hierarchy"):]
+                with open(xml_path, "w", encoding="utf-8") as f:
+                    f.write(xml_clean)
+                logger.info(f"[{self.device_id}] [📝 미노출 UI XML 덤프 저장 완료] -> {xml_path}")
+
+            # 2. 화면 전체 스크린샷 캡처
+            with open(png_path, "wb") as f:
+                subprocess.run(["adb", "-s", self.device_id, "exec-out", "screencap", "-p"], stdout=f, timeout=5)
+            if os.path.exists(png_path) and os.path.getsize(png_path) > 1000:
+                logger.info(f"[{self.device_id}] [📸 미노출 전체 화면 캡처 저장 완료] -> {png_path}")
+
+            # 3. 자동 로테이션 정리
+            prune_image_dir(UNEXPOSED_DUMPS_DIR, max_files=200)
+            return (xml_path, png_path)
+        except Exception as e:
+            logger.warning(f"[{self.device_id}] [!] 미노출 덤프/캡처 저장 실패: {e}")
+        return ("", "")

@@ -188,7 +188,7 @@ class DeviceWorkerPipeline:
 
                 if is_searched and target_mid and target_mid != "0":
                     # [공통] 타겟 상품 카드가 실제 단말기 화면(340 <= Y <= 2260)에 보일 때까지 정밀 스크롤 안착 및 크롭 캡처
-                    target_coords = self.macro.navigate_and_focus_target_card(target_mid, max_scroll_passes=12, keyword=keyword)
+                    target_coords = self.macro.navigate_and_focus_target_card(target_mid, max_scroll_passes=16, keyword=keyword)
                     is_exposed = bool(target_coords is not None)
                     exposure_rank = 1 if is_exposed else None
 
