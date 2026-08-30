@@ -78,9 +78,14 @@ class UIInspector:
             return ""
 
     def is_naver_foreground(self) -> bool:
-        """현재 화면의 최상위 포커스 윈도우가 네이버 앱인지 검사"""
-        top_focus = self.run_adb("dumpsys window | grep -E 'mCurrentFocus|topResumedActivity'", timeout_sec=2)
-        return "com.nhn.android.search" in top_focus
+        """현재 화면의 최상위 포커스 윈도우/앱이 네이버 앱인지 검사"""
+        focus_str = self.run_adb("dumpsys window | grep -E 'mCurrentFocus|mFocusedApp|topResumedActivity'", timeout_sec=2)
+        if "com.nhn.android.search" in focus_str:
+            return True
+        # 삼성 키보드 등 IME 입력 중일 때는 네이버 앱 위의 자식 윈도우이므로 True 판정
+        if any(ime in focus_str for ime in ["inputmethod", "InputMethod", "ADBKeyboard"]):
+            return True
+        return False
 
     def ensure_naver_foreground(self) -> bool:
         """네이버 앱이 포그라운드가 아닐 경우 즉시 전면으로 복귀"""
