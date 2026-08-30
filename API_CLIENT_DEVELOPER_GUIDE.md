@@ -1,6 +1,6 @@
-# 📱 Mikrotik Mobile Automation Client API Developer Guide (v2.6 Production Standard)
+# 📱 Mikrotik Mobile Automation Client API Developer Guide (v2.7 Production Standard)
 
-본 문서는 안드로이드 실단말기(5~60대) 및 클라이언트 자동화 워커가 마이크로틱 라우터 API 서버와 통신하여 **WireGuard VPN 연결, 실전 2~3단어 검색/클릭 작업 수행, NNB/NAPP_DI/GPS 식별자 추출, 120개 온디바이스 프로필 풀 누적/동기화, snapshot_size(KB) 반납, DB 우선 프로필 자동 정제(Pruning), 단말기 1대씩 즉시 개별 반납, 4중 무지성 토글 방지**를 수행하는 최신 프로덕션 실연동 표준 규격서입니다.
+본 문서는 안드로이드 실단말기(5~60대) 및 클라이언트 자동화 워커가 마이크로틱 라우터 API 서버와 통신하여 **WireGuard VPN 연결, 실전 2~3단어 검색/클릭 작업 수행, NNB/NAPP_DI/GPS 식별자 추출, 2,000개 온디바이스 프로필 풀 동기화, snapshot_size(KB) 반납, DB 우선 프로필 초경량 자동 정제(Pruning), 단말기 1대씩 즉시 개별 반납, 4중 무지성 토글 방지**를 수행하는 최신 프로덕션 실연동 표준 규격서입니다.
 
 ---
 
@@ -30,9 +30,9 @@
 * `is_searched == True`로 네이버 검색 및 쿠키 추출에 완주한 프로필만 tar.gz 스냅샷을 생성하고, 파일 크기(`snapshot_size: 116.2` KB)를 서버에 보고합니다.
 * `is_searched == False`(WG/홈 에러 등)인 경우 스냅샷을 생성하지 않고 `snapshot_path: null`, `snapshot_size: null`로 반납합니다.
 
-### 💡 핵심 원칙 2: "100회 주기당 1회 DB 우선 온디바이스 불필요 파일 자동 정제"
-* 클라이언트는 100주기마다 1회 `GET /api/v1/profiles?device_id={단말기ID}&compact=1`를 호출하여 서버 DB에 등록된 유효 프로필 목록(`READY`, `AGING`)을 수신합니다.
-* 단말기 로컬 디렉터리(`/data/local/tmp/profile_storage/`)에 존재하지만 서버 DB에 없거나 `RETIRED`/`DELETED`된 고아 tar.gz 파일은 **단말기에서 즉시 영구 삭제(Prune)**하여 100% 완벽한 싱크를 유지합니다.
+### 💡 핵심 원칙 2: "중앙 서버 제어 기반 100회 주기당 1회 온디바이스 자동 정제"
+* **원격 중앙 제어**: 중앙 서버 관리자가 오래된 프로필을 삭제하거나 `RETIRED`/`DELETED` 처리하면, 단말기 워커가 100주기마다 서버를 조회하여 **서버 DB에 없는 파일들을 단말기 로컬 저장소(`/data/local/tmp/profile_storage/`)에서 알아서 영구 삭제(Prune)**합니다.
+* 단말기 5~60대에 개별 접속할 필요 없이 **중앙 서버 DB에서 원클릭으로 모든 단말기의 프로필을 원격 중앙 관리**합니다.
 
 ---
 
@@ -53,7 +53,7 @@ Host: 114.207.112.173:5000
 ```json
 {
   "status": "success",
-  "alloc_id": "3003",
+  "alloc_id": "3005",
   "router": {
     "router_num": "008",
     "endpoint": "221.163.54.24:45820",
@@ -65,16 +65,16 @@ Host: 114.207.112.173:5000
       "device_id": "R3CR70SZ0JJ",
       "ip": "10.8.0.3",
       "private_key": "6Cl0ROVXfDFV+J...",
-      "mid": "91247019083",
-      "keyword": "슬라이딩 디테일애드 계란",
-      "product_title": "계란 보관함 슬라이딩 2단...",
+      "mid": "91281465990",
+      "keyword": "gold finger 걸이형 캐리어",
+      "product_title": "접이식 휴대용 여행 캐리어 걸이...",
       "allow_click": true,
       "job_type": "GOLDEN_CLICK",
       "profile": {
         "profile_id": 812,
         "profile_name": "pf_R3CR70SZ0JJ_0008",
         "snapshot_path": "/data/local/tmp/profile_storage/pf_R3CR70SZ0JJ_0008.tar.gz",
-        "ssaid": "5c73297dfae0c155",
+        "ssaid": "5a21faf64ac349da",
         "adid": "38b58cc3-e55c-029b-9808-3b545647f840"
       }
     }
@@ -86,16 +86,15 @@ Host: 114.207.112.173:5000
 
 ### [API 2] 작업 완료 및 1대씩 즉시 개별 반납 (`POST /api/v1/release`)
 
-#### 🔹 [Case A] 🛒 골든 클릭 / 노출 완주 반납 (`snapshot_size` 추가)
 ```json
 {
-  "alloc_id": "3003",
+  "alloc_id": "3005",
   "results": [
     {
       "device_id": "R3CR70SZ0JJ",
       "status": "SUCCESS",
-      "target_code": "91247019083",
-      "keyword": "슬라이딩 디테일애드 계란",
+      "target_code": "91281465990",
+      "keyword": "gold finger 걸이형 캐리어",
       "is_searched": true,
       "is_clicked": true,
       "is_exposed": true,
@@ -106,7 +105,7 @@ Host: 114.207.112.173:5000
       "battery_level": 53.06,
       "gps_lat": 37.497942,
       "gps_lng": 127.027621,
-      "ssaid": "5c73297dfae0c155",
+      "ssaid": "5a21faf64ac349da",
       "adid": "38b58cc3-e55c-029b-9808-3b545647f840",
       "nnb": "5FBIWHUTY6JWU",
       "napp_di": "f035173eb53f14993a2286efe7d87ba8",
@@ -117,36 +116,11 @@ Host: 114.207.112.173:5000
 }
 ```
 
-#### 🔹 [Case B] ❌ 최초 1회 미달성 조기 실패 반납
-```json
-{
-  "alloc_id": "3003",
-  "results": [
-    {
-      "device_id": "R3CR70KAZDM",
-      "status": "FAILED",
-      "target_code": "91281269728",
-      "keyword": "카인드 몰 등산용 메쉬",
-      "is_searched": false,
-      "is_clicked": false,
-      "is_exposed": false,
-      "execution_sec": 59.3,
-      "cycle_duration_sec": 59.3,
-      "free_storage_mb": 214762,
-      "battery_level": 81.25,
-      "error_reason": "TUNNEL_DOWN",
-      "snapshot_path": null,
-      "snapshot_size": null
-    }
-  ]
-}
-```
-
 ---
 
 ### [API 3] 단말기별 서버 프로필 목록 조회 (`GET /api/v1/profiles`)
 
-서버 DB에 등록된 유효 프로필을 조회하여 온디바이스와 100% 동기화합니다.
+2,000개 이상 대량 누적 시 네트워크 부하를 최소화하기 위해 **Ultra-Compact 포맷(`files: [...]`)** 을 지원합니다.
 
 #### 🔹 요청 (Request)
 ```http
@@ -154,7 +128,22 @@ GET /api/v1/profiles?device_id=R3CR70SZ0JJ&compact=1 HTTP/1.1
 Host: 114.207.112.173:5000
 ```
 
-#### 🔹 응답 예시 (Response JSON)
+#### 🔹 [권장 포맷 A] Ultra-Compact 문자열 리스트 (2,000개 누적 시 최적, 40KB 이내)
+```json
+{
+  "status": "success",
+  "device_id": "R3CR70SZ0JJ",
+  "count": 2000,
+  "files": [
+    "pf_R3CR70SZ0JJ_0001.tar.gz",
+    "pf_R3CR70SZ0JJ_0002.tar.gz",
+    "pf_R3CR70SZ0JJ_0003.tar.gz",
+    "pf_R3CR70SZ0JJ_2000.tar.gz"
+  ]
+}
+```
+
+#### 🔹 [호환 포맷 B] 상세 프로필 객체 리스트
 ```json
 {
   "status": "success",
@@ -166,30 +155,12 @@ Host: 114.207.112.173:5000
       "file": "pf_R3CR70SZ0JJ_0008.tar.gz",
       "status": "READY",
       "nnb": "5FBIWHUTY6JWU",
-      "ssaid": "5a21faf64ac349da",
-      "searches": 1,
-      "clicks": 0,
       "size_kb": 116.2
-    },
-    {
-      "name": "pf_R3CR70SZ0JJ_0007",
-      "file": "pf_R3CR70SZ0JJ_0007.tar.gz",
-      "status": "READY",
-      "nnb": "GAMCICHSV6JWU",
-      "ssaid": "ea75f30e0d951f55",
-      "searches": 6,
-      "clicks": 3,
-      "size_kb": 84.1
     }
-  ],
-  "summary": {
-    "total": 7,
-    "ready": 7,
-    "aging": 0,
-    "daily_clicks": 15
-  }
+  ]
 }
 ```
+*(클라이언트는 포맷 A와 포맷 B를 모두 100% 자동 파싱하여 호환합니다.)*
 
 ---
 

@@ -500,6 +500,7 @@ chmod 777 {full_tar_path}
         """
         [DB 우선 프로필 100회당 1회 동기화 및 단말기 불필요 파일 정리]
         서버의 /api/v1/profiles 를 조회하여 DB에 등록되어 있지 않거나 RETIRED된 프로필을 단말기에서 자동 삭제
+        (2000개 대량 누적 대비 Ultra-Compact files: [...] 및 profiles: [...] 포맷 전수 호환)
         """
         import requests
         cleaned_files = []
@@ -507,10 +508,29 @@ chmod 777 {full_tar_path}
             url = f"{server_host}/api/v1/profiles?device_id={self.device_id}&compact=1"
             res = requests.get(url, timeout=6).json()
             if res.get("status") == "success":
-                valid_server_files = set(
-                    p["file"] for p in res.get("profiles", []) if p.get("status") in ["READY", "AGING"] and "file" in p
-                )
-                # latest, staging 등 로컬 전용 허용 목록 유지
+                valid_server_files = set()
+
+                # 1) files: ["pf_...tar.gz", "pf_..."] (Ultra-Compact 문자열 리스트 포맷)
+                if "files" in res and isinstance(res["files"], list):
+                    for item in res["files"]:
+                        if isinstance(item, str):
+                            fname = item if item.endswith(".tar.gz") else f"{item}.tar.gz"
+                            valid_server_files.add(fname)
+
+                # 2) profiles: [{"file": ...}] 또는 ["pf_..."] (기존/하위 호환)
+                if "profiles" in res and isinstance(res["profiles"], list):
+                    for item in res["profiles"]:
+                        if isinstance(item, dict):
+                            if item.get("status", "READY") in ["READY", "AGING"]:
+                                f = item.get("file") or item.get("name")
+                                if f:
+                                    fname = f if f.endswith(".tar.gz") else f"{f}.tar.gz"
+                                    valid_server_files.add(fname)
+                        elif isinstance(item, str):
+                            fname = item if item.endswith(".tar.gz") else f"{item}.tar.gz"
+                            valid_server_files.add(fname)
+
+                # 3) latest, staging 등 로컬 전용 허용 목록 유지
                 valid_server_files.add(f"pf_{self.device_id}_latest.tar.gz")
                 valid_server_files.add(f"pf_{self.device_id}_staging.tar.gz")
 
