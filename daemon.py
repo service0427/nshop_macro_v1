@@ -22,7 +22,7 @@ import logging
 import argparse
 
 from src.scheduler.daemon_scheduler import DynamicDaemonScheduler
-from src.scheduler.daemon_controller import LOCK_FILE, PAUSE_FLAG_FILE, ALT_PAUSE_FLAG
+from src.scheduler.daemon_controller import LOCK_FILE
 
 # 루트 로거 포맷 및 표준출력 핸들러 구성
 root_logger = logging.getLogger()
@@ -36,32 +36,7 @@ logger = logging.getLogger("DynamicScheduler")
 
 
 def handle_control_flags(args) -> bool:
-    """--pause / --resume / --stop 제어 명령 처리"""
-    if args.pause:
-        with open(PAUSE_FLAG_FILE, "w") as f:
-            f.write(f"PAUSED_AT_{time.time()}\n")
-        print("\n" + "=" * 70)
-        print(" ⏸️  [일시정지 명령 전송 완료]")
-        print("    - 실행 중인 데몬에 일시정지(PAUSE) 플래그를 전달했습니다.")
-        print("    - 현재 진행 중인 작업 완료 후 새 작업 할당이 멈춥니다.")
-        print("    - 다시 재개하려면: python3 daemon.py --resume")
-        print("=" * 70 + "\n")
-        return True
-
-    if args.resume:
-        for f in [PAUSE_FLAG_FILE, ALT_PAUSE_FLAG]:
-            if os.path.exists(f):
-                try:
-                    os.remove(f)
-                except Exception:
-                    pass
-        print("\n" + "=" * 70)
-        print(" ▶️  [재개 명령 전송 완료]")
-        print("    - 실행 중인 데몬의 일시정지가 해제되었습니다.")
-        print("    - 스케줄러가 즉시 작업을 다시 시작합니다!")
-        print("=" * 70 + "\n")
-        return True
-
+    """--stop 제어 명령 처리"""
     if args.stop:
         if os.path.exists(LOCK_FILE):
             try:
@@ -87,10 +62,6 @@ def main():
     parser.add_argument("--stagger", "-s", type=float, default=5.0, help="Stagger delay between worker dispatches in seconds (default: 5.0)")
     parser.add_argument("--loops", "-l", type=int, default=0, help="Max scheduler loop cycles to run before exit (0 = infinite)")
     parser.add_argument("--tasks", "-n", type=int, default=0, help="Max total tasks to process before exit (0 = infinite)")
-
-    # 외부 제어 명령 플래그
-    parser.add_argument("--pause", action="store_true", help="Pause running daemon without killing it")
-    parser.add_argument("--resume", action="store_true", help="Resume paused daemon")
     parser.add_argument("--stop", action="store_true", help="Stop running daemon safely")
     args = parser.parse_args()
 

@@ -53,8 +53,7 @@ class DynamicDaemonScheduler:
 
         self.client = TaskApiClient()
         self.controller = DaemonController(
-            on_emergency_exit=self.emergency_cleanup,
-            on_status_request=self.print_current_status
+            on_emergency_exit=self.emergency_cleanup
         )
 
         self.active_alloc_sessions: Dict[str, Dict[str, Any]] = {}
@@ -237,37 +236,22 @@ class DynamicDaemonScheduler:
             dispatched_count += 1
 
     def start(self):
-        """스케줄러 메인 루프 가동"""
+        """스케줄러 메인 루프 가동 (24/7 무인 자동 디스패치)"""
         self.controller.acquire_lock()
         self.controller.setup_signal_handlers()
-        self.controller.start_keyboard_listener()
 
         all_devs = self.device_pool.all_devices
         logger.info("==========================================================================")
-        logger.info(f" 🚀 NShop Macro 동적 스케줄러 데몬 가동")
+        logger.info(f" 🚀 NShop Macro 24/7 동적 스케줄러 데몬 가동")
         logger.info(f"    - 활성 워커 슬롯: {len(all_devs)}개 (단말기: {all_devs})")
         logger.info(f"    - 스케줄러 폴링 간격: {self.loop_interval_sec}초 | 단말기 간 시차: {self.stagger_sec}초")
-        logger.info(f"    - ⌨️  터미널 단축키: [p: 일시정지 | r: 재개 | s: 현황판 | q: 비상종료]")
         if self.max_loops > 0:
             logger.info(f"    - 최대 루프(주기) 제한: {self.max_loops}회")
         if self.max_tasks > 0:
             logger.info(f"    - 최대 작업(건수) 제한: {self.max_tasks}건")
         logger.info("==========================================================================")
 
-        pause_notify_tick = 0
         while self.controller.running:
-            self.controller.check_pause_flag()
-
-            # 일시정지(PAUSED) 상태인 경우 대기
-            if self.controller.paused:
-                pause_notify_tick += 1
-                if pause_notify_tick % 5 == 1:
-                    logger.info("[⏸️ 스케줄러 일시정지 상태] 새 작업 요청 중단 중... (재개: 'r' + Enter 입력)")
-                time.sleep(2.0)
-                continue
-            else:
-                pause_notify_tick = 0
-
             try:
                 self.run_cycle()
             except Exception as e:
@@ -284,9 +268,9 @@ class DynamicDaemonScheduler:
                         logger.info(f"\n[✓] 지정된 최대 작업 수 ({self.max_tasks}건) 처리 완료. 잔여 워커 완료를 대기합니다...")
                         break
 
-            # 10초 대기 (1초 단위 인터럽트 감지)
+            # 10초 대기 (1초 단위 종료 시그널 감지)
             for _ in range(int(self.loop_interval_sec)):
-                if not self.controller.running or self.controller.paused:
+                if not self.controller.running:
                     break
                 time.sleep(1.0)
 
