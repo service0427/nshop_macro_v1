@@ -93,7 +93,14 @@ class DaemonController:
                         pass
 
     def start_keyboard_listener(self):
-        """콘솔 키보드 리스너 스레드 (p/r/s/q)"""
+        """콘솔 키보드 리스너 스레드 (p/r/s/q) - TTY 터미널에서만 활성화"""
+        try:
+            if not sys.stdin or not hasattr(sys.stdin, "isatty") or not sys.stdin.isatty():
+                logger.info("[*] 비대화형(PM2/배경) 환경 감지 ➔ 콘솔 키보드 리스너 비활성화 (파일 플래그 제어 활성)")
+                return
+        except Exception:
+            return
+
         def _listen():
             while self.running:
                 try:

@@ -27,6 +27,7 @@ from src.modules.task_api_client import TaskApiClient
 from src.pipeline.worker_pipeline import DeviceWorkerPipeline
 from src.scheduler.device_pool import DevicePool
 from src.scheduler.daemon_controller import DaemonController
+from src.modules.battery_tracker import BatteryTracker
 
 logger = logging.getLogger("DaemonScheduler")
 
