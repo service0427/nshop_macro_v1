@@ -134,51 +134,53 @@ class DevicePool:
         return False
 
     def get_idle_devices(self) -> List[str]:
-        """가용 유휴 단말기 필터링 (배터리 부족 및 과열 보호 포함)"""
+        """가용 유휴 단말기 필터링 (초고속 비동기/논블로킹 분리)"""
         with self.lock:
             candidates = [d for d in self.all_devices if d not in self.busy_devices]
-            available = []
-            for dev in candidates:
-                try:
-                    # 1. ADB 연결 및 응답 확인 (offline 시 USB 리셋)
-                    chk = subprocess.run(["adb", "-s", dev, "shell", "echo 1"], capture_output=True, text=True, timeout=3)
-                    if chk.returncode != 0 or "1" not in chk.stdout:
-                        logger.warning(f"  [⚠️ {dev}] ADB offline / 응답 없음 감지 -> USB 하드웨어 전원 껐다 켜기(usbreset) 실행!")
-                        self.reset_usb_device(dev)
 
-                    batt = self.get_device_battery_info(dev)
-                    level = batt.get("level", 100)
-                    level_precise = batt.get("level_precise", float(level))
-                    temp = batt.get("temp", 25.0)
+        if not candidates:
+            return []
 
-                    # 🔋 대기/충전 중 배터리 변화 실시간 추적 및 기록 (소수점 정밀 지원)
-                    idle_dur = time.time() - self.device_status[dev].get("idle_since", time.time())
-                    BatteryTracker.log_idle_charge(dev, level_precise, temp, idle_dur)
+        available = []
+        for dev in candidates:
+            try:
+                # 🔋 배터리 및 온도 안전 검사 (20% 미만 방전 방지 및 43°C 과열 보호)
+                batt = self.get_device_battery_info(dev)
+                level = batt.get("level", 100)
+                level_precise = batt.get("level_precise", float(level))
+                temp = batt.get("temp", 25.0)
 
-                    # 2. 배터리 20% 미만 방전 보호
-                    if level < 20:
-                        logger.warning(f"  [⚠️ {dev}] 배터리 부족 ({level}% < 20%) -> 방전 방지를 위해 이번 주기 할당 제외(PASS)")
+                with self.lock:
+                    idle_since = self.device_status[dev].get("idle_since", time.time())
+                idle_dur = time.time() - idle_since
+                BatteryTracker.log_idle_charge(dev, level_precise, temp, idle_dur)
+
+                # 배터리 20% 미만 방전 보호
+                if level < 20:
+                    logger.warning(f"  [⚠️ {dev}] 배터리 부족 ({level}% < 20%) -> 방전 방지를 위해 이번 주기 할당 제외(PASS)")
+                    with self.lock:
                         self.device_status[dev]["last_result"] = f"배터리부족({level}%) 충전대기"
-                        continue
-
-                    # 3. 배터리 43°C 이상 과열 보호
-                    if temp >= 43.0:
-                        logger.warning(f"  [⚠️ {dev}] 단말기 과열 ({temp}°C >= 43°C) -> 쿨다운을 위해 이번 주기 할당 제외(PASS)")
-                        self.device_status[dev]["last_result"] = f"과열({temp}°C) 쿨다운"
-                        continue
-
-                    available.append(dev)
-                except Exception as e:
-                    logger.warning(f"  [⚠️ {dev}] 유휴 상태 검사 중 일시 통신 지연 ({e}) -> 다음 10초 주기에 재확인합니다.")
                     continue
-            
-            # ⚖️ [공평한 작업 분배 - Fair-Share Round Robin]
-            # 완료 작업 수가 적거나, 가장 오랫동안 작업을 받지 않은 단말기를 최우선 순위로 정렬
+
+                # 배터리 43°C 이상 과열 보호
+                if temp >= 43.0:
+                    logger.warning(f"  [⚠️ {dev}] 단말기 과열 ({temp}°C >= 43°C) -> 쿨다운을 위해 이번 주기 할당 제외(PASS)")
+                    with self.lock:
+                        self.device_status[dev]["last_result"] = f"과열({temp}°C) 쿨다운"
+                    continue
+
+                available.append(dev)
+            except Exception as e:
+                logger.debug(f"  [⚠️ {dev}] 상태 검사 예외: {e}")
+                available.append(dev)
+
+        # ⚖️ [공평한 작업 분배 - Fair-Share Round Robin]
+        with self.lock:
             available.sort(key=lambda d: (
                 self.device_status[d].get("completed_tasks", 0),
                 self.device_status[d].get("last_assigned_time", 0.0)
             ))
-            return available
+        return available
 
     def mark_busy(self, device_id: str, cycle_num: int, job_type: str, keyword: str, allow_click: bool):
         """단말기를 BUSY 상태로 전환"""
