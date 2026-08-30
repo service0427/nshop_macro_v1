@@ -40,7 +40,7 @@ class DynamicDaemonScheduler:
         device_ids: Optional[List[str]] = None,
         max_workers: int = 5,
         loop_interval_sec: float = 10.0,
-        stagger_sec: float = 0.0,
+        stagger_sec: float = 1.0,
         max_loops: int = 0,
         max_tasks: int = 0
     ):
