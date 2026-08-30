@@ -91,6 +91,21 @@ class UIInspector:
             return self.is_naver_foreground()
         return True
 
+    def get_ui_tree(self, tmp_name: str = "ui_dump") -> Optional[ET.Element]:
+        """UIAutomator XML을 덤프하고 파싱하여 ElementTree Root 반환"""
+        try:
+            sdcard_path = f"/sdcard/{tmp_name}.xml"
+            self.run_adb(f"uiautomator dump {sdcard_path}", timeout_sec=8.0)
+            xml_str = self.run_adb(f"cat {sdcard_path}", timeout_sec=5.0)
+            if not xml_str or "<hierarchy" not in xml_str:
+                xml_str = self.run_adb("cat /sdcard/window_dump.xml", timeout_sec=5.0)
+            if xml_str and "<hierarchy" in xml_str:
+                xml_clean = xml_str[xml_str.find("<hierarchy"):]
+                return ET.fromstring(xml_clean)
+        except Exception as e:
+            logger.warning(f"[{self.device_id}] get_ui_tree 파싱 실패: {e}")
+        return None
+
     # 단말기별 UI 액션 연속 실패 카운터 (메모리 내 관리, 오버헤드 0%)
     _failure_counters: Dict[str, Dict[str, int]] = {}
 
