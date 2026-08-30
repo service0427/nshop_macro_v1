@@ -24,6 +24,13 @@ import argparse
 from src.scheduler.daemon_scheduler import DynamicDaemonScheduler
 from src.scheduler.daemon_controller import LOCK_FILE
 
+# 표준출력 및 표준에러 실시간 버퍼링 해제 (PM2 실시간 로그 스트리밍 보장)
+try:
+    sys.stdout.reconfigure(line_buffering=True)
+    sys.stderr.reconfigure(line_buffering=True)
+except Exception:
+    pass
+
 # 루트 로거 포맷 및 표준출력 핸들러 구성
 root_logger = logging.getLogger()
 root_logger.setLevel(logging.INFO)
