@@ -110,23 +110,8 @@ class DevicePool:
         }
 
     def get_device_battery_info(self, device_id: str) -> Dict[str, Any]:
-        """단말기 배터리 잔량(%) 및 온도(°C) 확인"""
-        try:
-            out = subprocess.check_output(
-                ["adb", "-s", device_id, "shell", "dumpsys battery"],
-                timeout=4, stderr=subprocess.DEVNULL, text=True
-            )
-            level = 100
-            temp = 25.0
-            for line in out.splitlines():
-                line = line.strip()
-                if line.startswith("level:"):
-                    level = int(line.split(":")[1].strip())
-                elif line.startswith("temperature:"):
-                    temp = int(line.split(":")[1].strip()) / 10.0
-            return {"level": level, "temp": temp}
-        except Exception:
-            return {"level": 100, "temp": 25.0}
+        """단말기 배터리 정수 및 소수점 정밀 잔량(%), 잔여용량(mAh), 전압(V), 온도(°C) 확인"""
+        return BatteryTracker.get_battery_info(device_id)
 
     def reset_usb_device(self, device_id: str) -> bool:
         """단말기 시리얼과 일치하는 USB 버스 포트를 하드웨어 레벨에서 전원 리셋 (usbreset)"""
@@ -163,11 +148,12 @@ class DevicePool:
 
                     batt = self.get_device_battery_info(dev)
                     level = batt.get("level", 100)
+                    level_precise = batt.get("level_precise", float(level))
                     temp = batt.get("temp", 25.0)
 
-                    # 🔋 대기/충전 중 배터리 변화 실시간 추적 및 기록
+                    # 🔋 대기/충전 중 배터리 변화 실시간 추적 및 기록 (소수점 정밀 지원)
                     idle_dur = time.time() - self.device_status[dev].get("idle_since", time.time())
-                    BatteryTracker.log_idle_charge(dev, level, temp, idle_dur)
+                    BatteryTracker.log_idle_charge(dev, level_precise, temp, idle_dur)
 
                     # 2. 배터리 20% 미만 방전 보호
                     if level < 20:

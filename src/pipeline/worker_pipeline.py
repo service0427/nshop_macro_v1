@@ -230,22 +230,27 @@ class DeviceWorkerPipeline:
         exec_sec = round(time.time() - t_start, 1)
         final_status = "SUCCESS" if (is_searched and error_reason is None) else "FAILED"
 
-        # E. 배터리 소모량 추적 및 기록
+        # E. 배터리 소모량 추적 및 기록 (정밀 소수점)
         batt_end_info = BatteryTracker.get_battery_info(self.device_id)
         current_batt = batt_end_info.get("level", 100)
+        current_batt_precise = batt_end_info.get("level_precise", float(current_batt))
+        start_batt_precise = batt_start_info.get("level_precise", current_batt_precise)
+        charge_mah = batt_end_info.get("charge_mah")
+
         BatteryTracker.log_task_cycle(
             device_id=self.device_id,
             job_type="CLICK" if allow_click else "EXPLORE",
             keyword=keyword or "-",
-            batt_start=batt_start_info.get("level", current_batt),
+            batt_start=start_batt_precise,
             temp_start=batt_start_info.get("temp", 25.0),
-            batt_end=current_batt,
+            batt_end=current_batt_precise,
             temp_end=batt_end_info.get("temp", 25.0),
             duration_sec=exec_sec,
-            status=final_status
+            status=final_status,
+            charge_mah_end=charge_mah
         )
 
-        logger.info(f"[{self.device_id}] 🏁 작업 완료 -> 상태: {final_status}, 노출: {is_exposed} (순위: {exposure_rank}), 클릭: {is_clicked}, 소요: {exec_sec}s | NNB: {extracted_nnb}, NAPP_DI: {extracted_napp_di} | 배터리: {current_batt}%")
+        logger.info(f"[{self.device_id}] 🏁 작업 완료 -> 상태: {final_status}, 노출: {is_exposed} (순위: {exposure_rank}), 클릭: {is_clicked}, 소요: {exec_sec}s | NNB: {extracted_nnb}, NAPP_DI: {extracted_napp_di} | 배터리: {current_batt}% ({current_batt_precise:.2f}%)")
 
         return {
             "device_id": self.device_id,
