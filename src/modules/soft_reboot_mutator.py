@@ -230,9 +230,9 @@ rm -f /data/local/tmp/null_{self.device_id}.xml /data/local/tmp/tut_{self.device
         booted = False
         for _ in range(max_wait_sec):
             try:
-                out = subprocess.run(["adb", "-s", self.device_id, "shell", "getprop sys.boot_completed"],
+                out = subprocess.run(["adb", "-s", self.device_id, "shell", "service check window; service check activity"],
                                      capture_output=True, text=True, timeout=4).stdout.strip()
-                if out == "1":
+                if "Service window: found" in out and "Service activity: found" in out:
                     booted = True
                     break
             except Exception:
