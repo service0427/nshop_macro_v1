@@ -78,7 +78,7 @@ class SearchNavigator:
         return True
 
     def wait_for_search_input_ready(self, timeout_sec: float = 5.0) -> bool:
-        """[검색어 입력 화면 완전 로딩 및 키보드 활성화 판별]"""
+        """[검색어 입력 화면 완전 로딩 및 키보드 활성화 판별 + 연속 2회 실패 시 자가복구]"""
         logger.info(f"[{self.device_id}] 검색어 입력 화면 및 키보드 로딩 판별 중...")
         start_t = time.time()
 
@@ -92,10 +92,33 @@ class SearchNavigator:
 
             if is_suggest_act or ime_ready:
                 elapsed = time.time() - start_t
+                self.inspector.record_action_success("search_bar")
                 logger.info(f"[{self.device_id}] [✓] 검색 입력창 및 키보드 로딩 완료 확인! (소요 시간: {elapsed:.2f}s | Poll #{poll_i})")
                 return True
 
-        logger.warning(f"[{self.device_id}] [!] 검색 입력창 전환 대기 타임아웃 ({timeout_sec}s), 기본 진행...")
+        # 실패 시 자가복구 카운터 증가 및 2회 도달 시 자가 재스캔
+        fail_cnt = self.inspector.record_action_failure("search_bar")
+        logger.warning(f"[{self.device_id}] [!] 검색 입력창 전환 대기 타임아웃 ({timeout_sec}s | 연속 실패: {fail_cnt}/2)...")
+        if fail_cnt >= 2:
+            logger.warning(f"[{self.device_id}] 🚨 [UI 자가복구 발동] 검색창 진입 연속 {fail_cnt}회 실패 감지 ➔ 캐시 무효화 및 실시간 화면 재계측!")
+            self.inspector.invalidate_cache("search_bar_safe_bounds")
+            try:
+                import random
+                new_bounds = self.inspector.get_search_bar_safe_bounds(force_rescan=True)
+                rx = random.randint(new_bounds["x_min"], new_bounds["x_max"])
+                ry = random.randint(new_bounds["y_min"], new_bounds["y_max"])
+                logger.info(f"[{self.device_id}] 🔄 [자가복구 재탭] 새로 계측된 검색창 좌표({rx}, {ry}) 탭 실행...")
+                self.inspector.run_adb(f"input tap {rx} {ry}")
+                time.sleep(1.0)
+                top_act = self.inspector.run_adb("dumpsys activity activities | grep topResumedActivity")
+                ime_status = self.inspector.run_adb("dumpsys input_method | grep mInputShown")
+                if any(k in top_act for k in ["SearchWindowSuggest", "searchwindow", "InAppBrowserActivity"]) or "mInputShown=true" in ime_status:
+                    self.inspector.record_action_success("search_bar")
+                    logger.info(f"[{self.device_id}] [🎉 자가복구 성공] 검색 입력창 정상 진입 확인 완료!")
+                    return True
+            except Exception as e:
+                logger.warning(f"[{self.device_id}] 자가복구 재시도 실패: {e}")
+
         return False
 
     def wait_for_search_results_loaded(self, timeout_sec: float = 30.0) -> bool:

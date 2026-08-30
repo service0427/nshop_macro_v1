@@ -70,6 +70,9 @@ class UIInspector:
             pass
         return None
 
+    # 단말기별 UI 액션 연속 실패 카운터 (메모리 내 관리, 오버헤드 0%)
+    _failure_counters: Dict[str, Dict[str, int]] = {}
+
     def get_device_config(self) -> dict:
         """device_set.json에서 해당 단말기 설정 조회"""
         if os.path.exists(DEVICE_SET_FILE):
@@ -98,16 +101,44 @@ class UIInspector:
         except Exception:
             pass
 
-    def get_home_tab_coords(self) -> Tuple[int, int]:
+    def record_action_failure(self, action_name: str) -> int:
+        """특정 UI 액션(search_bar, home_tab) 연속 실패 카운트 증가 및 반환"""
+        if self.device_id not in UIInspector._failure_counters:
+            UIInspector._failure_counters[self.device_id] = {}
+        cnt = UIInspector._failure_counters[self.device_id].get(action_name, 0) + 1
+        UIInspector._failure_counters[self.device_id][action_name] = cnt
+        return cnt
+
+    def record_action_success(self, action_name: str):
+        """특정 UI 액션 성공 시 실패 카운트 0으로 초기화"""
+        if self.device_id in UIInspector._failure_counters:
+            UIInspector._failure_counters[self.device_id][action_name] = 0
+
+    def invalidate_cache(self, cache_key: str):
+        """device_set.json에서 특정 캐시 키를 원자적으로 제거하여 자가복구 트리거"""
+        if os.path.exists(DEVICE_SET_FILE):
+            try:
+                with open(DEVICE_SET_FILE, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if self.device_id in data and cache_key in data[self.device_id]:
+                    del data[self.device_id][cache_key]
+                    with open(DEVICE_SET_FILE, "w", encoding="utf-8") as f:
+                        json.dump(data, f, indent=2, ensure_ascii=False)
+                    logger.warning(f"[{self.device_id}] 🧹 [캐시 무효화] '{cache_key}' 캐시 삭제 완료 (다음 호출 시 실시간 재계측)")
+            except Exception as e:
+                logger.debug(f"[{self.device_id}] 캐시 무효화 예외: {e}")
+
+    def get_home_tab_coords(self, force_rescan: bool = False) -> Tuple[int, int]:
         """
-        [하단 '홈' 탭 버튼 동적 좌표 추출 및 1회 캐싱]
+        [하단 '홈' 탭 버튼 동적 좌표 추출 및 1회 캐싱 (자가복구 지원)]
         - 기기 해상도 기준 하단 네비게이션 바의 2번째 탭('홈' 버튼) 중심 좌표를 계산하여 캐싱
         """
-        config = self.get_device_config()
-        cached = config.get("home_tab_coords")
-        if cached and isinstance(cached, list) and len(cached) == 2:
-            if cached[0] >= 250:
-                return tuple(cached)
+        if not force_rescan:
+            config = self.get_device_config()
+            cached = config.get("home_tab_coords")
+            if cached and isinstance(cached, list) and len(cached) == 2:
+                if cached[0] >= 250:
+                    return tuple(cached)
 
         try:
             wm_size_out = self.run_adb("wm size")
@@ -138,15 +169,16 @@ class UIInspector:
         self.update_device_config({"home_tab_coords": list(default_coords)})
         return default_coords
 
-    def get_search_bar_safe_bounds(self) -> Dict[str, int]:
+    def get_search_bar_safe_bounds(self, force_rescan: bool = False) -> Dict[str, int]:
         """
-        [상단 검색창 안전 클릭 영역 추출 및 1회 캐싱]
+        [상단 검색창 안전 클릭 영역 추출 및 1회 캐싱 (자가복구 지원)]
         - 검색창 bounds 중 로고 및 우측 AI 아이콘을 배제한 안전 텍스트 영역 산출 및 캐싱
         """
-        config = self.get_device_config()
-        cached = config.get("search_bar_safe_bounds")
-        if cached and isinstance(cached, dict) and "x_min" in cached:
-            return cached
+        if not force_rescan:
+            config = self.get_device_config()
+            cached = config.get("search_bar_safe_bounds")
+            if cached and isinstance(cached, dict) and "x_min" in cached:
+                return cached
 
         try:
             xml_str = self.run_adb("uiautomator dump /sdcard/sb_chk.xml >/dev/null 2>&1 && cat /sdcard/sb_chk.xml || true")
@@ -187,6 +219,7 @@ class UIInspector:
         now_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         mid_tag = f"_mid_{target_mid}" if target_mid else ""
         archive_path = os.path.join(CLICK_LOGS_DIR, f"click_{now_str}_{self.device_id}{mid_tag}.png")
+        os.makedirs(CLICK_LOGS_DIR, exist_ok=True)
         local_raw = f"/tmp/macro_pre_click_{self.device_id}.png"
         local_out = f"/tmp/macro_click_debug_{self.device_id}.png"
 
