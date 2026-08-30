@@ -386,6 +386,9 @@ class SearchNavigator:
         logger.info(f"[{self.device_id}] 🎯 [STEP 3-4] 타겟 상품 카드 안전 탭 ({cx}, {cy}) | MID: {mid_val} ➔ 상세페이지 진입 대기 (최대 {timeout_sec}초)")
         logger.info(f"[{self.device_id}] ========================================================")
 
+        # 🛡️ 클릭 직전 최상위 창이 네이버 앱인지 2중 검증 (타사 앱/런처 위 탭 원천 차단)
+        self.inspector.ensure_naver_foreground()
+
         # 안전 탭 실행 (click_before는 STEP 3-3 포커싱 단계에서 이미 단 1회 정상 저장됨)
         self.inspector.run_adb(f"input tap {cx} {cy}")
 

@@ -91,6 +91,9 @@ class GestureEngine:
 
         t_start = time.time()
         for s_idx in range(1, scroll_count + 1):
+            # 🛡️ 상세 체류 중 타사 앱/알림 팝업에 의한 화면 가림 방지 가드
+            self.inspector.ensure_naver_foreground()
+
             scroll_dist = random.randint(480, 750)
             start_x = random.randint(450, 650)
             start_y = random.randint(1550, 1780)
