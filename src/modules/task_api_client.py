@@ -80,11 +80,10 @@ class TaskApiClient:
 
     def __init__(self, primary_url: Optional[str] = None):
         self.hosts = [primary_url] + API_HOSTS if primary_url else API_HOSTS
-        self.session = requests.Session()
-        self.session.headers.update({
+        self.headers = {
             "User-Agent": "NShopMacro-ZeroReboot/2.0",
             "Content-Type": "application/json"
-        })
+        }
 
     def allocate_tasks(self, device_ids: List[str]) -> Optional[Dict[str, Any]]:
         """
@@ -103,7 +102,7 @@ class TaskApiClient:
             endpoint = f"{base_url}/api/v1/allocate"
             try:
                 logger.info(f"[*] 작업 할당 요청 중 -> {endpoint} (단말기: {dev_param})")
-                res = self.session.get(endpoint, params=params, timeout=8)
+                res = requests.get(endpoint, params=params, headers=self.headers, timeout=6.0)
                 if res.status_code == 200:
                     data = res.json()
                     task_list = data.get("tasks") or data.get("jobs") or []
@@ -215,7 +214,7 @@ class TaskApiClient:
             endpoint = f"{base_url}/api/v1/release"
             try:
                 logger.info(f"[*] 작업 결과 반환 전송 중 -> {endpoint} (alloc_id: {alloc_id})")
-                res = self.session.post(endpoint, json=payload, timeout=10)
+                res = requests.post(endpoint, json=payload, headers=self.headers, timeout=6.0)
                 if res.status_code == 200:
                     logger.info(f"[✓] 작업 결과 반환 성공! 서버 응답: {res.text[:100]}")
                     return True
