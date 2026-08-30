@@ -182,6 +182,7 @@ class TaskApiClient:
 
                 # 프로필 및 식별자 (NNB, NAPP_DI 포함)
                 "snapshot_path": r.get("snapshot_path"),
+                "snapshot_size": r.get("snapshot_size"),
                 "ssaid": r.get("ssaid"),
                 "adid": r.get("adid"),
                 "nnb": r.get("nnb"),

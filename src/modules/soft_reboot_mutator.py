@@ -24,7 +24,7 @@ import sqlite3
 import tempfile
 from typing import Dict, Any, Optional, Tuple
 
-from src.config import NAVER_PKG, PROFILE_STORAGE_DIR
+from src.config import NAVER_PKG, PROFILE_STORAGE_DIR, PRIMARY_SERVER_URL
 
 logger = logging.getLogger("SoftRebootMutator")
 if not logger.handlers:
@@ -466,8 +466,18 @@ am broadcast -a com.rosteam.fakegps.MAPS_RECEIVE --ef LATITUDE {final_lat:.6f} -
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
         }
 
-    def save_profile_snapshot(self, profile_name: str) -> Optional[str]:
-        """네이버 앱 쿠키(app_xwhale 포함 4종) 전체 스냅샷 저장"""
+    def get_file_size_kb(self, remote_path: str) -> Optional[float]:
+        """단말기 내 파일의 실제 크기(KB) 조회"""
+        try:
+            sz_out = self._run_adb_su(f"ls -l '{remote_path}' 2>/dev/null | tr -s ' ' | cut -d' ' -f5")
+            if sz_out and sz_out.strip().isdigit():
+                return round(int(sz_out.strip()) / 1024.0, 1)
+        except Exception:
+            pass
+        return None
+
+    def save_profile_snapshot(self, profile_name: str) -> Tuple[Optional[str], Optional[float]]:
+        """네이버 앱 쿠키(app_xwhale 포함 4종) 전체 스냅샷 저장 및 (경로, KB용량) 반환"""
         try:
             os_dest_dir = PROFILE_STORAGE_DIR
             tar_filename = f"{profile_name}.tar.gz" if not profile_name.endswith(".tar.gz") else profile_name
@@ -479,11 +489,45 @@ cd /data/data/{self.package_name} && tar -czf {full_tar_path} app_xwhale app_web
 chmod 777 {full_tar_path}
 """
             self._run_adb_su(cmd)
-            logger.info(f"[{self.device_id}] [📸 프로필 스냅샷 저장 완료] -> {full_tar_path}")
-            return full_tar_path
+            size_kb = self.get_file_size_kb(full_tar_path)
+            logger.info(f"[{self.device_id}] [📸 프로필 스냅샷 저장 완료] -> {full_tar_path} ({size_kb} KB)")
+            return full_tar_path, size_kb
         except Exception as e:
             logger.warning(f"[{self.device_id}] 프로필 스냅샷 저장 실패: {e}")
-            return None
+            return None, None
+
+    def sync_profiles_with_server(self, server_host: str = PRIMARY_SERVER_URL) -> Dict[str, Any]:
+        """
+        [DB 우선 프로필 100회당 1회 동기화 및 단말기 불필요 파일 정리]
+        서버의 /api/v1/profiles 를 조회하여 DB에 등록되어 있지 않거나 RETIRED된 프로필을 단말기에서 자동 삭제
+        """
+        import requests
+        cleaned_files = []
+        try:
+            url = f"{server_host}/api/v1/profiles?device_id={self.device_id}&compact=1"
+            res = requests.get(url, timeout=6).json()
+            if res.get("status") == "success":
+                valid_server_files = set(
+                    p["file"] for p in res.get("profiles", []) if p.get("status") in ["READY", "AGING"] and "file" in p
+                )
+                # latest, staging 등 로컬 전용 허용 목록 유지
+                valid_server_files.add(f"pf_{self.device_id}_latest.tar.gz")
+                valid_server_files.add(f"pf_{self.device_id}_staging.tar.gz")
+
+                # 단말기 로컬 파일 목록 조회
+                local_raw = self._run_adb_su(f"ls {PROFILE_STORAGE_DIR} 2>/dev/null")
+                local_files = [f.strip() for f in local_raw.splitlines() if f.strip().endswith(".tar.gz")]
+
+                for lf in local_files:
+                    if lf not in valid_server_files:
+                        self._run_adb_su(f"rm -f {PROFILE_STORAGE_DIR}/{lf}")
+                        cleaned_files.append(lf)
+                        logger.info(f"[{self.device_id}] 🧹 [DB 우선 프로필 정리] 서버 DB 미등록/폐기 파일 삭제: {lf}")
+
+                return {"success": True, "cleaned_count": len(cleaned_files), "cleaned_files": cleaned_files}
+        except Exception as e:
+            logger.debug(f"[{self.device_id}] 프로필 DB 싱크 예외: {e}")
+        return {"success": False, "cleaned_count": 0, "cleaned_files": []}
 
     def extract_session_identifiers(self) -> Dict[str, Optional[str]]:
         """

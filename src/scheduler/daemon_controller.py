@@ -30,17 +30,22 @@ class DaemonController:
         self.lock_file_fd = None
         self.on_emergency_exit = on_emergency_exit
 
-    def acquire_lock(self):
-        """중복 실행 방지 flock 락 획득"""
-        try:
-            self.lock_file_fd = open(LOCK_FILE, "w")
-            fcntl.flock(self.lock_file_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            self.lock_file_fd.write(f"{os.getpid()}\n")
-            self.lock_file_fd.flush()
-        except (IOError, BlockingIOError):
-            logger.error(f"\n[❌ 중복 실행 차단] 이미 nshop_macro 데몬 프로세스가 실행 중입니다! (Lock: {LOCK_FILE})")
-            logger.error("기존 프로세스를 확인하거나 pm2 restart/stop 후 다시 실행해주세요.\n")
-            sys.exit(1)
+    def acquire_lock(self, max_retries: int = 5, retry_delay: float = 0.8):
+        """중복 실행 방지 flock 락 획득 (PM2 재기동 시 이전 프로세스 해제 대기 재시도 지원)"""
+        for attempt in range(1, max_retries + 1):
+            try:
+                self.lock_file_fd = open(LOCK_FILE, "w")
+                fcntl.flock(self.lock_file_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                self.lock_file_fd.write(f"{os.getpid()}\n")
+                self.lock_file_fd.flush()
+                return
+            except (IOError, BlockingIOError):
+                if attempt < max_retries:
+                    time.sleep(retry_delay)
+                else:
+                    logger.error(f"\n[❌ 중복 실행 차단] 이미 nshop_macro 데몬 프로세스가 실행 중입니다! (Lock: {LOCK_FILE})")
+                    logger.error("기존 프로세스를 확인하거나 pm2 restart/stop 후 다시 실행해주세요.\n")
+                    sys.exit(1)
 
     def release_lock(self):
         """flock 락 해제"""
@@ -48,6 +53,7 @@ class DaemonController:
             try:
                 fcntl.flock(self.lock_file_fd, fcntl.LOCK_UN)
                 self.lock_file_fd.close()
+                self.lock_file_fd = None
                 if os.path.exists(LOCK_FILE):
                     os.remove(LOCK_FILE)
             except Exception:
@@ -58,8 +64,12 @@ class DaemonController:
         def _handler(signum, frame):
             logger.warning(f"\n🛑 종료 시그널({signum}) 감지 -> 잔여 세션 안전 반납 및 클린업을 진행합니다...")
             self.running = False
-            if self.on_emergency_exit:
-                self.on_emergency_exit()
+            try:
+                if self.on_emergency_exit:
+                    self.on_emergency_exit()
+            finally:
+                self.release_lock()
+                sys.exit(0)
 
         signal.signal(signal.SIGINT, _handler)
         signal.signal(signal.SIGTERM, _handler)

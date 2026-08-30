@@ -166,6 +166,19 @@ class DynamicDaemonScheduler:
 
         # 1. 유휴 단말기 확인
         idle_devs = self.device_pool.get_idle_devices()
+
+        # 0. 100주기마다 1회 서버 DB 우선 프로필 동기화 및 단말기 불필요 파일 정리
+        if current_cycle % 100 == 1 and idle_devs:
+            for dev in idle_devs:
+                try:
+                    from src.modules.soft_reboot_mutator import SoftRebootMutator
+                    mut = SoftRebootMutator(dev)
+                    sync_res = mut.sync_profiles_with_server()
+                    if sync_res.get("cleaned_count", 0) > 0:
+                        logger.info(f"[{dev}] 🧹 [DB 싱크] 서버 기준 불필요 파일 {sync_res['cleaned_count']}개 자동 정리 완료: {sync_res['cleaned_files']}")
+                except Exception:
+                    pass
+
         self.device_pool.print_status_board(current_cycle, idle_devs)
 
         if not idle_devs:

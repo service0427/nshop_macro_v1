@@ -224,9 +224,10 @@ class DeviceWorkerPipeline:
 
         # C. 성공적인 검색/클릭 세션일 경우 프로필 스냅샷 저장
         final_snapshot = snapshot_path
+        snapshot_size_kb = None
         if is_searched:
             prof_name = profile_obj.get("profile_name") or f"pf_{self.device_id}_{int(time.time())}"
-            final_snapshot = self.mutator.save_profile_snapshot(prof_name)
+            final_snapshot, snapshot_size_kb = self.mutator.save_profile_snapshot(prof_name)
             # 최신 프로필 갱신 (다음 RESTORE 시 재사용)
             self.mutator.save_profile_snapshot(f"pf_{self.device_id}_latest")
 
@@ -256,7 +257,7 @@ class DeviceWorkerPipeline:
             charge_mah_end=charge_mah
         )
 
-        logger.info(f"[{self.device_id}] 🏁 작업 완료 -> 상태: {final_status}, 노출: {is_exposed} (순위: {exposure_rank}), 클릭: {is_clicked}, 소요: {exec_sec}s | NNB: {extracted_nnb}, NAPP_DI: {extracted_napp_di} | 배터리: {current_batt}% ({current_batt_precise:.2f}%)")
+        logger.info(f"[{self.device_id}] 🏁 작업 완료 -> 상태: {final_status}, 노출: {is_exposed} (순위: {exposure_rank}), 클릭: {is_clicked}, 소요: {exec_sec}s | NNB: {extracted_nnb}, NAPP_DI: {extracted_napp_di} | 프로필: {snapshot_size_kb}KB | 배터리: {current_batt}% ({current_batt_precise:.2f}%)")
 
         return {
             "device_id": self.device_id,
@@ -270,6 +271,7 @@ class DeviceWorkerPipeline:
             "execution_sec": exec_sec,
             "free_storage_mb": self.mutator.get_free_storage_mb(),
             "snapshot_path": final_snapshot,
+            "snapshot_size": snapshot_size_kb,
             "ssaid": mut_res.get("ssaid"),
             "adid": mut_res.get("adid"),
             "nnb": extracted_nnb,

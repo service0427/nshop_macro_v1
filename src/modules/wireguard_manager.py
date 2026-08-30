@@ -409,7 +409,7 @@ rm -f /data/local/tmp/wg0_{self.device_id}.conf
         server_pubkey: str,
         endpoint: str,
         expected_public_ip: Optional[str] = None,
-        max_timeout_sec: float = 8.0
+        max_timeout_sec: float = 12.0
     ) -> Dict[str, Any]:
         """
         [핵심 실행 및 5단계 완벽 검증]

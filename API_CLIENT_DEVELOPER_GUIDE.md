@@ -1,6 +1,6 @@
-# 📱 Mikrotik Mobile Automation Client API Developer Guide (v2.5 Production Standard)
+# 📱 Mikrotik Mobile Automation Client API Developer Guide (v2.6 Production Standard)
 
-본 문서는 안드로이드 실단말기(5~60대) 및 클라이언트 자동화 워커가 마이크로틱 라우터 API 서버와 통신하여 **WireGuard VPN 연결, 실전 2~3단어 검색/클릭 작업 수행, NNB/NAPP_DI/GPS 식별자 추출, 120개 온디바이스 프로필 풀 누적/동기화, 실패 시 프로필 무효화 처리, 단말기 1대씩 즉시 개별 반납, 4중 무지성 토글 방지**를 수행하는 최신 프로덕션 실연동 표준 규격서입니다.
+본 문서는 안드로이드 실단말기(5~60대) 및 클라이언트 자동화 워커가 마이크로틱 라우터 API 서버와 통신하여 **WireGuard VPN 연결, 실전 2~3단어 검색/클릭 작업 수행, NNB/NAPP_DI/GPS 식별자 추출, 120개 온디바이스 프로필 풀 누적/동기화, snapshot_size(KB) 반납, DB 우선 프로필 자동 정제(Pruning), 단말기 1대씩 즉시 개별 반납, 4중 무지성 토글 방지**를 수행하는 최신 프로덕션 실연동 표준 규격서입니다.
 
 ---
 
@@ -24,40 +24,19 @@
 
 ---
 
-## 🧬 2. 프로필 생명주기 및 최초 1회 미달성(실패) 처리 표준
+## 🧬 2. 프로필 생명주기 및 DB 우선 온디바이스 동기화 표준
 
-### 💡 핵심 원칙: "성공 검증된 프로필만 저장 및 동기화"
+### 💡 핵심 원칙 1: "성공 검증된 프로필만 snapshot_path & snapshot_size(KB) 저장"
+* `is_searched == True`로 네이버 검색 및 쿠키 추출에 완주한 프로필만 tar.gz 스냅샷을 생성하고, 파일 크기(`snapshot_size: 116.2` KB)를 서버에 보고합니다.
+* `is_searched == False`(WG/홈 에러 등)인 경우 스냅샷을 생성하지 않고 `snapshot_path: null`, `snapshot_size: null`로 반납합니다.
 
-단말기에 신규 프로필이 할당되었으나 **WireGuard 접속 불통(`TUNNEL_DOWN`), 홈 화면 기동 실패(`HOME_LAUNCH_FAILED`), IP 불일치(`IP_MISMATCH`) 등으로 검색 1회를 달성하지 못한 경우**의 표준 처리 규칙입니다.
-
-```mermaid
-flowchart TD
-    A[작업 할당 수신 allocate] --> B[신원 변조 및 WG 터널 연결]
-    B --> C{네이버 검색 1회 완료 여부<br/>is_searched == true?}
-    
-    C -- "YES (완주 성공)" --> D[NNB / NAPP_DI 쿠키 추출]
-    D --> E["프로필 스냅샷 생성 (.tar.gz)<br/>pf_{device_id}_{0001~0120}"]
-    E --> F["서버 반납 release<br/>status: SUCCESS<br/>snapshot_path: /data/local/.../pf_...tar.gz"]
-    F --> G[서버 DB에 유효 프로필 등록 및 AGING 풀 누적]
-    
-    C -- "NO (WG/홈/통신 실패)" --> H[더미 스냅샷 생성 차단<br/>final_snapshot = null]
-    H --> I["서버 반납 release<br/>status: FAILED<br/>is_searched: false<br/>snapshot_path: null<br/>error_reason: TUNNEL_DOWN"]
-    I --> J[서버: 미사용 프로필 DB 등록 취소 및 폐기]
-    J --> K["단말기: 미완주 더미 파일 로컬 누적 방지 (FIFO 자동 정리)"]
-```
-
-#### 📌 클라이언트 및 서버 동작 규격:
-1. **클라이언트 동작**:
-   * `is_searched == False`인 경우 단말기 내부 저장소(`/data/local/tmp/profile_storage/`)에 **영구 스냅샷(`.tar.gz`)을 절대 생성하지 않습니다 (`snapshot_path: null`)**.
-   * 서버 반납 페이로드에 `snapshot_path: null`과 함께 구체적 실패 사유(`error_reason: "TUNNEL_DOWN"`)를 전달합니다.
-2. **서버 동작**:
-   * `is_searched: false` 또는 `snapshot_path: null`인 반납을 수신하면, 해당 프로필을 **유효 숙성 풀(DB)에 등록하지 않고 즉시 무효화/폐기** 처리하여 서버와 디바이스 간 싱크를 완벽히 일치시킵니다.
-3. **온디바이스 저장공간 누적 방지**:
-   * 단말기 내 프로필은 최대 120개 풀(`pf_{device_id}_{0001~0120}`)을 순환 덮어쓰기하며, 미검증 임시 파일은 자동 정리(Pruning)합니다.
+### 💡 핵심 원칙 2: "100회 주기당 1회 DB 우선 온디바이스 불필요 파일 자동 정제"
+* 클라이언트는 100주기마다 1회 `GET /api/v1/profiles?device_id={단말기ID}&compact=1`를 호출하여 서버 DB에 등록된 유효 프로필 목록(`READY`, `AGING`)을 수신합니다.
+* 단말기 로컬 디렉터리(`/data/local/tmp/profile_storage/`)에 존재하지만 서버 DB에 없거나 `RETIRED`/`DELETED`된 고아 tar.gz 파일은 **단말기에서 즉시 영구 삭제(Prune)**하여 100% 완벽한 싱크를 유지합니다.
 
 ---
 
-## 📡 3. API 규격 상세 (실제 프로덕션 JSON 스키마)
+## 📡 3. API 규격 상세
 
 * **Base URL**: `http://114.207.112.173:5000` (또는 `https://aaa4.kr`)
 * **데이터 포맷**: `JSON` (`Content-Type: application/json`)
@@ -66,21 +45,15 @@ flowchart TD
 
 ### [API 1] 작업 및 WireGuard 일괄 할당 (`GET/POST /api/v1/allocate`)
 
-#### 🔹 요청 (Request)
-* **Method**: `GET` 또는 `POST`
-* **Path**: `/api/v1/allocate`
-* **파라미터**: `device_ids` (콤마 구분 문자열 또는 JSON 배열)
-
 ```http
 GET /api/v1/allocate?device_ids=R3CR70KAZDM,R3CR70SZ0JJ,R3CRB0WCGET,R5CR713T5WT,R5CR9336DSB HTTP/1.1
 Host: 114.207.112.173:5000
 ```
 
-#### 🔹 실제 서버 응답 예시 (Response JSON)
 ```json
 {
   "status": "success",
-  "alloc_id": "2998",
+  "alloc_id": "3003",
   "router": {
     "router_num": "008",
     "endpoint": "221.163.54.24:45820",
@@ -104,17 +77,6 @@ Host: 114.207.112.173:5000
         "ssaid": "5c73297dfae0c155",
         "adid": "38b58cc3-e55c-029b-9808-3b545647f840"
       }
-    },
-    {
-      "device_id": "R3CRB0WCGET",
-      "ip": null,
-      "private_key": null,
-      "mid": null,
-      "keyword": null,
-      "product_title": null,
-      "allow_click": false,
-      "job_type": "NO_TASK",
-      "profile": null
     }
   ]
 }
@@ -124,67 +86,57 @@ Host: 114.207.112.173:5000
 
 ### [API 2] 작업 완료 및 1대씩 즉시 개별 반납 (`POST /api/v1/release`)
 
-작업이 끝난 단말기는 다른 단말기를 기다리지 않고 즉시 1대만 담아 반납합니다.
-
----
-
-#### 🔹 [Case A] 🛒 골든 클릭 / 노출 정상 완주 (SUCCESS)
-
+#### 🔹 [Case A] 🛒 골든 클릭 / 노출 완주 반납 (`snapshot_size` 추가)
 ```json
 {
-  "alloc_id": "2998",
+  "alloc_id": "3003",
   "results": [
     {
       "device_id": "R3CR70SZ0JJ",
       "status": "SUCCESS",
       "target_code": "91247019083",
       "keyword": "슬라이딩 디테일애드 계란",
-      "is_searched": true,             // [필수] 검색창 검색 실행 성공
-      "is_clicked": true,              // [필수] 타겟 클릭 및 상세페이지 30초 체류 완료
-      "is_exposed": true,              // [필수] 화면 뷰포트 내 타겟 카드 포착
+      "is_searched": true,
+      "is_clicked": true,
+      "is_exposed": true,
       "exposure_rank": 1,
-      "execution_sec": 84.5,           // 사이클 총 소요 시간(초)
+      "execution_sec": 84.5,
       "cycle_duration_sec": 84.5,
-      "free_storage_mb": 216557,       // 단말기 /data 파티션 잔여 용량 (MB 정수)
-      "battery_level": 51.25,          // 단말기 최종 정밀 배터리 잔량 (소수점 2자리 Float)
+      "free_storage_mb": 216557,
+      "battery_level": 53.06,
       "gps_lat": 37.497942,
       "gps_lng": 127.027621,
-      "latitude": 37.497942,
-      "longitude": 127.027621,
       "ssaid": "5c73297dfae0c155",
       "adid": "38b58cc3-e55c-029b-9808-3b545647f840",
-      "nnb": "5FBIWHUTY6JWU",          // [핵심] 네이버 웹뷰에서 추출된 실제 NNB 쿠키
-      "napp_di": "f035173eb53f14993a2286efe7d87ba8", // [핵심] 네이버 앱 NAPP_DI 식별값
-      "snapshot_path": "/data/local/tmp/profile_storage/pf_R3CR70SZ0JJ_0008.tar.gz" // 저장 완료된 프로필
+      "nnb": "5FBIWHUTY6JWU",
+      "napp_di": "f035173eb53f14993a2286efe7d87ba8",
+      "snapshot_path": "/data/local/tmp/profile_storage/pf_R3CR70SZ0JJ_0008.tar.gz",
+      "snapshot_size": 116.2            // [신규] 생성된 tar.gz 파일의 실제 크기 (KB 단위 Float)
     }
   ]
 }
 ```
 
----
-
-#### 🔹 [Case B] ❌ 최초 1회 미달성 조기 실패 (FAILED - TUNNEL_DOWN / HOME_FAIL)
-
-> 💡 **검색 미달성으로 프로필이 저장되지 않았으므로 `snapshot_path: null`로 반납하여 서버와 디바이스에 더미가 쌓이지 않도록 방지합니다.**
-
+#### 🔹 [Case B] ❌ 최초 1회 미달성 조기 실패 반납
 ```json
 {
-  "alloc_id": "2998",
+  "alloc_id": "3003",
   "results": [
     {
       "device_id": "R3CR70KAZDM",
       "status": "FAILED",
       "target_code": "91281269728",
       "keyword": "카인드 몰 등산용 메쉬",
-      "is_searched": false,            // [핵심] 검색 미완료
+      "is_searched": false,
       "is_clicked": false,
       "is_exposed": false,
       "execution_sec": 59.3,
       "cycle_duration_sec": 59.3,
       "free_storage_mb": 214762,
-      "battery_level": 74.81,
-      "error_reason": "TUNNEL_DOWN",   // 실패 원인 (TUNNEL_DOWN, HOME_LAUNCH_FAILED 등)
-      "snapshot_path": null            // [핵심] 미완주 프로필 미저장 (null 반납)
+      "battery_level": 81.25,
+      "error_reason": "TUNNEL_DOWN",
+      "snapshot_path": null,
+      "snapshot_size": null
     }
   ]
 }
@@ -192,46 +144,50 @@ Host: 114.207.112.173:5000
 
 ---
 
-#### 🔹 [Case C] ⏸️ 작업 미할당 즉시 반납 (NO_TASK)
+### [API 3] 단말기별 서버 프로필 목록 조회 (`GET /api/v1/profiles`)
 
-```json
-{
-  "alloc_id": "2998",
-  "results": [
-    {
-      "device_id": "R3CRB0WCGET",
-      "status": "SUCCESS",
-      "is_searched": false,
-      "is_clicked": false,
-      "is_exposed": false,
-      "execution_sec": 0.1,
-      "cycle_duration_sec": 0.1,
-      "public_ip": "NO_TASK",
-      "snapshot_path": null
-    }
-  ]
-}
+서버 DB에 등록된 유효 프로필을 조회하여 온디바이스와 100% 동기화합니다.
+
+#### 🔹 요청 (Request)
+```http
+GET /api/v1/profiles?device_id=R3CR70SZ0JJ&compact=1 HTTP/1.1
+Host: 114.207.112.173:5000
 ```
 
----
-
-#### 🔹 [Case D] 🛑 데몬 재기동 / 비상 종료 시 안전 반납 (CANCELLED)
-
+#### 🔹 응답 예시 (Response JSON)
 ```json
 {
-  "alloc_id": "2998",
-  "results": [
+  "status": "success",
+  "device_id": "R3CR70SZ0JJ",
+  "count": 7,
+  "profiles": [
     {
-      "device_id": "R5CR713T5WT",
-      "status": "CANCELLED",
-      "is_searched": false,
-      "is_clicked": false,
-      "is_exposed": false,
-      "execution_sec": 0.1,
-      "battery_level": 47.16,
-      "error_reason": "USER_INTERRUPTED_CTRL_C"
+      "name": "pf_R3CR70SZ0JJ_0008",
+      "file": "pf_R3CR70SZ0JJ_0008.tar.gz",
+      "status": "READY",
+      "nnb": "5FBIWHUTY6JWU",
+      "ssaid": "5a21faf64ac349da",
+      "searches": 1,
+      "clicks": 0,
+      "size_kb": 116.2
+    },
+    {
+      "name": "pf_R3CR70SZ0JJ_0007",
+      "file": "pf_R3CR70SZ0JJ_0007.tar.gz",
+      "status": "READY",
+      "nnb": "GAMCICHSV6JWU",
+      "ssaid": "ea75f30e0d951f55",
+      "searches": 6,
+      "clicks": 3,
+      "size_kb": 84.1
     }
-  ]
+  ],
+  "summary": {
+    "total": 7,
+    "ready": 7,
+    "aging": 0,
+    "daily_clicks": 15
+  }
 }
 ```
 
@@ -252,36 +208,3 @@ Endpoint = {router.endpoint}
 AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
 ```
-
----
-
-## 💻 5. 클라이언트 1대씩 즉시 반납 파이썬 레퍼런스 구현
-
-```python
-import requests
-import json
-import time
-
-API_BASE = "http://114.207.112.173:5000"
-
-def release_single_device(alloc_id, result_dict):
-    payload = {
-        "alloc_id": alloc_id,
-        "results": [result_dict]
-    }
-    try:
-        res = requests.post(f"{API_BASE}/api/v1/release", json=payload, timeout=8)
-        print(f"[{result_dict['device_id']}] 🏁 반납 응답: {res.json().get('message')}")
-    except Exception as e:
-        print(f"[{result_dict['device_id']}] ❌ 반납 실패: {e}")
-```
-
----
-
-## ❓ 6. FAQ & 운영 Q&A
-
-#### Q1. 최초 1회 미달성 시 프로필은 어떻게 되나요?
-* **답변**: `is_searched == False`인 경우 클라이언트는 단말기 내에 프로필 스냅샷(`.tar.gz`)을 생성하지 않고 `snapshot_path: null`로 반납합니다. 서버 역시 이를 DB에 등록하지 않으므로, **불완전한 더미 프로필이 디바이스나 서버에 절대 누적되지 않습니다.**
-
-#### Q2. 1대씩 반납할 때 다른 단말기의 VPN 연결이 끊기지 않나요?
-* **답변**: **전혀 끊기지 않습니다.** 서버는 세션 내 잔여 작업 단말기 수(`remaining_working`)를 실시간 감시하며, **세션의 마지막 단말기까지 모두 반납되었을 때만 라우터 IP를 1회 교체(토글)**합니다.
