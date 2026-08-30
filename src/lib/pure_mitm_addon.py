@@ -20,6 +20,8 @@ class PurePassiveLoggingProxy:
         # Absolutely ZERO tampering / ZERO modification / 100% Pure Pass-through
         pass
 
+
+
     def response(self, flow: http.HTTPFlow):
         if not flow.response:
             return

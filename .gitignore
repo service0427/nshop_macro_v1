@@ -1,34 +1,35 @@
-# Byte-compiled / optimized files
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 
-# Large binary APK packages & decompiled files
-apks/*.apk
-apks/**/*.apk
-apks/*.zip
-apks/**/*.zip
-apks/*.tar.gz
-apks/**/*.tar.gz
-apks/**/jadx_out/
-*.so
-
-# Decompiled output & Temporary Execution Data
-tmp/
+# Logs, Metrics & Runtime States
 logs/
+click_logs/
 *.log
-*.dump
-*.xml
-*.png
-*.jpg
-*.pcap
+*.lock
+*.flag
+pause.flag
+.last_ip_toggle.json
+tmp/
+archive/
 
-# Profiles & Dynamic Session Data
-profiles/*.json
-!profiles/.gitkeep
-
-# Environment & IDE
+# Local Environment & Hardware Device Maps
 .env
-.vscode/
-.idea/
+.venv/
+env/
+venv/
+device_set.json
+
+# APK binaries & Archives (Managed via Google Drive to respect GitHub 100MB file limit)
+apks/*.apk
+apks/*.zip
+apks/*.tar.gz
+apks/naver_app/
+apks/wireguard/
+apks/adbkeyboard/
+apks/essential_tools/
+
+# OS specific
 .DS_Store
+Thumbs.db

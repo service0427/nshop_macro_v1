@@ -1,77 +1,86 @@
-# N-Shop Automation Master & WireGuard RouterOS MacVlan Engine (`wg_nshop_v1`)
+# 🛒 N-Shop Macro Automation V1 (Phone Farm Distribution Node)
 
-고성능 네이버 쇼핑 자동화 매크로 파이프라인 및 **MikroTik RouterOS MacVlan 기반 IP 자동 회전 엔진** 프로젝트입니다.
-
----
-
-## 🌟 핵심 주요 기능 및 시스템 아키텍처
-
-### 1. WireGuard & MikroTik RouterOS MacVlan IP 회전 엔진 (`--wg`)
-- **독립형 MacVlan 바인딩 (`macvlan1`)**:
-  - RouterOS REST API (`http://hj20acn8f3p.sn.mynetname.net/rest`) 연동.
-  - 라우터 메인 회선(`ether1`)에 영향을 주지 않는 전용 `macvlan1` 가상 인터페이스 생성.
-- **정책 라우팅 (Policy Routing) & Mangle Prerouting**:
-  - WireGuard 대역(`10.8.0.0/24`) 패킷을 `to-macvlan1` 라우팅 테이블로 강제 마킹(Mangle).
-  - `macvlan1` 전용 Masquerade NAT 규칙 및 Dynamic Default Route 실시간 자동 업데이트.
-- **안드로이드 단일 `wg0` 프로필 0.1초 찰나 UI Toggle**:
-  - 스마트폰 내 불필요한 중복 프로필 자동 정리 후 오직 **`wg0` 단일 설정**만 관리.
-  - 작업 시작 시 0.1초 찰나 스위치 토글로 스마트폰 공인 IP와 `macvlan1` 라우터 IP 100% 동기화 검증.
-  - 작업 완료 시 **WireGuard 비활성화(OFF) ➡️ MAC 주소 난수화 ➡️ DHCP release/renew**로 새로운 공인 IP 회전(Toggle).
-
-### 2. 프리다(Frida) 기반 네트워크 패킷 훅 & HTTP/3 우회
-- Frida 기반 `network_hook.js` 훅 주입을 통한 패킷 모니터링.
-- HTTP/3 (QUIC) 통신 특성 및 카탈로그 상품 로그인 전환 방지 우회 설계.
-
-### 3. 디바이스 식별자 및 세션 프로필 관리
-- ADB 기반 SSAID, ADID, MAC 주소, 기기 핑거프린트 비부팅 실시간 변경 (`--no-reboot`).
-- 성공한 탐색 세션의 쿠키, 식별자, 디바이스 상태를 `/profiles/<ssaid>.json`으로 라이브 백업 및 복원 지원.
-
-### 4. PM2 서비스 상시 데몬화
-- `web_monitor` (웹 실시간 모니터링 대시보드) 및 `session_server` (API 서버) PM2 프로세스 관리.
+안드로이드 실단말기(5~60대) 폰팜 환경에서 **네이버 검색 결과 노출, 2단 스크린샷 아카이빙, 온디바이스 프로필 변조, WireGuard VPN 터널링 및 PM2 무중단 자동 재시작**을 지원하는 분산 매크로 클라이언트 시스템입니다.
 
 ---
 
-## 📂 프로젝트 디렉토리 구조
+## 🌟 2단계 원클릭 셋업 (Ultra-Simple 2-Step Setup)
+
+새로운 클라이언트 PC 및 신규 서버 환경에서는 **오직 아래 2개의 스크립트만 순서대로 실행**하면 모든 셋업이 완료됩니다.
+
+### 1️⃣ [1단계] 클라이언트 호스트 & PM2 무한 가동 셋업 (`pm2_setup.sh`)
+호스트 PC에 필수 패키지(`adb`, `python3`, `nodejs`, `pm2`, `usbreset`)를 설치하고, 구글 드라이브에서 최신 APK를 자동 동기화한 뒤 **PM2에 데몬을 등록하여 PC 재부팅 시에도 자동으로 실행**되도록 설정합니다.
+
+```bash
+git clone https://github.com/service0427/nshop_macro_v1.git
+cd nshop_macro_v1
+chmod +x pm2_setup.sh device_init.sh
+./pm2_setup.sh
+```
+
+---
+
+### 2️⃣ [2단계] 안드로이드 단말기 일괄 초기화 (`device_init.sh`)
+단말기들을 USB로 연결한 후 실행하면 **화면 잠금 해제(재부팅 시 잠김/꺼짐 방지), 필수 앱(네이버, WireGuard, ADBKeyboard) 자동 설치, 세로 화면 고정, 애니메이션 제거 및 권한 승인**을 원클릭으로 완료합니다.
+
+```bash
+# 연결된 모든 단말기 일괄 초기화
+./device_init.sh
+
+# 또는 특정 단말기만 초기화
+./device_init.sh R3CR70SZ0JJ
+```
+
+---
+
+## ⚙️ PM2 운영 및 관리 명령어 치트시트
+
+| 작업 | 명령어 |
+| :--- | :--- |
+| **실시간 가동 로그 모니터링** | `pm2 logs nshop-macro-daemon` |
+| **프로세스 및 CPU/메모리 상태** | `pm2 status` |
+| **일시 정지 / 재개** | `pm2 stop nshop-macro-daemon` / `pm2 restart nshop-macro-daemon` |
+| **데몬 완전 삭제** | `pm2 delete nshop-macro-daemon` |
+
+---
+
+## 📦 APK 패키지 및 구글 드라이브 연동 관리
+
+* **필수 도구 (`essential_tools`)**: `ADBKeyboard`, `GPSEmulator`, `WireGuard`
+* **네이버 앱 (`naver_app`)**: 최신 버전 (`v12.22.50`)
+
+### 💡 추후 네이버 앱 신규 버전 패치 시:
+새 네이버 앱 APK 압축본을 구글 드라이브에 업로드한 후, 파일 ID만 입력하면 신규 버전으로 자동 교체됩니다:
+```bash
+./scripts/download_apks.sh <신규_구글드라이브_FILE_ID>
+./device_init.sh
+```
+
+---
+
+## 📂 프로젝트 디렉터리 구조
 
 ```text
 nshop_macro_v1/
-├── apks/                     # WireGuard 및 디바이스 연동 APK 모음
-├── config/                   # 시스템 및 기기 설정 파일
-├── profiles/                 # SSAID/세션 프로필 JSON 백업 저장소
-├── src/                      # 핵심 소스코드
-│   ├── lib/                  # ADB, Frida 훅, 식별자 관리 라이브러리
-│   ├── macro/                # UI 자동화 및 네이버 파서 모듈
-│   ├── modules/              # wireguard_manager.py (라우터 & WG 핵심 제어기)
-│   └── utils/                # web_monitor 및 템플릿
-├── run.sh                    # 통합 마스터 파이프라인 실행 스크립트
-├── .gitignore                # 깃 추적 제외 규칙
-└── README.md                 # 프로젝트 문서
+├── pm2_setup.sh               # [1단계] 클라이언트 호스트 환경 & PM2 자동 셋업
+├── device_init.sh             # [2단계] 안드로이드 단말기 잠금해제 & 앱 자동 셋업
+├── ecosystem.config.js        # PM2 프로세스 정의 파일
+├── daemon.py                  # 중앙 스케줄러 메인 진입점
+├── requirements.txt           # Python 필수 패키지 목록
+├── scripts/
+│   └── download_apks.sh       # 구글 드라이브 APK 자동 다운로더
+├── apks/                      # 오프라인 앱 설치 바이너리
+│   ├── naver_app/             # 네이버 앱 Split APKs (v12.22.50)
+│   ├── wireguard/             # WireGuard Split APKs
+│   └── adbkeyboard/           # ADBKeyboard.apk
+├── src/                       # 핵심 소스 코드 엔진
+│   ├── config.py              # 전역 경로(동적 탐색) 및 설정
+│   ├── modules/               # 신원 변조, WireGuard, UI 검사, 배터리 추적
+│   ├── pipeline/              # 단말기 워커 파이프라인
+│   └── scheduler/             # 디바이스 풀 & 라운드로빈 스케줄러
+└── logs/                      # 자동 롤링 감사 로그 (최대 100개 유지)
+    ├── allocate_history/      # 작업 할당 원본 JSON
+    ├── release_history/       # 작업 결과 반납 영수증 JSON
+    ├── target_screenshot/     # 타겟 크롭 및 상세페이지 랜딩 스크린샷
+    └── battery_history/       # 배터리 충전/소모 추적 로그
 ```
-
----
-
-## 🚀 사용법 및 실행 명령
-
-### 1. 도움말 확인
-```bash
-./run.sh --help
-```
-
-### 2. WireGuard + RouterOS IP 자동 회전 매크로 실행 (`--wg`)
-```bash
-./run.sh R5CT20Y2XYE --no-reboot -k "노트북" -p "87528666743" --wg
-```
-
-### 3. WireGuard & 라우터 IP 독립 단독 테스트
-```bash
-python3 tmp/test_wireguard_standalone.py
-```
-
----
-
-## 🔮 향후 확장 계획 (Roadmap)
-
-1. **REST API 외부 컨트롤러 통합**:
-   - 외부 중앙 서버에서 멀티 스마트폰 작업을 제어할 수 있는 RESTful API 통신 레이어 확장.
-2. **다중 단말기 동시 구동 (`loop.sh`)**:
-   - 서버당 최대 60대 스마트폰 병렬 구동을 위한 멀티 프로세싱 병렬 파이프라인 구축.
