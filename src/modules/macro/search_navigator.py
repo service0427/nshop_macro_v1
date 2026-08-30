@@ -262,6 +262,15 @@ class SearchNavigator:
                 time.sleep(0.5)
                 continue
 
+            # 🚨 [로그인 바텀시트 / 간편 로그인 팝업 감지 시 뒤로가기로 즉시 닫기]
+            all_texts = [elem.attrib.get("text", "") or elem.attrib.get("content-desc", "") for elem in root.iter("node")]
+            combined_texts = " ".join(all_texts)
+            if any(login_kw in combined_texts for login_kw in ["간편하게 로그인", "간편하고 안전한 로그인", "N 로그인", "로그인하고 혜택 받기"]):
+                logger.info(f"[{self.device_id}] ⚡ [로그인 바텀시트 감지] Android 백키(keyevent 4) 전송하여 로그인 팝업 즉시 닫기")
+                self.inspector.run_adb("input keyevent 4")
+                time.sleep(1.0)
+                continue
+
             matched_card_bounds = None
             for elem in root.iter("node"):
                 rid = elem.attrib.get("resource-id", "").strip()
