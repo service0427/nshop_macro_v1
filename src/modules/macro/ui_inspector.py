@@ -27,13 +27,13 @@ from src.config import (
 logger = logging.getLogger("NaverMacroCore.UIInspector")
 
 
-def prune_image_dir(dir_path: str, max_files: int = 200):
-    """지정된 디렉터리의 이미지(.png/.jpg)가 max_files(200개)를 넘지 않도록 오래된 파일 자동 회전 삭제 (FIFO)"""
+def prune_dir(dir_path: str, max_files: int = 200):
+    """지정된 디렉터리의 전체 파일이 max_files(200개)를 넘지 않도록 가장 오래된 파일 자동 회전 삭제 (FIFO)"""
     try:
         if not os.path.exists(dir_path):
             return
         files = sorted(
-            [os.path.join(dir_path, f) for f in os.listdir(dir_path) if f.lower().endswith((".png", ".jpg", ".jpeg"))],
+            [os.path.join(dir_path, f) for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))],
             key=os.path.getmtime
         )
         if len(files) > max_files:
@@ -44,6 +44,11 @@ def prune_image_dir(dir_path: str, max_files: int = 200):
                     pass
     except Exception:
         pass
+
+
+def prune_image_dir(dir_path: str, max_files: int = 200):
+    """호환성을 위한 prune_dir 별칭"""
+    prune_dir(dir_path, max_files=max_files)
 
 
 class UIInspector:
@@ -406,8 +411,8 @@ class UIInspector:
             if os.path.exists(png_path) and os.path.getsize(png_path) > 1000:
                 logger.info(f"[{self.device_id}] [📸 미노출 전체 화면 캡처 저장 완료] -> {png_path}")
 
-            # 3. 자동 로테이션 정리
-            prune_image_dir(UNEXPOSED_DUMPS_DIR, max_files=200)
+            # 3. 자동 로테이션 정리 (최대 200개 유지, 초과 시 FIFO 자동 삭제)
+            prune_dir(UNEXPOSED_DUMPS_DIR, max_files=200)
             return (xml_path, png_path)
         except Exception as e:
             logger.warning(f"[{self.device_id}] [!] 미노출 덤프/캡처 저장 실패: {e}")
