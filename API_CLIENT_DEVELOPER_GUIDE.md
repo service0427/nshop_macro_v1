@@ -45,11 +45,15 @@
 
 ### [API 1] 작업 및 WireGuard 일괄 할당 (`GET/POST /api/v1/allocate`)
 
+단말기 N대를 파라미터로 전달하여 1개의 공유 라우터와 단말기별 작업/프로필을 일괄 발급받습니다.
+
+#### 🔹 요청 (Request)
 ```http
 GET /api/v1/allocate?device_ids=R3CR70KAZDM,R3CR70SZ0JJ,R3CRB0WCGET,R5CR713T5WT,R5CR9336DSB HTTP/1.1
 Host: 114.207.112.173:5000
 ```
 
+#### 🔹 응답 (Response)
 ```json
 {
   "status": "success",
@@ -86,7 +90,14 @@ Host: 114.207.112.173:5000
 
 ### [API 2] 작업 완료 및 1대씩 즉시 개별 반납 (`POST /api/v1/release`)
 
-```json
+작업이 끝난 단말기는 다른 단말기를 기다리지 않고 즉시 1대씩 개별 반납합니다.
+
+#### 🔹 요청 (Request)
+```http
+POST /api/v1/release HTTP/1.1
+Host: 114.207.112.173:5000
+Content-Type: application/json
+
 {
   "alloc_id": "3005",
   "results": [
@@ -101,7 +112,6 @@ Host: 114.207.112.173:5000
       "exposure_rank": 1,
       "execution_sec": 84.5,
       "cycle_duration_sec": 84.5,
-      "free_storage_mb": 216557,
       "battery_level": 53.06,
       "gps_lat": 37.497942,
       "gps_lng": 127.027621,
@@ -110,61 +120,61 @@ Host: 114.207.112.173:5000
       "nnb": "5FBIWHUTY6JWU",
       "napp_di": "f035173eb53f14993a2286efe7d87ba8",
       "snapshot_path": "/data/local/tmp/profile_storage/pf_R3CR70SZ0JJ_0008.tar.gz",
-      "snapshot_size": 116.2            // [신규] 생성된 tar.gz 파일의 실제 크기 (KB 단위 Float)
+      "snapshot_size": 116.2
     }
   ]
 }
 ```
+
+#### 🔹 응답 (Response)
+```json
+{
+  "status": "success",
+  "message": "Results processed",
+  "completed_device_ids": ["R3CR70SZ0JJ"],
+  "remaining_working": 2,
+  "toggled_routers": []
+}
+```
+*(세션 내 마지막 남은 단말기까지 모두 반납되면 `remaining_working: 0`이 되며 라우터 IP가 자동 세척/토글됩니다.)*
 
 ---
 
 ### [API 3] 단말기별 서버 프로필 목록 조회 (`GET /api/v1/profiles`)
 
-2,000개 이상 대량 누적 시 네트워크 부하를 최소화하기 위해 **Ultra-Compact 포맷(`files: [...]`)** 을 지원합니다.
+중앙 DB가 프로필의 "진실의 원천(Source of Truth)"입니다. 관리자가 DB에서 특정 프로필을 삭제하거나 비활성화하면, 단말기는 100주기마다 이 API를 호출해 **현재 DB에 살아있는 유효한 파일명 목록(`files`)만 받아와서, 단말기 로컬에 남은 불필요한 tar.gz 고아 파일들을 즉시 삭제(Pruning)**합니다.
 
 #### 🔹 요청 (Request)
 ```http
-GET /api/v1/profiles?device_id=R3CR70SZ0JJ&compact=1 HTTP/1.1
+GET /api/v1/profiles?device_id=R3CR70SZ0JJ HTTP/1.1
 Host: 114.207.112.173:5000
 ```
 
-#### 🔹 [권장 포맷 A] Ultra-Compact 문자열 리스트 (2,000개 누적 시 최적, 40KB 이내)
-```json
-{
-  "status": "success",
-  "device_id": "R3CR70SZ0JJ",
-  "count": 2000,
-  "files": [
-    "pf_R3CR70SZ0JJ_0001.tar.gz",
-    "pf_R3CR70SZ0JJ_0002.tar.gz",
-    "pf_R3CR70SZ0JJ_0003.tar.gz",
-    "pf_R3CR70SZ0JJ_2000.tar.gz"
-  ]
-}
-```
-
-#### 🔹 [호환 포맷 B] 상세 프로필 객체 리스트
+#### 🔹 초경량 응답 (Ultra-Compact Response, 2,000개 누적 시에도 30KB 미만)
 ```json
 {
   "status": "success",
   "device_id": "R3CR70SZ0JJ",
   "count": 7,
-  "profiles": [
-    {
-      "name": "pf_R3CR70SZ0JJ_0008",
-      "file": "pf_R3CR70SZ0JJ_0008.tar.gz",
-      "status": "READY",
-      "nnb": "5FBIWHUTY6JWU",
-      "size_kb": 116.2
-    }
+  "files": [
+    "pf_R3CR70SZ0JJ_01.tar.gz",
+    "pf_R3CR70SZ0JJ_0008.tar.gz",
+    "pf_R3CR70SZ0JJ_0007.tar.gz",
+    "pf_R3CR70SZ0JJ_0006.tar.gz",
+    "pf_R3CR70SZ0JJ_0005.tar.gz",
+    "pf_R3CR70SZ0JJ_initial.tar.gz",
+    "pf_R3CR70SZ0JJ_latest.tar.gz"
   ]
 }
 ```
-*(클라이언트는 포맷 A와 포맷 B를 모두 100% 자동 파싱하여 호환합니다.)*
+
+* **단말기 동기화 로직**: 로컬 `/data/local/tmp/profile_storage/` 디렉터리의 파일 중 위 `files` 배열에 **없는 파일만 즉시 rm 삭제**하면 100% 동기화가 완료됩니다.
 
 ---
 
 ## 🔒 4. 클라이언트 WireGuard 터널 조립 규격
+
+클라이언트는 API 응답값과 아래 표준 규격을 조합하여 WireGuard 터널을 생성합니다.
 
 ```ini
 [Interface]
