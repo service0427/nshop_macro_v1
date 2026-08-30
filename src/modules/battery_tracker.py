@@ -19,6 +19,39 @@ class BatteryTracker:
     """
     _lock = threading.Lock()
     _last_idle_record: Dict[str, Dict[str, Any]] = {}
+    _device_full_capacity: Dict[str, float] = {}
+
+    @classmethod
+    def _get_full_capacity_uah(cls, device_id: str) -> float:
+        """단말기 커널/하드웨어의 실제 배터리 만충용량(uAh) 동적 조회 및 캐싱"""
+        if device_id in cls._device_full_capacity:
+            return cls._device_full_capacity[device_id]
+        
+        uah = 3200000.0  # 기본값 (Galaxy Z Flip3 SM-F711N: 3200 mAh)
+        try:
+            out = subprocess.check_output(
+                ["adb", "-s", device_id, "shell", "su -c 'cat /sys/class/power_supply/battery/charge_full_design 2>/dev/null'"],
+                timeout=3, stderr=subprocess.DEVNULL, text=True
+            ).strip()
+            if out.isdigit() and int(out) > 500000:
+                uah = float(out)
+            else:
+                # non-root: dumpsys batterystats에서 조회
+                stats = subprocess.check_output(
+                    ["adb", "-s", device_id, "shell", "dumpsys", "batterystats"],
+                    timeout=3, stderr=subprocess.DEVNULL, text=True
+                )
+                for line in stats.splitlines():
+                    if "Capacity:" in line and "mAh" in line:
+                        mah = float(line.strip().split("Capacity:")[1].strip().split(",")[0].strip())
+                        if mah > 500:
+                            uah = mah * 1000.0
+                            break
+        except Exception:
+            pass
+
+        cls._device_full_capacity[device_id] = uah
+        return uah
 
     @classmethod
     def get_battery_info(cls, device_id: str) -> Dict[str, Any]:
@@ -48,10 +81,11 @@ class BatteryTracker:
                 elif line.startswith("USB powered:"):
                     charging = "true" in line.lower()
             
-            # Galaxy Z Flip3 (SM-F711N) 3300mAh 정격 기준 마이크로 정밀 잔량(%) 산출
-            if counter > 0:
+            # 단말기 기종별 실제 만충용량(uAh)을 동적으로 반영하여 소수점 정밀 잔량(%) 산출
+            full_uah = cls._get_full_capacity_uah(device_id)
+            if counter > 0 and full_uah > 0:
                 charge_mah = round(counter / 1000.0, 1)
-                level_precise = round((counter / 3300000.0) * 100.0, 2)
+                level_precise = round((counter / full_uah) * 100.0, 2)
             else:
                 level_precise = float(level)
         except Exception:
