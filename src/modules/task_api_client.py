@@ -179,8 +179,7 @@ class TaskApiClient:
                 # 오류 사유
                 "error_reason": r.get("error_reason"),
 
-                # 프로필 및 식별자 (NNB, NAPP_DI 포함)
-                "snapshot_path": r.get("snapshot_path"),
+                # 프로필 및 식별자 (NNB, NAPP_DI, snapshot_size 포함)
                 "snapshot_size": r.get("snapshot_size"),
                 "ssaid": r.get("ssaid"),
                 "adid": r.get("adid"),

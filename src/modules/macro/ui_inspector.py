@@ -53,7 +53,7 @@ class UIInspector:
         os.makedirs(CLICK_AFTER_DIR, exist_ok=True)
         os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 
-    def run_adb(self, cmd: str, timeout_sec: int = 5) -> str:
+    def run_adb(self, cmd: str, timeout_sec: int = 3) -> str:
         """기본 ADB shell 명령 실행"""
         try:
             full_cmd = ["adb", "-s", self.device_id, "shell", cmd]
@@ -62,7 +62,7 @@ class UIInspector:
         except Exception:
             return ""
 
-    def run_adb_su(self, shell_cmd: str, timeout_sec: int = 5) -> str:
+    def run_adb_su(self, shell_cmd: str, timeout_sec: int = 3) -> str:
         """Root(su) 권한으로 단말기 셸 명령어 실행"""
         try:
             escaped_cmd = shell_cmd.replace('"', '\\"')
@@ -73,24 +73,18 @@ class UIInspector:
             return ""
 
     def get_ui_tree(self, tmp_name: str = "ui_dump") -> Optional[ET.Element]:
-        """UIAutomator XML을 덤프하고 파싱하여 ElementTree Root 반환 (버퍼 누락 방지)"""
-        sdcard_file = f"/sdcard/{tmp_name}_{self.device_id}.xml"
-        local_file = f"/tmp/{tmp_name}_{self.device_id}.xml"
+        """UIAutomator XML을 덤프하고 파싱하여 ElementTree Root 반환"""
         try:
-            res = subprocess.run(
-                ["adb", "-s", self.device_id, "shell", f"uiautomator dump {sdcard_file}"],
-                capture_output=True, text=True, timeout=6
-            )
-            if res.returncode == 0:
-                subprocess.run(
-                    ["adb", "-s", self.device_id, "pull", sdcard_file, local_file],
-                    capture_output=True, check=False, timeout=4
-                )
-                if os.path.exists(local_file):
-                    tree = ET.parse(local_file)
-                    return tree.getroot()
-        except Exception:
-            pass
+            sdcard_path = f"/sdcard/{tmp_name}.xml"
+            self.run_adb(f"uiautomator dump {sdcard_path}", timeout_sec=8.0)
+            xml_str = self.run_adb(f"cat {sdcard_path}", timeout_sec=5.0)
+            if not xml_str or "<hierarchy" not in xml_str:
+                xml_str = self.run_adb("cat /sdcard/window_dump.xml", timeout_sec=5.0)
+            if xml_str and "<hierarchy" in xml_str:
+                xml_clean = xml_str[xml_str.find("<hierarchy"):]
+                return ET.fromstring(xml_clean)
+        except Exception as e:
+            logger.warning(f"[{self.device_id}] get_ui_tree 파싱 실패: {e}")
         return None
 
     # 단말기별 UI 액션 연속 실패 카운터 (메모리 내 관리, 오버헤드 0%)
@@ -254,9 +248,10 @@ class UIInspector:
         local_out = f"/tmp/macro_click_debug_{self.device_id}.png"
 
         try:
-            subprocess.run(["adb", "-s", self.device_id, "shell", "screencap -p /sdcard/macro_pre_click.png"], stdout=subprocess.DEVNULL)
-            subprocess.run(["adb", "-s", self.device_id, "pull", "/sdcard/macro_pre_click.png", local_raw], stdout=subprocess.DEVNULL)
-            if os.path.exists(local_raw):
+            with open(local_raw, "wb") as f:
+                subprocess.run(["adb", "-s", self.device_id, "exec-out", "screencap", "-p"], stdout=f, timeout=5)
+
+            if os.path.exists(local_raw) and os.path.getsize(local_raw) > 1000:
                 from PIL import Image, ImageDraw, ImageFont
                 img = Image.open(local_raw).convert("RGBA")
                 draw = ImageDraw.Draw(img)
@@ -308,10 +303,10 @@ class UIInspector:
         local_raw = f"/tmp/macro_screen_target_{self.device_id}.png"
 
         try:
-            subprocess.run(["adb", "-s", self.device_id, "shell", "screencap -p /sdcard/target_screen.png"], stdout=subprocess.DEVNULL)
-            subprocess.run(["adb", "-s", self.device_id, "pull", "/sdcard/target_screen.png", local_raw], stdout=subprocess.DEVNULL)
+            with open(local_raw, "wb") as f:
+                subprocess.run(["adb", "-s", self.device_id, "exec-out", "screencap", "-p"], stdout=f, timeout=5)
 
-            if os.path.exists(local_raw):
+            if os.path.exists(local_raw) and os.path.getsize(local_raw) > 1000:
                 from PIL import Image, ImageDraw, ImageFont
                 img = Image.open(local_raw).convert("RGBA")
                 w_img, h_img = img.size
@@ -368,11 +363,12 @@ class UIInspector:
         archive_path = os.path.join(CLICK_AFTER_DIR, filename)
 
         try:
-            subprocess.run(["adb", "-s", self.device_id, "shell", "screencap -p /sdcard/detail_click.png"], stdout=subprocess.DEVNULL)
-            subprocess.run(["adb", "-s", self.device_id, "pull", "/sdcard/detail_click.png", archive_path], stdout=subprocess.DEVNULL)
-            if os.path.exists(archive_path):
+            with open(archive_path, "wb") as f:
+                subprocess.run(["adb", "-s", self.device_id, "exec-out", "screencap", "-p"], stdout=f, timeout=5)
+            if os.path.exists(archive_path) and os.path.getsize(archive_path) > 1000:
                 logger.info(f"[{self.device_id}] [📸 상세페이지 랜딩 스크린샷 저장 완료] -> {archive_path}")
                 prune_image_dir(CLICK_AFTER_DIR, max_files=200)
+                return archive_path
         except Exception as e:
             logger.warning(f"[{self.device_id}] [!] 상세페이지 랜딩 스크린샷 저장 실패: {e}")
         return ""

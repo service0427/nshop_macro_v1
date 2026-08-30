@@ -18,6 +18,7 @@ import sys
 import time
 import uuid
 import random
+import re
 import logging
 import subprocess
 import sqlite3
@@ -80,7 +81,7 @@ class SoftRebootMutator:
         self.device_id = device_id
         self.package_name = package_name
 
-    def _run_adb_su(self, shell_cmd: str, timeout: int = 10) -> str:
+    def _run_adb_su(self, shell_cmd: str, timeout: int = 4) -> str:
         """Root(su) 권한으로 단말기 셸 명령어 실행"""
         try:
             escaped_cmd = shell_cmd.replace('"', '\\"')
@@ -302,11 +303,8 @@ rm -f /data/local/tmp/null_{self.device_id}.xml /data/local/tmp/tut_{self.device
         # 3. 앱 및 GMS 서비스 종료
         self._run_adb_su(f"am force-stop {self.package_name}; am force-stop com.google.android.gms")
 
-        # 4. 샌드박스 초기화 또는 프로필 복원 준비
+        # 4. 샌드박스 초기화 또는 프로필 복원 준비 (서버가 내려준 profile_tar 경로만 사용)
         target_profile_path = profile_tar
-        if not target_profile_path and mode == "RESTORE":
-            target_profile_path = f"{PROFILE_STORAGE_DIR}/pf_{self.device_id}_latest.tar.gz"
-
         is_restore = (mode == "RESTORE" and target_profile_path and self.profile_exists_on_device(target_profile_path))
 
         # 5. [배치 1] 리셋 전 원자적 환경 주입 (RescueParty 차단 + pm clear + SSAID + ADID + 튜토리얼 스킵)
@@ -394,24 +392,20 @@ chown -R $(stat -c %u:%g /data/data/com.google.android.gms) /data/data/com.googl
 chmod 660 /data/data/com.google.android.gms/shared_prefs/adid_settings.xml 2>/dev/null || true
 rm -rf /data/data/com.google.android.gms/files/appset/shared/* 2>/dev/null || true
 
-# 4. 프로필 복원 (RESTORE) 또는 튜토리얼 스킵 주입 (FRESH)
+# 4. 프로필 복원 (RESTORE) 및 튜토리얼/로그인 스킵 주입 (전 모드 공통 100% 보장)
 APP_UID=$(dumpsys package {self.package_name} 2>/dev/null | grep userId= | head -n1 | cut -d= -f2 | tr -d ' ' || echo '10332')
 if [ "{is_restore}" = "True" ] && [ -f "{target_profile_path}" ]; then
     tar -xzf {target_profile_path} -C /data/data/{self.package_name} 2>/dev/null || true
-    chown -R $APP_UID:$APP_UID /data/data/{self.package_name} 2>/dev/null || true
-    chmod 700 /data/data/{self.package_name} 2>/dev/null || true
-    restorecon -R /data/data/{self.package_name} 2>/dev/null || true
-else
-    mkdir -p /data/data/{self.package_name}/shared_prefs
-    cp /data/local/tmp/null_{self.device_id}.xml /data/data/{self.package_name}/shared_prefs/null.xml
-    cp /data/local/tmp/tut_{self.device_id}.xml /data/data/{self.package_name}/shared_prefs/tutorial_pref.xml
-    cp /data/local/tmp/null_{self.device_id}.xml /data/data/{self.package_name}/shared_prefs/{self.package_name}_preferences.xml
-    chown -R $APP_UID:$APP_UID /data/data/{self.package_name} 2>/dev/null || true
-    chmod 700 /data/data/{self.package_name} 2>/dev/null || true
-    chmod 700 /data/data/{self.package_name}/shared_prefs 2>/dev/null || true
-    chmod 600 /data/data/{self.package_name}/shared_prefs/*.xml 2>/dev/null || true
-    restorecon -R /data/data/{self.package_name} 2>/dev/null || true
 fi
+mkdir -p /data/data/{self.package_name}/shared_prefs
+cp /data/local/tmp/null_{self.device_id}.xml /data/data/{self.package_name}/shared_prefs/null.xml
+cp /data/local/tmp/tut_{self.device_id}.xml /data/data/{self.package_name}/shared_prefs/tutorial_pref.xml
+cp /data/local/tmp/null_{self.device_id}.xml /data/data/{self.package_name}/shared_prefs/{self.package_name}_preferences.xml
+chown -R $APP_UID:$APP_UID /data/data/{self.package_name} 2>/dev/null || true
+chmod 700 /data/data/{self.package_name} 2>/dev/null || true
+chmod 700 /data/data/{self.package_name}/shared_prefs 2>/dev/null || true
+chmod 600 /data/data/{self.package_name}/shared_prefs/*.xml 2>/dev/null || true
+restorecon -R /data/data/{self.package_name} 2>/dev/null || true
 
 # 임시 파일 정리
 rm -f /data/local/tmp/ssaid_{self.device_id}.xml /data/local/tmp/adid_{self.device_id}.xml /data/local/tmp/null_{self.device_id}.xml /data/local/tmp/tut_{self.device_id}.xml
@@ -476,15 +470,65 @@ am broadcast -a com.rosteam.fakegps.MAPS_RECEIVE --ef LATITUDE {final_lat:.6f} -
             pass
         return None
 
+    @staticmethod
+    def get_profile_group_dir(profile_name_or_id: Any) -> str:
+        """
+        프로필 일련번호 기준 100개 단위 서브디렉토리 반환:
+        예: pf_0000000014 (14) -> pf_1_100
+            pf_0000000125 (125) -> pf_101_200
+            pf_0000000201 (201) -> pf_201_300
+        """
+        seq = 0
+        if isinstance(profile_name_or_id, int):
+            seq = profile_name_or_id
+        elif isinstance(profile_name_or_id, str):
+            digits = re.findall(r"\d+", profile_name_or_id)
+            if digits:
+                seq = int(digits[-1])
+        if seq <= 0:
+            return "pf_1_100"
+        group_start = ((seq - 1) // 100) * 100 + 1
+        group_end = group_start + 99
+        return f"pf_{group_start}_{group_end}"
+
+    def get_profile_tar_path(self, profile_name_or_id: Any) -> str:
+        """단말기 내 서브디렉토리(pf_1_100 등)가 적용된 정규 프로필 tar.gz 경로 반환"""
+        p_name = str(profile_name_or_id).strip()
+        if not p_name.endswith(".tar.gz"):
+            p_name = f"{p_name}.tar.gz"
+        grp = self.get_profile_group_dir(p_name)
+        return f"{PROFILE_STORAGE_DIR}/{grp}/{p_name}"
+
+    def resolve_profile_path(self, profile_name_or_id: Any) -> Optional[str]:
+        """서브디렉토리 경로 우선 확인 후 레거시 루트 경로까지 fallback 검사하여 실제 존재하는 tar.gz 경로 반환"""
+        if not profile_name_or_id:
+            return None
+        p_name = str(profile_name_or_id).strip()
+        if not p_name.endswith(".tar.gz"):
+            p_name = f"{p_name}.tar.gz"
+        
+        # 1. 서브디렉토리 경로 (pf_1_100/...)
+        sub_path = self.get_profile_tar_path(p_name)
+        if self.profile_exists_on_device(sub_path):
+            return sub_path
+        
+        # 2. 레거시 루트 경로 (profile_storage/...)
+        flat_path = f"{PROFILE_STORAGE_DIR}/{p_name}"
+        if self.profile_exists_on_device(flat_path):
+            return flat_path
+            
+        return sub_path
+
     def save_profile_snapshot(self, profile_name: str) -> Tuple[Optional[str], Optional[float]]:
-        """네이버 앱 쿠키(app_xwhale 포함 4종) 전체 스냅샷 저장 및 (경로, KB용량) 반환"""
+        """네이버 앱 쿠키(app_xwhale 포함 4종) 전체 스냅샷을 100개 단위 서브디렉토리(pf_1_100 등)에 저장"""
         try:
-            os_dest_dir = PROFILE_STORAGE_DIR
             tar_filename = f"{profile_name}.tar.gz" if not profile_name.endswith(".tar.gz") else profile_name
-            full_tar_path = f"{os_dest_dir}/{tar_filename}"
+            grp = self.get_profile_group_dir(tar_filename)
+            dest_dir = f"{PROFILE_STORAGE_DIR}/{grp}"
+            full_tar_path = f"{dest_dir}/{tar_filename}"
 
             cmd = f"""
-mkdir -p {os_dest_dir}
+mkdir -p {dest_dir}
 cd /data/data/{self.package_name} && tar -czf {full_tar_path} app_xwhale app_webview databases shared_prefs 2>/dev/null || true
 chmod 777 {full_tar_path}
 """
@@ -498,26 +542,26 @@ chmod 777 {full_tar_path}
 
     def sync_profiles_with_server(self, server_host: str = PRIMARY_SERVER_URL) -> Dict[str, Any]:
         """
-        [DB 우선 프로필 100회당 1회 동기화 및 단말기 불필요 파일 정리]
-        서버의 /api/v1/profiles 를 조회하여 DB에 등록되어 있지 않거나 RETIRED된 프로필을 단말기에서 자동 삭제
-        (2000개 대량 누적 대비 Ultra-Compact files: [...] 및 profiles: [...] 포맷 전수 호환)
+        [DB 우선 프로필 100회당 1회 동기화 및 100개 단위 서브폴더 자동 재정렬/정리]
+        1. 서버 /api/v1/profiles 와 대조하여 미등록/폐기된 프로필을 모든 서브폴더에서 자동 삭제
+        2. 루트 디렉토리나 타 폴더에 위치한 유효 프로필을 정규 100개 단위 서브폴더(pf_1_100 등)로 자동 이전
+        3. 비어있는 빈 서브디렉토리 자동 정리
         """
         import requests
         cleaned_files = []
+        migrated_files = []
         try:
             url = f"{server_host}/api/v1/profiles?device_id={self.device_id}&compact=1"
             res = requests.get(url, timeout=6).json()
             if res.get("status") == "success":
                 valid_server_files = set()
 
-                # 1) files: ["pf_...tar.gz", "pf_..."] (Ultra-Compact 문자열 리스트 포맷)
                 if "files" in res and isinstance(res["files"], list):
                     for item in res["files"]:
                         if isinstance(item, str):
                             fname = item if item.endswith(".tar.gz") else f"{item}.tar.gz"
                             valid_server_files.add(fname)
 
-                # 2) profiles: [{"file": ...}] 또는 ["pf_..."] (기존/하위 호환)
                 if "profiles" in res and isinstance(res["profiles"], list):
                     for item in res["profiles"]:
                         if isinstance(item, dict):
@@ -530,24 +574,38 @@ chmod 777 {full_tar_path}
                             fname = item if item.endswith(".tar.gz") else f"{item}.tar.gz"
                             valid_server_files.add(fname)
 
-                # 3) latest, staging 등 로컬 전용 허용 목록 유지
-                valid_server_files.add(f"pf_{self.device_id}_latest.tar.gz")
-                valid_server_files.add(f"pf_{self.device_id}_staging.tar.gz")
+                # 1. 단말기 로컬 파일 목록 재귀 조회 (모든 서브폴더 포함)
+                local_raw = self._run_adb_su(f"find {PROFILE_STORAGE_DIR} -name '*.tar.gz' 2>/dev/null")
+                local_paths = [f.strip() for f in local_raw.splitlines() if f.strip().endswith(".tar.gz")]
 
-                # 단말기 로컬 파일 목록 조회
-                local_raw = self._run_adb_su(f"ls {PROFILE_STORAGE_DIR} 2>/dev/null")
-                local_files = [f.strip() for f in local_raw.splitlines() if f.strip().endswith(".tar.gz")]
+                for fpath in local_paths:
+                    fname = fpath.split("/")[-1]
+                    if fname not in valid_server_files:
+                        self._run_adb_su(f"rm -f {fpath}")
+                        cleaned_files.append(fname)
+                        logger.info(f"[{self.device_id}] 🧹 [DB 우선 프로필 정리] 서버 DB 미등록/폐기 파일 삭제: {fpath}")
+                    else:
+                        # 올바른 100개 단위 서브폴더(pf_1_100 등)로 자동 재배치
+                        correct_path = self.get_profile_tar_path(fname)
+                        if fpath != correct_path:
+                            dest_dir = os.path.dirname(correct_path)
+                            self._run_adb_su(f"mkdir -p {dest_dir} && mv {fpath} {correct_path} && chmod 777 {correct_path}")
+                            migrated_files.append(fname)
+                            logger.info(f"[{self.device_id}] 📂 [프로필 폴더 재배치] {fpath} ➔ {correct_path}")
 
-                for lf in local_files:
-                    if lf not in valid_server_files:
-                        self._run_adb_su(f"rm -f {PROFILE_STORAGE_DIR}/{lf}")
-                        cleaned_files.append(lf)
-                        logger.info(f"[{self.device_id}] 🧹 [DB 우선 프로필 정리] 서버 DB 미등록/폐기 파일 삭제: {lf}")
+                # 2. 빈 서브디렉토리 자동 정리
+                self._run_adb_su(f"find {PROFILE_STORAGE_DIR} -mindepth 1 -type d -empty -delete 2>/dev/null || true")
 
-                return {"success": True, "cleaned_count": len(cleaned_files), "cleaned_files": cleaned_files}
+                return {
+                    "success": True,
+                    "cleaned_count": len(cleaned_files),
+                    "cleaned_files": cleaned_files,
+                    "migrated_count": len(migrated_files),
+                    "migrated_files": migrated_files
+                }
         except Exception as e:
             logger.debug(f"[{self.device_id}] 프로필 DB 싱크 예외: {e}")
-        return {"success": False, "cleaned_count": 0, "cleaned_files": []}
+        return {"success": False, "cleaned_count": 0, "cleaned_files": [], "migrated_count": 0, "migrated_files": []}
 
     def extract_session_identifiers(self) -> Dict[str, Optional[str]]:
         """

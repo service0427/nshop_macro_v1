@@ -66,7 +66,7 @@ def main():
     parser.add_argument("--workers", "-w", type=int, default=0, help="Number of worker slots (0 = auto-detect all connected ADB devices)")
     parser.add_argument("--devices", "-d", type=str, default="", help="Comma separated device IDs (e.g. -d R5CR9336DSB)")
     parser.add_argument("--interval", "-i", type=float, default=10.0, help="Scheduler loop interval in seconds (default: 10.0)")
-    parser.add_argument("--stagger", "-s", type=float, default=5.0, help="Stagger delay between worker dispatches in seconds (default: 5.0)")
+    parser.add_argument("--stagger", "-s", type=float, default=0.0, help="Stagger delay between worker dispatches in seconds (default: 0.0)")
     parser.add_argument("--loops", "-l", type=int, default=0, help="Max scheduler loop cycles to run before exit (0 = infinite)")
     parser.add_argument("--tasks", "-n", type=int, default=0, help="Max total tasks to process before exit (0 = infinite)")
     parser.add_argument("--stop", action="store_true", help="Stop running daemon safely")

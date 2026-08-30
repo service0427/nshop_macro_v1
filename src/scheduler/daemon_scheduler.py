@@ -40,7 +40,7 @@ class DynamicDaemonScheduler:
         device_ids: Optional[List[str]] = None,
         max_workers: int = 5,
         loop_interval_sec: float = 10.0,
-        stagger_sec: float = 5.0,
+        stagger_sec: float = 0.0,
         max_loops: int = 0,
         max_tasks: int = 0
     ):
@@ -164,8 +164,9 @@ class DynamicDaemonScheduler:
         self.current_cycle += 1
         current_cycle = self.current_cycle
 
-        # 1. 유휴 단말기 확인
-        idle_devs = self.device_pool.get_idle_devices()
+        # 1. 유휴 단말기 확인 (1, 11, 21, 31... 회차에만 ADB 실시간 스캔을 수행하여 풀 흔들림 방지)
+        do_refresh = (current_cycle % 10 == 1)
+        idle_devs = self.device_pool.get_idle_devices(do_refresh=do_refresh)
 
         # 0. 100주기마다 1회 서버 DB 우선 프로필 동기화 및 단말기 불필요 파일 정리
         if current_cycle % 100 == 1 and idle_devs:
@@ -181,12 +182,13 @@ class DynamicDaemonScheduler:
 
         self.device_pool.print_status_board(current_cycle, idle_devs)
 
+        # 1. 가용 유휴 단말기 검사 (유휴 단말기가 있으면 즉시 할당 요청)
         if not idle_devs:
-            logger.info(f"[*] ⏸️  [PASS] 모든 디바이스가 현재 작업 중입니다 ({len(self.device_pool.all_devices)}/{len(self.device_pool.all_devices)}대). {self.loop_interval_sec}초 후 재확인합니다.\n")
+            logger.info(f"[*] ⏸️  모든 워커가 작업 중입니다 (5대 풀가동). {self.loop_interval_sec}초 후 유휴 단말기를 재확인합니다.\n")
             return
 
-        # 2. 서버에 유휴 단말기 일괄 할당 요청
-        logger.info(f"[*] 📡 이번 주기 요청 대상 (유휴 {len(idle_devs)}대: {idle_devs}) 작업 할당 요청 중...")
+        # 2. 가용 유휴 단말기(최대 5대) 즉시 할당 요청
+        logger.info(f"[*] 📡 가용 유휴 단말기 {len(idle_devs)}대 즉시 할당 요청 중 (단말기: {idle_devs})...")
         alloc_res = self.client.allocate_tasks(idle_devs)
         if not alloc_res:
             logger.warning("[*] ⏸️  서버 응답 없음 (None). 다음 주기에 재요청합니다.\n")

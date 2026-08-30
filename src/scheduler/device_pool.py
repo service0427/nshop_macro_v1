@@ -33,51 +33,33 @@ DEFAULT_ACTIVE_DEVICES: List[str] = []
 
 
 def get_online_adb_devices() -> List[str]:
-    """현재 USB/ADB로 실제 연결되어 있는 온라인(device 상태) 단말기 시리얼 실시간 동적 스캔"""
-    try:
-        out = subprocess.check_output(["adb", "devices"], timeout=5, text=True, stderr=subprocess.DEVNULL)
-        online = []
-        for line in out.splitlines()[1:]:
-            line = line.strip()
-            if not line:
-                continue
-            parts = line.split()
-            if len(parts) >= 2 and parts[1] == "device":
-                online.append(parts[0])
-        return online
-    except Exception as e:
-        logger.warning(f"ADB 장치 목록 동적 조회 실패: {e}")
-        return []
+    """현재 USB/ADB로 실제 연결되어 있는 온라인(device 상태) 단말기 시리얼 실시간 100% 동적 스캔"""
+    for retry in range(3):
+        try:
+            out = subprocess.check_output(["adb", "devices"], timeout=5, text=True, stderr=subprocess.DEVNULL)
+            online = []
+            for line in out.splitlines()[1:]:
+                line = line.strip()
+                if not line:
+                    continue
+                parts = line.split()
+                if len(parts) >= 2 and parts[1] == "device":
+                    online.append(parts[0])
+            if online:
+                return online
+        except Exception as e:
+            logger.warning(f"ADB 장치 목록 동적 조회 재시도 ({retry + 1}/3): {e}")
+            time.sleep(0.5)
+    return []
 
 
 def load_device_set(config_path: str = DEVICE_SET_FILE) -> List[str]:
     """
-    [실시간 동적 단말기 로드]
-    1. adb devices로 현재 온라인인 단말기 시리얼을 실시간 스캔 (하드코딩 원천 제거)
-    2. device_set.json에 등록된 설정 우선순위 반영 및 신규 기기 자동 포함
-    3. 연결된 모든 온라인 단말기 목록을 동적으로 반환
+    [실시간 100% 동적 단말기 로드]
+    - adb devices에서 실시간으로 감지된 온라인 단말기 목록만 즉시 반환
+    - 하드코딩이나 정적 파일 기반 폴백을 원천 배제하여 현재 연결된 실단말기만 정확히 투입
     """
     online_devs = get_online_adb_devices()
-    if not online_devs:
-        # 폴백: device_set.json 또는 기본 목록
-        if os.path.exists(config_path):
-            try:
-                with open(config_path, "r", encoding="utf-8") as f:
-                    return list(json.load(f).keys())
-            except Exception:
-                pass
-        return DEFAULT_ACTIVE_DEVICES
-
-    # device_set.json에 등록된 순서가 있으면 우선 정렬, 새로운 기기도 자동 포함
-    if os.path.exists(config_path):
-        try:
-            with open(config_path, "r", encoding="utf-8") as f:
-                known = list(json.load(f).keys())
-                sorted_devs = [d for d in known if d in online_devs] + [d for d in online_devs if d not in known]
-                return sorted_devs
-        except Exception:
-            pass
-
     return online_devs
 
 
@@ -135,10 +117,40 @@ class DevicePool:
                 pass
         return False
 
-    def get_idle_devices(self) -> List[str]:
-        """가용 유휴 단말기 필터링 (DevicePowerManager 모듈 연동 Zero-Polling 쿨다운)"""
+    def refresh_online_devices(self, force: bool = False) -> List[str]:
+        """주기적(1, 11, 21...)으로만 USB/ADB 연결 상태를 스캔하여 단말기 목록 들쭉날쭉 변동을 원천 방지"""
+        if not force:
+            return self.all_devices
+
+        online_devs = get_online_adb_devices()
+        if not online_devs:
+            return self.all_devices
+
         with self.lock:
-            candidates = [d for d in self.all_devices if d not in self.busy_devices]
+            for d in online_devs:
+                if d not in self.all_devices:
+                    self.all_devices.append(d)
+                    self.device_status[d] = {
+                        "state": "IDLE",
+                        "current_job": None,
+                        "keyword": "-",
+                        "allow_click": False,
+                        "start_time": 0.0,
+                        "last_duration": 0.0,
+                        "last_result": "신규 연결",
+                        "completed_tasks": 0,
+                        "last_assigned_time": 0.0,
+                        "idle_since": time.time()
+                    }
+                    logger.info(f"  [🔌 실시간 기기 감지] 신규 단말기 ({d})가 풀에 자동 추가되었습니다!")
+            self.max_workers = len(self.all_devices)
+        return online_devs
+
+    def get_idle_devices(self, do_refresh: bool = False) -> List[str]:
+        """가용 유휴 단말기 필터링 (1, 11, 21회차에만 안전 갱신 + DevicePowerManager 쿨다운)"""
+        online_devs = self.refresh_online_devices(force=do_refresh)
+        with self.lock:
+            candidates = [d for d in self.all_devices if d in online_devs and d not in self.busy_devices]
 
         if not candidates:
             return []

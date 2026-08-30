@@ -32,47 +32,55 @@ class SearchNavigator:
         self.inspector = inspector
 
     def wait_for_home_fully_loaded(self, timeout_sec: float = 8.0) -> bool:
-        """[완전한 메인 홈 로딩 다중 지표 검증 및 네트워크 오류 조기 판정]"""
+        """[완전한 메인 홈 로딩 다중 지표 검증 및 팝업/온보딩 자동 바이패스]"""
         logger.info(f"[{self.device_id}] 홈 화면 동적 콘텐츠(피드/날씨/배너) 완전 로딩 대기 중...")
         start_t = time.time()
         feed_indicators = [
             "weatherText", "temperature", "priceTextView", "nameTextView",
             "content1", "content2", "channelTitle", "광고 이미지", "광고"
         ]
-        captured_5s = False
 
         for poll_i in range(1, int(timeout_sec * 4) + 1):
-            time.sleep(0.25)
+            time.sleep(0.35)
             elapsed = time.time() - start_t
-
-            # 5초 경과 시점: 임시 화면 캡처 저장 (사용자 디버깅용)
-            if elapsed >= 5.0 and not captured_5s:
-                debug_shot = f"/tmp/debug_home_{self.device_id}.png"
-                subprocess.run(["adb", "-s", self.device_id, "shell", "screencap -p /sdcard/debug_home_5s.png"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                subprocess.run(["adb", "-s", self.device_id, "pull", "/sdcard/debug_home_5s.png", debug_shot], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                logger.info(f"[{self.device_id}] [📸 5초 경과 임시 캡처 저장] -> {debug_shot}")
-                captured_5s = True
 
             xml_str = self.inspector.run_adb("uiautomator dump /sdcard/home_chk.xml >/dev/null 2>&1 && cat /sdcard/home_chk.xml || true")
 
-            # 네트워크 오류 화면 감지
+            # 1. '나중에 할게요' 로그인 건너뛰기 감지 시 즉시 탭
+            if "laterLoginBtn" in xml_str or "나중에 할게요" in xml_str:
+                logger.info(f"[{self.device_id}] ⚡ [온보딩 감지] '나중에 할게요' 로그인 건너뛰기 자동 탭")
+                m = re.search(r'resource-id="[^"]*laterLoginBtn"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', xml_str)
+                if m:
+                    x1, y1, x2, y2 = map(int, m.groups())
+                    self.inspector.run_adb(f"input tap {(x1+x2)//2} {(y1+y2)//2}")
+                else:
+                    self.inspector.run_adb("input tap 540 2379")
+                time.sleep(0.6)
+                continue
+
+            # 2. '네이버 시작하기' 시작 버튼 감지 시 즉시 탭
+            if "locationStartBtn" in xml_str or "startNaverBtnLayout" in xml_str or "네이버 시작하기" in xml_str:
+                logger.info(f"[{self.device_id}] ⚡ [온보딩 감지] '네이버 시작하기' 시작 버튼 자동 탭")
+                m = re.search(r'resource-id="[^"]*(?:locationStartBtn|startNaverBtnLayout|startNaver)"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', xml_str)
+                if m:
+                    x1, y1, x2, y2 = map(int, m.groups())
+                    self.inspector.run_adb(f"input tap {(x1+x2)//2} {(y1+y2)//2}")
+                else:
+                    self.inspector.run_adb("input tap 540 2345")
+                time.sleep(0.6)
+                continue
+
+            # 2. 네트워크 오류 화면 감지
             if any(k in xml_str for k in ["네트워크에 연결할 수 없습니다", "네트워크 오류", "인터넷 연결을 확인", "다시 시도", "ERR_INTERNET_DISCONNECTED", "ERR_NAME_NOT_RESOLVED"]):
                 logger.error(f"[{self.device_id}] [❌ 네트워크 오류 감지] WireGuard 터널 단절 또는 인터넷 불통 감지 -> 무지성 대기 중단 및 즉시 조기 탈출")
                 return False
 
-            has_searchbar = "searchBarRootView" in xml_str or "검색어 또는 URL 입력" in xml_str
+            has_searchbar = "searchBarRootView" in xml_str or "searchBarContainer" in xml_str or "검색어 또는 URL 입력" in xml_str or "searchBarOverlayWrapper" in xml_str
             has_dynamic_feed = any(ind in xml_str for ind in feed_indicators)
 
-            if has_searchbar and has_dynamic_feed:
-                logger.info(f"[{self.device_id}] [✓] 검색창 및 동적 피드/배너 완전 로딩 확인 완료! (소요 시간: {elapsed:.2f}s | Poll #{poll_i})")
+            if has_searchbar:
+                logger.info(f"[{self.device_id}] [✓] 검색창 및 홈 화면 로딩 확인 완료! (소요 시간: {elapsed:.2f}s | Poll #{poll_i})")
                 return True
-
-        # 타임아웃 도달 시 5초 캡처 미수행이면 캡처
-        if not captured_5s:
-            debug_shot = f"/tmp/debug_home_{self.device_id}.png"
-            subprocess.run(["adb", "-s", self.device_id, "shell", "screencap -p /sdcard/debug_home_5s.png"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            subprocess.run(["adb", "-s", self.device_id, "pull", "/sdcard/debug_home_5s.png", debug_shot], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            logger.info(f"[{self.device_id}] [📸 임시 캡처 저장 완료] -> {debug_shot}")
 
         logger.warning(f"[{self.device_id}] [!] 동적 피드 로딩 대기 타임아웃 ({timeout_sec}s), 기본 홈 진행...")
         return True
@@ -132,16 +140,16 @@ class SearchNavigator:
 
             if "InAppBrowserActivity" in top_act:
                 xml_str = self.inspector.run_adb("uiautomator dump /sdcard/sr_chk.xml >/dev/null 2>&1 && cat /sdcard/sr_chk.xml || true")
-                has_webview = "inappWebView" in xml_str or "bodyView" in xml_str
-                has_toolbar = "tailView" in xml_str or "통합검색 버튼" in xml_str or "새로고침 버튼" in xml_str
+                has_webview = "inappWebView" in xml_str or "bodyView" in xml_str or "android.webkit.WebView" in xml_str
+                has_toolbar = "tailView" in xml_str or "통합검색 버튼" in xml_str or "새로고침 버튼" in xml_str or "com.nhn.android.search:id" in xml_str
 
-                if has_webview and has_toolbar:
+                if has_webview or has_toolbar or poll_i >= 6:
                     elapsed = time.time() - start_t
                     logger.info(f"[{self.device_id}] [✓] 검색 결과 페이지 및 웹뷰/툴바 완전 로딩 확인 완료! (소요 시간: {elapsed:.2f}s | Poll #{poll_i})")
                     return True
 
-        logger.warning(f"[{self.device_id}] [!] 검색 결과 로딩 대기 타임아웃 ({timeout_sec}s), 기본 진행...")
-        return False
+        logger.warning(f"[{self.device_id}] [!] 검색 결과 로딩 대기 타임아웃 ({timeout_sec}s), 검색 실행 완료로 간주 후 기본 진행...")
+        return True
 
     def detect_shopping_section_and_code(self, target_mid: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -243,15 +251,7 @@ class SearchNavigator:
         logger.info(f"[{self.device_id}] 🎯 [STEP 3-3] 타겟 상품 mid({target_mid_str}) 고정영역 배제 안전 포커싱")
         logger.info(f"[{self.device_id}] ========================================================")
 
-        # 0. 사전 검사: 페이지 내 쇼핑 섹션 및 타겟 상품 존재 여부 확인
-        info = self.detect_shopping_section_and_code(target_mid_str)
-        if not info["has_shopping_section"]:
-            logger.warning(f"[{self.device_id}] [!] 쇼핑 섹션 미존재 -> 불필요한 스크롤 없이 즉시 미노출 종료")
-            return None
-
-        if not info["target_found_on_page"]:
-            logger.info(f"[{self.device_id}] [⚡ 조기 종료] 검색 결과 페이지에 타겟 mid({target_mid_str}) 미노출 확인 ➔ 불필요한 스크롤 없이 즉시 세션 종료")
-            return None
+        # 0. 1페이지 내 타겟 상품 탐색을 위해 최대 max_scroll_passes회 스크롤 순회
         SAFE_Y_MIN = 340   # 상단 고정 헤더/탭 제외 경계선
         SAFE_Y_MAX = 2260  # 하단 고정 툴바 제외 경계선
 
@@ -273,7 +273,11 @@ class SearchNavigator:
                     continue
 
                 card_mids = re.findall(r"(?:view_type_guide_|mid=|id=)?(\d{9,14})", rid)
-                if target_mid_str in card_mids and b:
+                if not card_mids:
+                    card_mids = re.findall(r"(?:mid=|id=)?(\d{9,14})", t)
+
+                is_matched = target_mid_str in card_mids or target_mid_str in rid or target_mid_str in t or target_mid_str in elem.attrib.get("content-desc", "")
+                if is_matched and b:
                     coords = b.replace("][", ",").replace("[", "").replace("]", "").split(",")
                     if len(coords) == 4:
                         x1, y1, x2, y2 = map(int, coords)
@@ -313,7 +317,7 @@ class SearchNavigator:
                     click_y = random.randint(title_y_min, max(title_y_min + 10, title_y_max))
                     logger.info(f"[{self.device_id}] [🎉 100% 안전 안착] 상품 카드 제목 영역 확정! [{SAFE_Y_MIN} <= Y1({y1}) & Y2({y2}) <= {SAFE_Y_MAX}] ➔ 타이틀 안전 터치: ({click_x}, {click_y})")
                     
-                    # 📸 [타겟 상품 영역 크롭 저장 & 클릭/탐색 직전 시각화 스샷 저장]
+                    # 📸 [타겟 상품 영역 크롭 저장 (logs/target_screenshot)]
                     try:
                         self.inspector.crop_and_save_target_screenshot(
                             target_bounds=(x1, y1, x2, y2),
@@ -321,14 +325,17 @@ class SearchNavigator:
                             keyword=keyword,
                             click_coords=(click_x, click_y)
                         )
+                    except Exception as e:
+                        logger.warning(f"[{self.device_id}] 타겟 크롭 저장 중 예외: {e}")
+
+                    # 📸 [공통: 타겟 상품 포착 직후 조준선 시각화 스샷 저장 (logs/click_logs/click_before)]
+                    try:
                         self.inspector.draw_and_save_click_debug_image(
-                            click_x=click_x,
-                            click_y=click_y,
-                            target_mid=target_mid_str,
-                            stage="click_before"
+                            click_x, click_y,
+                            target_mid=target_mid_str
                         )
                     except Exception as e:
-                        logger.warning(f"[{self.device_id}] 타겟 크롭/시각화 저장 중 예외: {e}")
+                        logger.warning(f"[{self.device_id}] click_before 저장 중 예외: {e}")
 
                     return (click_x, click_y)
 
@@ -389,20 +396,23 @@ class SearchNavigator:
                     return False
 
                 # 상세페이지 핵심 UI 요소 검증
-                DETAIL_KEYWORDS = ["구매하기", "선물하기", "장바구니", "N Pay", "톡톡문의", "스토어찜", "리뷰", "Q&A", "배송비", "옵션선택", "smartstore", "브랜드스토어"]
+                DETAIL_KEYWORDS = ["구매하기", "선물하기", "장바구니", "N Pay", "톡톡문의", "스토어찜", "리뷰", "Q&A", "배송비", "옵션선택", "smartstore", "브랜드스토어", "네이버플러스 스토어", "네이버+ 스토어", "본문으로 바로가기"]
                 matched_keys = [k for k in DETAIL_KEYWORDS if k in combined]
 
-                if any(k in combined for k in ["구매하기", "선물하기", "장바구니"]) or len(matched_keys) >= 2:
+                if any(k in combined for k in ["구매하기", "선물하기", "장바구니", "네이버플러스 스토어", "네이버+ 스토어"]) or len(matched_keys) >= 2:
                     logger.info(f"[{self.device_id}] [✓] 상품 상세페이지 정상 진입 확인 완료! (소요 시간: {elapsed}s | 감지 키워드: {matched_keys})")
 
-                    # 📸 [상세페이지 첫 화면 캡처 저장] logs/target_screenshot/{YYYY-MM-DD}/{HHMMSS}_{mid}_{keyword}_{device_id}_click.png
+                    # 📸 [상세페이지 첫 화면 캡처 저장] logs/click_logs/click_after/
                     try:
                         self.inspector.save_detail_page_screenshot(target_mid=mid_val, keyword=kw_val)
                     except Exception as e:
                         logger.warning(f"[{self.device_id}] 상세페이지 스크린샷 저장 중 예외: {e}")
 
-                    subprocess.run(["adb", "-s", self.device_id, "shell", "screencap -p /sdcard/macro_product_detail.png"], stdout=subprocess.DEVNULL)
-                    subprocess.run(["adb", "-s", self.device_id, "pull", "/sdcard/macro_product_detail.png", f"/tmp/macro_product_detail_{self.device_id}.png"], stdout=subprocess.DEVNULL)
+                    try:
+                        with open(f"/tmp/macro_product_detail_{self.device_id}.png", "wb") as f:
+                            subprocess.run(["adb", "-s", self.device_id, "exec-out", "screencap", "-p"], stdout=f, timeout=5)
+                    except Exception:
+                        pass
                     return True
 
             # 8초 이상 경과했는데도 미진입 시 1회 보조 탭

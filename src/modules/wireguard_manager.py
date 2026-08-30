@@ -95,7 +95,7 @@ class WireGuardManager:
             self._su_available = bool(res.stdout.strip())
         return self._su_available
 
-    def _run_adb_cmd(self, shell_cmd: str, timeout_sec: int = 5) -> str:
+    def _run_adb_cmd(self, shell_cmd: str, timeout_sec: int = 3) -> str:
         """단말기 셸 명령어 실행 (root 가능 기기는 su, 미지원 기기는 일반 adb shell 자동 대응)"""
         try:
             if self._has_su():
@@ -112,7 +112,7 @@ class WireGuardManager:
             logger.warning(f"[{self.device_id}] ADB 실행 에러: {e}")
             return ""
 
-    def _run_adb_su(self, shell_cmd: str, timeout_sec: int = 5) -> str:
+    def _run_adb_su(self, shell_cmd: str, timeout_sec: int = 3) -> str:
         """호환성을 위한 _run_adb_cmd 별칭"""
         return self._run_adb_cmd(shell_cmd, timeout_sec=timeout_sec)
 
@@ -209,8 +209,8 @@ rm -f /data/local/tmp/wg0_{self.device_id}.conf
     def get_egress_ip(self) -> str:
         """단말기 실제 외부 공인 IP 조회"""
         out = self._run_adb_cmd(
-            "curl -s -m 3 http://api.ipify.org 2>/dev/null || curl -s -m 3 http://ifconfig.me/ip 2>/dev/null || true",
-            timeout_sec=4
+            "curl -s -m 5 http://api.ipify.org 2>/dev/null || curl -s -m 5 http://ifconfig.me/ip 2>/dev/null || true",
+            timeout_sec=6
         )
         match = re.search(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b', out)
         return match.group(0) if match else "UNKNOWN"
@@ -218,10 +218,10 @@ rm -f /data/local/tmp/wg0_{self.device_id}.conf
     def check_naver_connectivity(self) -> bool:
         """네이버 HTTP 통신 정상 도달 여부 확인 (HTTP 200/301/302)"""
         out = self._run_adb_cmd(
-            "curl -s -m 3 -o /dev/null -w '%{http_code}' https://m.naver.com 2>/dev/null || true",
-            timeout_sec=4
+            "curl -s -m 5 -o /dev/null -w '%{http_code}' https://m.naver.com 2>/dev/null || curl -s -m 5 -o /dev/null -w '%{http_code}' http://www.naver.com 2>/dev/null || true",
+            timeout_sec=8
         )
-        return out.strip() in ["200", "301", "302", "304"]
+        return any(code in out for code in ["200", "301", "302", "304"])
 
     def deactivate_tunnel(self) -> bool:
         """

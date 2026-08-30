@@ -1,6 +1,6 @@
-# 📱 Mikrotik Mobile Automation Client API Developer Guide (v2.7 Production Standard)
+# 📱 Mikrotik Mobile Automation Client API Developer Guide (v3.0 Production Standard)
 
-본 문서는 안드로이드 실단말기(5~60대) 및 클라이언트 자동화 워커가 마이크로틱 라우터 API 서버와 통신하여 **WireGuard VPN 연결, 실전 2~3단어 검색/클릭 작업 수행, NNB/NAPP_DI/GPS 식별자 추출, 2,000개 온디바이스 프로필 풀 동기화, snapshot_size(KB) 반납, DB 우선 프로필 초경량 자동 정제(Pruning), 단말기 1대씩 즉시 개별 반납, 4중 무지성 토글 방지**를 수행하는 최신 프로덕션 실연동 표준 규격서입니다.
+본 문서는 안드로이드 실단말기(5~60대) 및 클라이언트 자동화 워커가 마이크로틱 라우터 API 서버와 통신하여 **WireGuard VPN 연결, 실전 2~3단어 검색/클릭 작업 수행, NNB/NAPP_DI/GPS 식별자 추출, 10자리 표준 프로필(pf_0000000001) 자동 시딩/에이징, snapshot_size(KB) 반납, DB 원장 기반 초경량 프로필 자동 동기화(Pruning), 단말기 1대씩 즉시 개별 반납, 4중 지능형 라우터 보호**를 수행하는 최신 프로덕션 실연동 표준 규격서입니다.
 
 ---
 
@@ -24,14 +24,20 @@
 
 ---
 
-## 🧬 2. 프로필 생명주기 및 DB 우선 온디바이스 동기화 표준
+## 🧬 2. 프로필 생명주기 및 10자리 표준 파일 관리
 
-### 💡 핵심 원칙 1: "성공 검증된 프로필만 snapshot_path & snapshot_size(KB) 저장"
-* `is_searched == True`로 네이버 검색 및 쿠키 추출에 완주한 프로필만 tar.gz 스냅샷을 생성하고, 파일 크기(`snapshot_size: 116.2` KB)를 서버에 보고합니다.
-* `is_searched == False`(WG/홈 에러 등)인 경우 스냅샷을 생성하지 않고 `snapshot_path: null`, `snapshot_size: null`로 반납합니다.
+### 💡 핵심 원칙 1: "10자리 고정 프로필 파일명 (`pf_0000000001`)"
+* 서버는 단말기별로 `pf_0000000001`부터 `pf_9999999999`까지 10자리 고정 일련번호를 부여합니다.
+* 단말기는 서버가 내려주는 **`profile_name`**을 기준으로 자신의 로컬 작업 폴더(예: `/data/local/tmp/profile_storage/`)에 `f"{profile_name}.tar.gz"` 파일로 압축/해제합니다.
+  - `profile_id == 0`: **신규 생성 (시딩)** ➔ 이전 프로필을 로드하지 않고 완전 초기화(Clean) 상태에서 네이버 앱 기동. 작업 완료 후 `f"{profile_name}.tar.gz"`로 압축 저장!
+  - `profile_id > 0`: **기존 숙성 프로필** ➔ 단말기 로컬의 `f"{profile_name}.tar.gz"`를 압축 해제(복원)하여 네이버 앱 기동!
 
-### 💡 핵심 원칙 2: "중앙 서버 제어 기반 100회 주기당 1회 온디바이스 자동 정제"
-* **원격 중앙 제어**: 중앙 서버 관리자가 오래된 프로필을 삭제하거나 `RETIRED`/`DELETED` 처리하면, 단말기 워커가 100주기마다 서버를 조회하여 **서버 DB에 없는 파일들을 단말기 로컬 저장소(`/data/local/tmp/profile_storage/`)에서 알아서 영구 삭제(Prune)**합니다.
+### 💡 핵심 원칙 2: "작업 완료 후 snapshot_size (KB Float) 반납"
+* 네이버 검색/작업 완주 후 생성된 `.tar.gz` 파일 크기를 **KB 단위 Float(예: `116.2`)**로 서버에 보고합니다.
+* 앱 기동 실패 또는 네트워크 단절 등으로 파일이 생성되지 않은 경우 `snapshot_size: null`로 반납합니다.
+
+### 💡 핵심 원칙 3: "중앙 서버 제어 기반 100회 주기당 1회 온디바이스 자동 정제"
+* **원격 중앙 제어**: 중앙 서버 관리자가 오래된 프로필을 삭제하거나 `RETIRED`/`DELETED` 처리하면, 단말기 워커가 100주기마다 서버를 조회하여 **서버 DB에 없는 파일들을 단말기 로컬 저장소에서 알아서 영구 삭제(Prune)**합니다.
 * 단말기 5~60대에 개별 접속할 필요 없이 **중앙 서버 DB에서 원클릭으로 모든 단말기의 프로필을 원격 중앙 관리**합니다.
 
 ---
@@ -43,7 +49,7 @@
 
 ---
 
-### [API 1] 작업 및 WireGuard 일괄 할당 (`GET/POST /api/v1/allocate`)
+### [API 1] 작업 및 WireGuard 일괄 할당 (`GET /api/v1/allocate`)
 
 단말기 N대를 파라미터로 전달하여 1개의 공유 라우터와 단말기별 작업/프로필을 일괄 발급받습니다.
 
@@ -57,7 +63,7 @@ Host: 114.207.112.173:5000
 ```json
 {
   "status": "success",
-  "alloc_id": "3005",
+  "alloc_id": "3100",
   "router": {
     "router_num": "008",
     "endpoint": "221.163.54.24:45820",
@@ -69,17 +75,15 @@ Host: 114.207.112.173:5000
       "device_id": "R3CR70SZ0JJ",
       "ip": "10.8.0.3",
       "private_key": "6Cl0ROVXfDFV+J...",
-      "mid": "91281465990",
-      "keyword": "gold finger 걸이형 캐리어",
-      "product_title": "접이식 휴대용 여행 캐리어 걸이...",
+      "mid": "91230953977",
+      "keyword": "디테일애드 여름 버킷햇",
+      "product_title": "여름 버킷햇 벙거지 남자 여성 사파리 모자",
       "allow_click": true,
       "job_type": "GOLDEN_CLICK",
       "profile": {
-        "profile_id": 812,
-        "profile_name": "pf_R3CR70SZ0JJ_0008",
-        "snapshot_path": "/data/local/tmp/profile_storage/pf_R3CR70SZ0JJ_0008.tar.gz",
-        "ssaid": "5a21faf64ac349da",
-        "adid": "38b58cc3-e55c-029b-9808-3b545647f840"
+        "profile_id": 0,
+        "profile_name": "pf_0000000015",
+        "ssaid": null
       }
     }
   ]
@@ -99,13 +103,13 @@ Host: 114.207.112.173:5000
 Content-Type: application/json
 
 {
-  "alloc_id": "3005",
+  "alloc_id": "3100",
   "results": [
     {
       "device_id": "R3CR70SZ0JJ",
       "status": "SUCCESS",
-      "target_code": "91281465990",
-      "keyword": "gold finger 걸이형 캐리어",
+      "target_code": "91230953977",
+      "keyword": "디테일애드 여름 버킷햇",
       "is_searched": true,
       "is_clicked": true,
       "is_exposed": true,
@@ -119,7 +123,6 @@ Content-Type: application/json
       "adid": "38b58cc3-e55c-029b-9808-3b545647f840",
       "nnb": "5FBIWHUTY6JWU",
       "napp_di": "f035173eb53f14993a2286efe7d87ba8",
-      "snapshot_path": "/data/local/tmp/profile_storage/pf_R3CR70SZ0JJ_0008.tar.gz",
       "snapshot_size": 116.2
     }
   ]
@@ -157,13 +160,13 @@ Host: 114.207.112.173:5000
   "device_id": "R3CR70SZ0JJ",
   "count": 7,
   "files": [
-    "pf_R3CR70SZ0JJ_01.tar.gz",
-    "pf_R3CR70SZ0JJ_0008.tar.gz",
-    "pf_R3CR70SZ0JJ_0007.tar.gz",
-    "pf_R3CR70SZ0JJ_0006.tar.gz",
-    "pf_R3CR70SZ0JJ_0005.tar.gz",
-    "pf_R3CR70SZ0JJ_initial.tar.gz",
-    "pf_R3CR70SZ0JJ_latest.tar.gz"
+    "pf_0000000001.tar.gz",
+    "pf_0000000002.tar.gz",
+    "pf_0000000003.tar.gz",
+    "pf_0000000004.tar.gz",
+    "pf_0000000005.tar.gz",
+    "pf_0000000006.tar.gz",
+    "pf_0000000007.tar.gz"
   ]
 }
 ```

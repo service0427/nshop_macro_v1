@@ -17,7 +17,7 @@ class BatteryTracker:
     - 대기/유휴 시간 동안의 배터리 충전량 (Idle Charging delta)
     - 온도(°C) 및 소요 시간 정밀 기록
     """
-    _lock = threading.Lock()
+    _lock = threading.RLock()
     _last_idle_record: Dict[str, Dict[str, Any]] = {}
     _device_full_capacity: Dict[str, float] = {}
 
@@ -31,7 +31,7 @@ class BatteryTracker:
         try:
             out = subprocess.check_output(
                 ["adb", "-s", device_id, "shell", "su -c 'cat /sys/class/power_supply/battery/charge_full_design 2>/dev/null'"],
-                timeout=3, stderr=subprocess.DEVNULL, text=True
+                timeout=2.0, stderr=subprocess.DEVNULL, text=True
             ).strip()
             if out.isdigit() and int(out) > 500000:
                 uah = float(out)
@@ -39,14 +39,13 @@ class BatteryTracker:
                 # non-root: dumpsys batterystats에서 조회
                 stats = subprocess.check_output(
                     ["adb", "-s", device_id, "shell", "dumpsys", "batterystats"],
-                    timeout=3, stderr=subprocess.DEVNULL, text=True
+                    timeout=2.0, stderr=subprocess.DEVNULL, text=True
                 )
                 for line in stats.splitlines():
                     if "Capacity:" in line and "mAh" in line:
-                        mah = float(line.strip().split("Capacity:")[1].strip().split(",")[0].strip())
-                        if mah > 500:
-                            uah = mah * 1000.0
-                            break
+                        cap_val = line.split("Capacity:")[1].split(",")[0].strip().replace("mAh", "").strip()
+                        uah = float(cap_val) * 1000.0
+                        break
         except Exception:
             pass
 
@@ -65,7 +64,7 @@ class BatteryTracker:
         try:
             out = subprocess.check_output(
                 ["adb", "-s", device_id, "shell", "dumpsys battery"],
-                timeout=4, stderr=subprocess.DEVNULL, text=True
+                timeout=2.0, stderr=subprocess.DEVNULL, text=True
             )
             counter = 0
             for line in out.splitlines():

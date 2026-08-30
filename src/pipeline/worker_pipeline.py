@@ -82,28 +82,30 @@ class DeviceWorkerPipeline:
         logger.info(f"[{self.device_id}] 🚀 작업 시작 -> 유형: {job_type}, 키워드: '{keyword}', mid: {target_mid}, 클릭허용: {allow_click}")
 
         # -------------------------------------------------------------
-        # 1. 초고속 소프트 재부팅 신원 변조 (CLICK_TARGET 시 RESTORE, WARM_AND_SCOUT 시 FRESH)
+        # 1. 초고속 소프트 재부팅 신원 변조 (profile_id > 0 이고 로컬 파일 존재 시 RESTORE, 그 외 FRESH)
         # -------------------------------------------------------------
+        prof_name = profile_obj.get("profile_name") if isinstance(profile_obj, dict) else None
+        profile_id = profile_obj.get("profile_id", 0) if isinstance(profile_obj, dict) else 0
         profile_ssaid = profile_obj.get("ssaid") if isinstance(profile_obj, dict) else None
         profile_adid = profile_obj.get("adid") if isinstance(profile_obj, dict) else None
         profile_idfv = profile_obj.get("idfv") if isinstance(profile_obj, dict) else None
 
+        target_profile_tar = self.mutator.resolve_profile_path(prof_name) if prof_name else None
+
         mode = "FRESH"
-        if job_type == "CLICK_TARGET" or snapshot_path:
-            if snapshot_path and self.mutator.profile_exists_on_device(snapshot_path):
-                mode = "RESTORE"
-            elif self.mutator.profile_exists_on_device(f"{PROFILE_STORAGE_DIR}/pf_{self.device_id}_latest.tar.gz"):
-                snapshot_path = f"{PROFILE_STORAGE_DIR}/pf_{self.device_id}_latest.tar.gz"
-                mode = "RESTORE"
+        if profile_id > 0 and target_profile_tar and self.mutator.profile_exists_on_device(target_profile_tar):
+            mode = "RESTORE"
+        elif target_profile_tar and self.mutator.profile_exists_on_device(target_profile_tar):
+            mode = "RESTORE"
 
         mut_res = self.mutator.mutate_identity(
             mode=mode,
-            profile_tar=snapshot_path,
+            profile_tar=target_profile_tar if mode == "RESTORE" else None,
             ssaid=profile_ssaid,
             adid=profile_adid,
             idfv=profile_idfv
         )
-        logger.info(f"[{self.device_id}] [✓] 소프트 리셋 신원 변조 완료 ({mode} 모드 | SSAID: {mut_res.get('ssaid')})")
+        logger.info(f"[{self.device_id}] [✓] 소프트 리셋 신원 변조 완료 ({mode} 모드 | 프로필: {prof_name} | SSAID: {mut_res.get('ssaid')})")
 
         # -------------------------------------------------------------
         # 1-1. 소프트 리셋 직후 시스템 프로세스 & Wi-Fi 베이스망 무결성 안정화 (버퍼링 방지)
@@ -200,8 +202,8 @@ class DeviceWorkerPipeline:
                             else:
                                 logger.warning(f"[{self.device_id}] [!] 30초 내 상세페이지 진입 미확인 -> Step 4 상세 스크롤 생략 및 세션 반납")
                         else:
-                            # 2. [단순 노출 작업: allow_click=False] 타겟 상품 화면 실노출 안착 확인 -> 자연스러운 시선 체류 후 종료 (클릭 안함)
-                            logger.info(f"[{self.device_id}] [🎯 실노출 안착 및 영역 크롭 완료] 타겟 MID({target_mid}) 화면 중앙 포커싱 확인 -> 2초 시선 체류 후 클린 종료")
+                            # 2. [단순 노출 작업: allow_click=False] 타겟 상품 화면 실노출 안착 및 click_before 저장 완료 -> 2초 시선 체류 후 클린 종료 (클릭 안함, click_after 없음)
+                            logger.info(f"[{self.device_id}] [🎯 실노출 안착 & click_before 저장 완료] 타겟 MID({target_mid}) 화면 중앙 포커싱 확인 -> 2초 시선 체류 후 클린 종료 (click_after 없음)")
                             time.sleep(random.uniform(1.5, 2.5))
                     else:
                         logger.info(f"[{self.device_id}] [⚡ 미노출 종료] 타겟 MID({target_mid}) 검색 결과 미노출 확인 ➔ 추가 동작 없이 세션 종료")
@@ -222,14 +224,12 @@ class DeviceWorkerPipeline:
         extracted_nnb = session_ids.get("nnb")
         extracted_napp_di = session_ids.get("napp_di")
 
-        # C. 성공적인 검색/클릭 세션일 경우 프로필 스냅샷 저장
-        final_snapshot = snapshot_path
+        # C. 성공적인 검색/클릭 세션일 경우 프로필 스냅샷 저장 (서버가 지정한 profile_name만 사용)
+        prof_name = profile_obj.get("profile_name") if isinstance(profile_obj, dict) else None
+        final_snapshot = None
         snapshot_size_kb = None
-        if is_searched:
-            prof_name = profile_obj.get("profile_name") or f"pf_{self.device_id}_{int(time.time())}"
+        if is_searched and prof_name:
             final_snapshot, snapshot_size_kb = self.mutator.save_profile_snapshot(prof_name)
-            # 최신 프로필 갱신 (다음 RESTORE 시 재사용)
-            self.mutator.save_profile_snapshot(f"pf_{self.device_id}_latest")
 
         # D. WireGuard 터널 비활성화
         self.wg.deactivate_tunnel()

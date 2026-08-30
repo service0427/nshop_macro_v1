@@ -98,9 +98,12 @@ class NaverMacroCore:
         self.warm_up_home_scroll()
 
         shot_path = f"/tmp/macro_home_{self.device_id}.png"
-        subprocess.run(["adb", "-s", self.device_id, "shell", "screencap -p /sdcard/home_ready.png"], stdout=subprocess.DEVNULL)
-        subprocess.run(["adb", "-s", self.device_id, "pull", "/sdcard/home_ready.png", shot_path], stdout=subprocess.DEVNULL)
-        logger.info(f"[{self.device_id}] [📸 홈 화면 캡처 저장 완료] -> {shot_path}")
+        try:
+            with open(shot_path, "wb") as f:
+                subprocess.run(["adb", "-s", self.device_id, "exec-out", "screencap", "-p"], stdout=f, timeout=5)
+            logger.info(f"[{self.device_id}] [📸 홈 화면 캡처 저장 완료] -> {shot_path}")
+        except Exception:
+            pass
         return True
 
     # -------------------------------------------------------------
@@ -122,9 +125,12 @@ class NaverMacroCore:
         ready = self.wait_for_search_input_ready(timeout_sec=5.0)
 
         shot_path = f"/tmp/macro_search_input_{self.device_id}.png"
-        subprocess.run(["adb", "-s", self.device_id, "shell", "screencap -p /sdcard/search_input_ready.png"], stdout=subprocess.DEVNULL)
-        subprocess.run(["adb", "-s", self.device_id, "pull", "/sdcard/search_input_ready.png", shot_path], stdout=subprocess.DEVNULL)
-        logger.info(f"[{self.device_id}] [📸 검색 입력 화면 캡처 저장 완료] -> {shot_path}")
+        try:
+            with open(shot_path, "wb") as f:
+                subprocess.run(["adb", "-s", self.device_id, "exec-out", "screencap", "-p"], stdout=f, timeout=5)
+            logger.info(f"[{self.device_id}] [📸 검색 입력 화면 캡처 저장 완료] -> {shot_path}")
+        except Exception:
+            pass
         return ready
 
     def wait_for_search_results_loaded(self, timeout_sec: float = 30.0) -> bool:
@@ -154,9 +160,12 @@ class NaverMacroCore:
             self.scroll_verify_search_results()
 
         shot_path = f"/tmp/macro_search_result_{self.device_id}.png"
-        subprocess.run(["adb", "-s", self.device_id, "shell", "screencap -p /sdcard/search_result_ready.png"], stdout=subprocess.DEVNULL)
-        subprocess.run(["adb", "-s", self.device_id, "pull", "/sdcard/search_result_ready.png", shot_path], stdout=subprocess.DEVNULL)
-        logger.info(f"[{self.device_id}] [📸 검색 결과 페이지 캡처 저장 완료] -> {shot_path}")
+        try:
+            with open(shot_path, "wb") as f:
+                subprocess.run(["adb", "-s", self.device_id, "exec-out", "screencap", "-p"], stdout=f, timeout=5)
+            logger.info(f"[{self.device_id}] [📸 검색 결과 페이지 캡처 저장 완료] -> {shot_path}")
+        except Exception:
+            pass
         return loaded
 
     # -------------------------------------------------------------
