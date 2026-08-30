@@ -62,7 +62,7 @@ class DaemonController:
                 pass
 
     def check_pause_flag(self) -> bool:
-        """pause.flag 파일 존재 여부에 따른 PAUSED 실시간 동기화"""
+        """pause.flag 파일 존재 여부에 따른 PAUSED 실시간 양방향 동기화"""
         flag_exists = os.path.exists(PAUSE_FLAG_FILE) or os.path.exists(ALT_PAUSE_FLAG)
         if flag_exists:
             if not self.paused:
@@ -70,10 +70,17 @@ class DaemonController:
                 logger.warning("\n" + "=" * 80)
                 logger.warning(" ⏸️  [일시정지 (PAUSE) 활성화]")
                 logger.warning("    - pause.flag 파일 감지됨: 새 작업 할당 요청을 멈추고 대기합니다.")
-                logger.warning("    - 재개 방법: python3 daemon.py --resume  (또는 터미널에 'r' + Enter)")
+                logger.warning("    - 재개 방법: rm pause.flag 또는 python3 daemon.py --resume")
                 logger.warning("=" * 80 + "\n")
             return True
-        return self.paused
+        else:
+            if self.paused:
+                self.paused = False
+                logger.info("\n" + "=" * 80)
+                logger.info(" ▶️  [스케줄러 자동 재개]")
+                logger.info("    - pause.flag 파일 삭제 감지: 작업 할당 및 디스패치를 재개합니다!")
+                logger.info("=" * 80 + "\n")
+            return False
 
     def set_pause(self, paused: bool):
         self.paused = paused

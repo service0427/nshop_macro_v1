@@ -90,8 +90,10 @@ class DynamicDaemonScheduler:
             for alloc_id, sess_info in list(self.active_alloc_sessions.items()):
                 cancel_results = []
                 for t in sess_info.get("tasks", []):
+                    dev_id = t.get("device_id")
+                    batt = BatteryTracker.get_battery_info(dev_id).get("level_precise") if dev_id else None
                     cancel_results.append({
-                        "device_id": t.get("device_id"),
+                        "device_id": dev_id,
                         "status": "CANCELLED",
                         "target_code": t.get("mid"),
                         "keyword": t.get("keyword"),
@@ -100,6 +102,7 @@ class DynamicDaemonScheduler:
                         "is_exposed": False,
                         "exposure_rank": None,
                         "execution_sec": 0.1,
+                        "battery_level": round(batt, 2) if batt is not None else None,
                         "error_reason": "USER_INTERRUPTED_CTRL_C"
                     })
                 if cancel_results:
@@ -143,9 +146,11 @@ class DynamicDaemonScheduler:
         except Exception as e:
             logger.error(f"[주기 #{cycle_id} | {device_id}] 워커 스레드 예외 발생: {e}", exc_info=True)
             if alloc_id:
+                batt_err = BatteryTracker.get_battery_info(device_id).get("level_precise")
                 self.client.release_tasks(alloc_id, [{
                     "device_id": device_id,
                     "status": "FAILED",
+                    "battery_level": round(batt_err, 2) if batt_err is not None else None,
                     "error_reason": f"EXCEPTION: {str(e)}"
                 }])
         finally:

@@ -24,11 +24,14 @@ import argparse
 from src.scheduler.daemon_scheduler import DynamicDaemonScheduler
 from src.scheduler.daemon_controller import LOCK_FILE, PAUSE_FLAG_FILE, ALT_PAUSE_FLAG
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(asctime)s] [%(levelname)s] %(message)s",
-    datefmt="%H:%M:%S"
-)
+# 루트 로거 포맷 및 표준출력 핸들러 구성
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+for h in root_logger.handlers[:]:
+    root_logger.removeHandler(h)
+_handler = logging.StreamHandler(sys.stdout)
+_handler.setFormatter(logging.Formatter("[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s", datefmt="%H:%M:%S"))
+root_logger.addHandler(_handler)
 logger = logging.getLogger("DynamicScheduler")
 
 

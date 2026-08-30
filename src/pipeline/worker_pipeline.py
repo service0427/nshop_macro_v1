@@ -52,6 +52,7 @@ class DeviceWorkerPipeline:
         # -------------------------------------------------------------
         # 0. NO_TASK 분기: 작업이 없는 단말기는 VPN을 끄고 0.5초 즉시 안전 대기
         # -------------------------------------------------------------
+        batt_now = BatteryTracker.get_battery_info(self.device_id).get("level_precise")
         if job_type == "NO_TASK" or not keyword:
             logger.info(f"[{self.device_id}] [⏸️ NO_TASK] 배정된 작업 없음 -> WireGuard 터널 완전 종료 및 안전 대기")
             self.wg.deactivate_tunnel()
@@ -66,6 +67,7 @@ class DeviceWorkerPipeline:
                 "exposure_rank": None,
                 "execution_sec": 0.5,
                 "free_storage_mb": self.mutator.get_free_storage_mb(),
+                "battery_level": round(batt_now, 2) if batt_now is not None else None,
                 "snapshot_path": None,
                 "error_reason": None,
                 "public_ip": "NO_VPN"
@@ -115,6 +117,7 @@ class DeviceWorkerPipeline:
         public_ip = "UNKNOWN"
         if not (client_ip and priv_key and server_pubkey and endpoint):
             logger.error(f"[{self.device_id}] ❌ [FAIL-FAST] 필수 WireGuard 정보 누락 (IP:{client_ip}, Endpoint:{endpoint})! 매크로 진입을 즉시 차단합니다.")
+            batt_fast = BatteryTracker.get_battery_info(self.device_id).get("level_precise")
             return {
                 "device_id": self.device_id,
                 "status": "FAILED",
@@ -126,6 +129,7 @@ class DeviceWorkerPipeline:
                 "exposure_rank": None,
                 "execution_sec": round(time.time() - t_start, 1),
                 "free_storage_mb": self.mutator.get_free_storage_mb(),
+                "battery_level": round(batt_fast, 2) if batt_fast is not None else None,
                 "snapshot_path": None,
                 "error_reason": "MISSING_WIREGUARD_CONFIG",
                 "public_ip": "MISSING_CONFIG"
@@ -142,6 +146,7 @@ class DeviceWorkerPipeline:
             err_reason = wg_res.get("error_reason", "WIREGUARD_INTERNET_UNREACHABLE")
             logger.error(f"[{self.device_id}] ❌ [FAIL-FAST] WireGuard 연결/IP일치 검증 실패 ({err_reason})! 매크로 실행을 중단하고 실패 반환 처리합니다.")
             self.wg.deactivate_tunnel()
+            batt_fast = BatteryTracker.get_battery_info(self.device_id).get("level_precise")
             return {
                 "device_id": self.device_id,
                 "status": "FAILED",
@@ -153,6 +158,7 @@ class DeviceWorkerPipeline:
                 "exposure_rank": None,
                 "execution_sec": round(time.time() - t_start, 1),
                 "free_storage_mb": self.mutator.get_free_storage_mb(),
+                "battery_level": round(batt_fast, 2) if batt_fast is not None else None,
                 "snapshot_path": None,
                 "error_reason": err_reason,
                 "public_ip": public_ip
@@ -272,7 +278,7 @@ class DeviceWorkerPipeline:
             "gps_lng": mut_res.get("gps_lng"),
             "latitude": mut_res.get("gps_lat"),
             "longitude": mut_res.get("gps_lng"),
-            "battery_level": round(current_batt_precise, 1),
+            "battery_level": round(current_batt_precise, 2),
             "error_reason": error_reason,
             "public_ip": public_ip
         }

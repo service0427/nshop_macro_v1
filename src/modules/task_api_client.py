@@ -187,8 +187,8 @@ class TaskApiClient:
                 "nnb": r.get("nnb"),
                 "napp_di": r.get("napp_di"),
 
-                # 최종 배터리 잔량 (소수점 1자리 정밀도, 서버 단순 기록용)
-                "battery_level": round(float(r["battery_level"]), 1) if r.get("battery_level") is not None else None
+                # 최종 배터리 잔량 (소수점 2자리 정밀도 Float, 서버 단순 기록용)
+                "battery_level": round(float(r["battery_level"]), 2) if r.get("battery_level") is not None else None
             }
             # None 값 정리
             clean_item = {k: v for k, v in item.items() if v is not None}

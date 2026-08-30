@@ -523,10 +523,11 @@ chmod 777 {full_tar_path}
     def get_free_storage_mb(self) -> int:
         """단말기 /data 파티션 남은 저장용량 (MB) 반환"""
         try:
-            out = self._run_adb_su("df -m /data 2>/dev/null | tail -n 1")
+            out = self._run_adb_su("df /data 2>/dev/null | tail -n 1")
             parts = out.split()
             if len(parts) >= 4:
-                return int(parts[3])
+                kb_val = int(parts[3])
+                return kb_val // 1024
         except Exception:
             pass
-        return 1024
+        return 0
