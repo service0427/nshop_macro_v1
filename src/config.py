@@ -13,9 +13,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = str(BASE_DIR)
 
 LOGS_DIR = os.path.join(PROJECT_ROOT, "logs")
-CLICK_LOGS_DIR = os.path.join(PROJECT_ROOT, "click_logs")
+CLICK_LOGS_DIR = os.path.join(LOGS_DIR, "click_logs")
 DEVICE_SET_FILE = os.path.join(PROJECT_ROOT, "device_set.json")
-PAUSE_FLAG_FILE = os.path.join(PROJECT_ROOT, "pause.flag")
 ALLOCATE_HISTORY_DIR = os.path.join(LOGS_DIR, "allocate_history")
 RELEASE_HISTORY_DIR = os.path.join(LOGS_DIR, "release_history")
 SCREENSHOT_DIR = os.path.join(LOGS_DIR, "target_screenshot")

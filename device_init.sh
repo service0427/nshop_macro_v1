@@ -1,1 +1,0 @@
-03_device_init.sh
