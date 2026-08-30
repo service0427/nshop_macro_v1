@@ -82,14 +82,29 @@ init_single_device() {
     adb -s "$serial" shell "settings put global require_keyguard_disabled 1" 2>/dev/null
     adb -s "$serial" shell "wm dismiss-keyguard" 2>/dev/null                                # 현재 켜진 키가드 즉시 해제
 
-    # 3. 디스플레이 & 제스처 & 애니메이션 최적화
-    echo -e "  [*] [2/6] 세로 화면 고정 & 오터치 방지 해제 & UI 애니메이션 제거 중..."
+    # 3. 디스플레이 & 제스처 & 애니메이션 & 저전력 배터리 튜닝
+    echo -e "  [*] [2/6] 60Hz 주사율 & 저밝기 & 진동 모터 OFF & 세로 고정 & 애니메이션 제거 중..."
     adb -s "$serial" shell "settings put system accelerometer_rotation 0" 2>/dev/null       # 자동 회전 비활성화
     adb -s "$serial" shell "settings put system user_rotation 0" 2>/dev/null                # 0도(세로 Portrait) 고정
     adb -s "$serial" shell "settings put system screen_off_pocket 0" 2>/dev/null            # 오터치 방지 필터 해제
     adb -s "$serial" shell "settings put global window_animation_scale 0" 2>/dev/null       # 윈도우 애니메이션 제거
     adb -s "$serial" shell "settings put global transition_animation_scale 0" 2>/dev/null   # 전환 애니메이션 제거
     adb -s "$serial" shell "settings put global animator_duration_scale 0" 2>/dev/null     # 애니메이터 제거
+
+    # [핵심 저전력/저발열 튜닝] AMOLED 60Hz 고정 + 최저 밝기 + 햅틱 진동 모터 OFF + RF 통신 차단
+    adb -s "$serial" shell "settings put system peak_refresh_rate 60.0" 2>/dev/null         # 120Hz -> 60Hz 고정 (GPU/패널 전력 50% 절감)
+    adb -s "$serial" shell "settings put system min_refresh_rate 60.0" 2>/dev/null
+    adb -s "$serial" shell "settings put system screen_brightness_mode 0" 2>/dev/null       # 자동 밝기 해제
+    adb -s "$serial" shell "settings put system screen_brightness 10" 2>/dev/null           # 최소 밝기(10) 고정 (AMOLED 발열 차단)
+    adb -s "$serial" shell "settings put system haptic_feedback_enabled 0" 2>/dev/null      # 터치 햅틱 진동 모터 완전 OFF (피크 전류 차단)
+    adb -s "$serial" shell "settings put system touch_vibration_enabled 0" 2>/dev/null
+    adb -s "$serial" shell "settings put system sound_effects_enabled 0" 2>/dev/null
+    adb -s "$serial" shell "settings put system vibration_feedback_intensity 0" 2>/dev/null
+    adb -s "$serial" shell "svc nfc disable 2>/dev/null || settings put secure nfc_on 0" 2>/dev/null # NFC 차단
+    adb -s "$serial" shell "svc bluetooth disable" 2>/dev/null                              # 블루투스 차단
+    adb -s "$serial" shell "settings put global captive_portal_mode 0" 2>/dev/null
+    adb -s "$serial" shell "settings put global captive_portal_detection_enabled 0" 2>/dev/null
+    adb -s "$serial" shell "settings put global wifi_sleep_policy 2" 2>/dev/null
 
     # 4. 필수 APK 설치 (ADBKeyboard, GPSEmulator, WireGuard, 네이버 앱)
     echo -e "  [*] [3/6] 필수 패키지 설치 확인 및 배포 중..."

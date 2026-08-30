@@ -111,7 +111,13 @@ for serial in $DEVICES; do
         DEV_WARN=$((DEV_WARN + 1))
     fi
 
-    # 6. 네트워크 & IP
+    # 6. 배터리 절전 및 저발열 튜닝 감사
+    PEAK_REFRESH=$(adb -s "$serial" shell "settings get system peak_refresh_rate 2>/dev/null" | tr -d '\r\n')
+    BRIGHTNESS=$(adb -s "$serial" shell "settings get system screen_brightness 2>/dev/null" | tr -d '\r\n')
+    HAPTIC=$(adb -s "$serial" shell "settings get system haptic_feedback_enabled 2>/dev/null" | tr -d '\r\n')
+    NFC_ON=$(adb -s "$serial" shell "settings get secure nfc_on 2>/dev/null" | tr -d '\r\n')
+
+    # 7. 네트워크 & IP
     LOCAL_IP=$(adb -s "$serial" shell "ip -o -4 addr show wlan0 2>/dev/null | awk '{print \$4}' | cut -d/ -f1" | head -1 | tr -d '\r\n')
     [ -z "$LOCAL_IP" ] && LOCAL_IP=$(adb -s "$serial" shell "ip -o -4 addr show 2>/dev/null | grep -v '127.0.0.1' | awk '{print \$4}' | cut -d/ -f1" | head -1 | tr -d '\r\n')
     [ -z "$LOCAL_IP" ] && LOCAL_IP="Wi-Fi 미연결"
@@ -144,7 +150,21 @@ for serial in $DEVICES; do
     echo -e "      ↳ 화면 잠금 해제:       $LOCK_STR"
     echo -e "      ↳ 화면 방향:             $ROT_STR"
 
-    echo -e "  ${BOLD}[4] 필수 패키지 및 가동 환경${NC}"
+    echo -e "  ${BOLD}[4] 🔋 저전력/저발열 배터리 튜닝 상태${NC}"
+    HZ_STR="🟢 60Hz 고정 (저전력)"
+    [[ "$PEAK_REFRESH" == "120.0" || "$PEAK_REFRESH" == "120" ]] && { HZ_STR="🟡 120Hz (전력소모 높음)"; DEV_WARN=$((DEV_WARN + 1)); }
+    BRIGHT_STR="🟢 최소 ($BRIGHTNESS/255)"
+    [ -n "$BRIGHTNESS" ] && [ "$BRIGHTNESS" -gt 60 ] 2>/dev/null && { BRIGHT_STR="🟡 밝음 ($BRIGHTNESS/255)"; DEV_WARN=$((DEV_WARN + 1)); }
+    HAPTIC_STR="🟢 차단됨 (0)"
+    [ "$HAPTIC" == "1" ] && { HAPTIC_STR="🟡 켜짐 (진동 모터 전력소모)"; DEV_WARN=$((DEV_WARN + 1)); }
+    NFC_STR="🟢 차단됨 (0)"
+    [ "$NFC_ON" == "1" ] && { NFC_STR="🟡 켜짐 (1)"; }
+    echo -e "      ↳ 주사율(프레임): $HZ_STR"
+    echo -e "      ↳ 화면 밝기:      $BRIGHT_STR"
+    echo -e "      ↳ 햅틱 진동 모터: $HAPTIC_STR"
+    echo -e "      ↳ NFC/대기 통신:  $NFC_STR"
+
+    echo -e "  ${BOLD}[5] 필수 패키지 및 가동 환경${NC}"
     NAVER_STR="🟢 v$NAVER_VER"
     [ -z "$NAVER_VER" ] && { NAVER_STR="🔴 미설치"; DEV_WARN=$((DEV_WARN + 1)); }
     WG_STR="🟢 v$WG_VER"
@@ -153,7 +173,7 @@ for serial in $DEVICES; do
     echo -e "      ↳ WireGuard VPN: $WG_STR"
     echo -e "      ↳ ADBKeyboard:   $KB_INSTALLED"
 
-    echo -e "  ${BOLD}[5] 네트워크 & 외부 공인 IP${NC}"
+    echo -e "  ${BOLD}[6] 네트워크 & 외부 공인 IP${NC}"
     echo -e "      ↳ 내부 IP: ${GREEN}$LOCAL_IP${NC} | 공인 IP: ${CYAN}$PUBLIC_IP${NC}"
 
     # 판정 결과
