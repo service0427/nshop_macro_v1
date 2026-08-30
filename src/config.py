@@ -14,6 +14,8 @@ PROJECT_ROOT = str(BASE_DIR)
 
 LOGS_DIR = os.path.join(PROJECT_ROOT, "logs")
 CLICK_LOGS_DIR = os.path.join(LOGS_DIR, "click_logs")
+CLICK_BEFORE_DIR = os.path.join(CLICK_LOGS_DIR, "click_before")
+CLICK_AFTER_DIR = os.path.join(CLICK_LOGS_DIR, "click_after")
 DEVICE_SET_FILE = os.path.join(PROJECT_ROOT, "device_set.json")
 ALLOCATE_HISTORY_DIR = os.path.join(LOGS_DIR, "allocate_history")
 RELEASE_HISTORY_DIR = os.path.join(LOGS_DIR, "release_history")

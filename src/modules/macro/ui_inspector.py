@@ -20,15 +20,38 @@ import datetime
 import subprocess
 import xml.etree.ElementTree as ET
 from typing import Dict, Any, Optional, Tuple
-from src.config import DEVICE_SET_FILE, CLICK_LOGS_DIR, SCREENSHOT_DIR
+from src.config import (
+    DEVICE_SET_FILE, CLICK_LOGS_DIR, CLICK_BEFORE_DIR, CLICK_AFTER_DIR, SCREENSHOT_DIR
+)
 
 logger = logging.getLogger("NaverMacroCore.UIInspector")
+
+
+def prune_image_dir(dir_path: str, max_files: int = 200):
+    """지정된 디렉터리의 이미지(.png/.jpg)가 max_files(200개)를 넘지 않도록 오래된 파일 자동 회전 삭제 (FIFO)"""
+    try:
+        if not os.path.exists(dir_path):
+            return
+        files = sorted(
+            [os.path.join(dir_path, f) for f in os.listdir(dir_path) if f.lower().endswith((".png", ".jpg", ".jpeg"))],
+            key=os.path.getmtime
+        )
+        if len(files) > max_files:
+            for old_file in files[: len(files) - max_files]:
+                try:
+                    os.remove(old_file)
+                except Exception:
+                    pass
+    except Exception:
+        pass
 
 
 class UIInspector:
     def __init__(self, device_id: str):
         self.device_id = device_id
-        os.makedirs(CLICK_LOGS_DIR, exist_ok=True)
+        os.makedirs(CLICK_BEFORE_DIR, exist_ok=True)
+        os.makedirs(CLICK_AFTER_DIR, exist_ok=True)
+        os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 
     def run_adb(self, cmd: str, timeout_sec: int = 5) -> str:
         """기본 ADB shell 명령 실행"""
@@ -211,15 +234,22 @@ class UIInspector:
         self.update_device_config({"search_bar_safe_bounds": default_safe})
         return default_safe
 
-    def draw_and_save_click_debug_image(self, click_x: int, click_y: int, target_mid: Optional[str] = None, extra_info: Optional[str] = None) -> str:
+    def draw_and_save_click_debug_image(
+        self,
+        click_x: int,
+        click_y: int,
+        target_mid: Optional[str] = None,
+        extra_info: Optional[str] = None,
+        stage: str = "click_before"
+    ) -> str:
         """
-        [클릭 직전 화면 캡처 및 타겟 좌표 시각화 디버깅 스크린샷 저장]
-        - /home/tech/nshop_macro_v1/click_logs/ 폴더에 타임스탬프와 함께 영구 저장
+        [클릭/탐색 직전 화면 캡처 및 타겟 좌표 시각화 디버깅 스크린샷 저장]
+        - 저장 경로: logs/click_logs/click_before/click_before_{YYYYMMDD_HHMMSS}_{device_id}_mid_{mid}.png
+        - 200장 초과 시 FIFO 자동 회전 삭제
         """
         now_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         mid_tag = f"_mid_{target_mid}" if target_mid else ""
-        archive_path = os.path.join(CLICK_LOGS_DIR, f"click_{now_str}_{self.device_id}{mid_tag}.png")
-        os.makedirs(CLICK_LOGS_DIR, exist_ok=True)
+        archive_path = os.path.join(CLICK_BEFORE_DIR, f"{stage}_{now_str}_{self.device_id}{mid_tag}.png")
         local_raw = f"/tmp/macro_pre_click_{self.device_id}.png"
         local_out = f"/tmp/macro_click_debug_{self.device_id}.png"
 
@@ -243,14 +273,15 @@ class UIInspector:
                 except Exception:
                     font = None
 
-                banner_text = f"TAP: ({cx}, {cy}) | MID: {target_mid or 'N/A'}"
+                banner_text = f"TARGET: ({cx}, {cy}) | MID: {target_mid or 'N/A'}"
                 draw.rectangle((cx + 40, cy - 35, cx + 450, cy + 20), fill="black", outline="red", width=2)
                 draw.text((cx + 50, cy - 30), banner_text, fill="yellow", font=font)
 
-                # /tmp 및 click_logs 양쪽에 저장
+                # /tmp 및 click_logs/click_before 양쪽에 저장
                 img.save(local_out)
                 img.save(archive_path)
-                logger.info(f"[{self.device_id}] [📸 클릭 위치 시각화 스샷 저장 완료] -> {archive_path}")
+                logger.info(f"[{self.device_id}] [📸 클릭/탐색 직전 시각화 스샷 저장 완료] -> {archive_path}")
+                prune_image_dir(CLICK_BEFORE_DIR, max_files=200)
                 return archive_path
         except Exception as e:
             logger.warning(f"[{self.device_id}] [!] 클릭 시각화 스샷 저장 실패: {e}")
@@ -264,18 +295,16 @@ class UIInspector:
         click_coords: Optional[Tuple[int, int]] = None
     ) -> str:
         """
-        [타겟 상품 발견 시 해당 상품 영역만 크롭하여 저장]
-        - 저장 경로: logs/target_screenshot/{YYYY-MM-DD}/{HHMMSS}_{mid}_{keyword}_{device_id}.png
+        [타겟 상품 발견 시 해당 상품 영역만 크롭하여 저장 (일자별 폴더 없이 통으로 저장)]
+        - 저장 경로: logs/target_screenshot/{HHMMSS}_{mid}_{keyword}_{device_id}.png
+        - 200장 초과 시 FIFO 자동 회전 삭제
         """
         now = datetime.datetime.now()
-        today_str = now.strftime("%Y-%m-%d")
-        time_str = now.strftime("%H%M%S")
-        target_dir = os.path.join(SCREENSHOT_DIR, today_str)
-        os.makedirs(target_dir, exist_ok=True)
+        time_str = now.strftime("%Y%m%d_%H%M%S")
 
         safe_kw = re.sub(r'[\s/\\:*?"<>|]+', '_', (keyword or "UNKNOWN").strip()).strip('_')
         filename = f"{time_str}_{target_mid}_{safe_kw}_{self.device_id}.png"
-        archive_path = os.path.join(target_dir, filename)
+        archive_path = os.path.join(SCREENSHOT_DIR, filename)
         local_raw = f"/tmp/macro_screen_target_{self.device_id}.png"
 
         try:
@@ -315,6 +344,7 @@ class UIInspector:
                 cropped = img.crop((crop_x1, crop_y1, crop_x2, crop_y2))
                 cropped.save(archive_path)
                 logger.info(f"[{self.device_id}] [📸 타겟 상품 영역 크롭 저장 완료] [{crop_x1},{crop_y1}][{crop_x2},{crop_y2}] -> {archive_path}")
+                prune_image_dir(SCREENSHOT_DIR, max_files=200)
                 return archive_path
         except Exception as e:
             logger.warning(f"[{self.device_id}] [!] 타겟 상품 영역 크롭 저장 실패: {e}")
@@ -326,25 +356,23 @@ class UIInspector:
         keyword: Optional[str] = None
     ) -> str:
         """
-        [상세페이지 진입 성공 시 첫 화면 전체 캡처 저장]
-        - 저장 경로: logs/target_screenshot/{YYYY-MM-DD}/{HHMMSS}_{mid}_{keyword}_{device_id}_click.png
+        [상세페이지 진입 성공 시 랜딩 화면 전체 캡처 저장]
+        - 저장 경로: logs/click_logs/click_after/click_after_{YYYYMMDD_HHMMSS}_{mid}_{keyword}_{device_id}.png
+        - 200장 초과 시 FIFO 자동 회전 삭제
         """
         now = datetime.datetime.now()
-        today_str = now.strftime("%Y-%m-%d")
-        time_str = now.strftime("%H%M%S")
-        target_dir = os.path.join(SCREENSHOT_DIR, today_str)
-        os.makedirs(target_dir, exist_ok=True)
+        time_str = now.strftime("%Y%m%d_%H%M%S")
 
         safe_kw = re.sub(r'[\s/\\:*?"<>|]+', '_', (keyword or "UNKNOWN").strip()).strip('_')
-        filename = f"{time_str}_{target_mid}_{safe_kw}_{self.device_id}_click.png"
-        archive_path = os.path.join(target_dir, filename)
+        filename = f"click_after_{time_str}_{target_mid}_{safe_kw}_{self.device_id}.png"
+        archive_path = os.path.join(CLICK_AFTER_DIR, filename)
 
         try:
             subprocess.run(["adb", "-s", self.device_id, "shell", "screencap -p /sdcard/detail_click.png"], stdout=subprocess.DEVNULL)
             subprocess.run(["adb", "-s", self.device_id, "pull", "/sdcard/detail_click.png", archive_path], stdout=subprocess.DEVNULL)
             if os.path.exists(archive_path):
                 logger.info(f"[{self.device_id}] [📸 상세페이지 랜딩 스크린샷 저장 완료] -> {archive_path}")
-                return archive_path
+                prune_image_dir(CLICK_AFTER_DIR, max_files=200)
         except Exception as e:
             logger.warning(f"[{self.device_id}] [!] 상세페이지 랜딩 스크린샷 저장 실패: {e}")
         return ""

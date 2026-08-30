@@ -313,7 +313,7 @@ class SearchNavigator:
                     click_y = random.randint(title_y_min, max(title_y_min + 10, title_y_max))
                     logger.info(f"[{self.device_id}] [🎉 100% 안전 안착] 상품 카드 제목 영역 확정! [{SAFE_Y_MIN} <= Y1({y1}) & Y2({y2}) <= {SAFE_Y_MAX}] ➔ 타이틀 안전 터치: ({click_x}, {click_y})")
                     
-                    # 📸 [타겟 상품 영역 크롭 저장] logs/target_screenshot/{YYYY-MM-DD}/{HHMMSS}_{mid}_{keyword}_{device_id}.png
+                    # 📸 [타겟 상품 영역 크롭 저장 & 클릭/탐색 직전 시각화 스샷 저장]
                     try:
                         self.inspector.crop_and_save_target_screenshot(
                             target_bounds=(x1, y1, x2, y2),
@@ -321,8 +321,14 @@ class SearchNavigator:
                             keyword=keyword,
                             click_coords=(click_x, click_y)
                         )
+                        self.inspector.draw_and_save_click_debug_image(
+                            click_x=click_x,
+                            click_y=click_y,
+                            target_mid=target_mid_str,
+                            stage="click_before"
+                        )
                     except Exception as e:
-                        logger.warning(f"[{self.device_id}] 타겟 크롭 저장 중 예외: {e}")
+                        logger.warning(f"[{self.device_id}] 타겟 크롭/시각화 저장 중 예외: {e}")
 
                     return (click_x, click_y)
 
