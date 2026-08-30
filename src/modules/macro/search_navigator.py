@@ -391,20 +391,46 @@ class SearchNavigator:
 
             root = self.inspector.get_ui_tree("detail_check")
             if root is not None:
-                texts = [elem.attrib.get("text", "") or elem.attrib.get("content-desc", "") for elem in root.iter("node")]
+                nodes = list(root.iter("node"))
+                texts = [elem.attrib.get("text", "").strip() or elem.attrib.get("content-desc", "").strip() for elem in nodes]
                 combined = " ".join(texts)
 
-                # 캡차/보안문자 차단 감지
+                # 1. 캡차/보안문자 차단 감지
                 if any(k in combined for k in ["자동입력 방지", "보안문자", "비정상적인 접근", "차단되었습니다"]):
                     logger.error(f"[{self.device_id}] ❌ [보안 탐지 감지] 네이버 봇 탐지/캡차 페이지 노출됨! 즉시 중단합니다.")
                     return False
 
-                # 상세페이지 핵심 UI 요소 검증
-                DETAIL_KEYWORDS = ["구매하기", "선물하기", "장바구니", "N Pay", "톡톡문의", "스토어찜", "리뷰", "Q&A", "배송비", "옵션선택", "smartstore", "브랜드스토어", "네이버플러스 스토어", "네이버+ 스토어", "본문으로 바로가기"]
-                matched_keys = [k for k in DETAIL_KEYWORDS if k in combined]
+                # 2. 검색 결과 페이지 잔류 여부 엄격 검사 (상단 검색창/검색버튼이 남아있으면 아직 검색화면임)
+                is_still_search_page = False
+                for elem in nodes:
+                    rid = elem.attrib.get("resource-id", "")
+                    b = elem.attrib.get("bounds", "")
+                    if any(s_id in rid for s_id in ["search_query", "search_btn", "search_clear_btn"]):
+                        is_still_search_page = True
+                        break
+                    if kw_val and kw_val in elem.attrib.get("text", "") and b:
+                        coords = b.replace("][", ",").replace("[", "").replace("]", "").split(",")
+                        if len(coords) == 4 and int(coords[1]) < 350:
+                            is_still_search_page = True
+                            break
 
-                if any(k in combined for k in ["구매하기", "선물하기", "장바구니", "네이버플러스 스토어", "네이버+ 스토어"]) or len(matched_keys) >= 2:
-                    logger.info(f"[{self.device_id}] [✓] 상품 상세페이지 정상 진입 확인 완료! (소요 시간: {elapsed}s | 감지 키워드: {matched_keys})")
+                if is_still_search_page:
+                    # 검색 결과 페이지에 머물러 있는 상태 -> 전환 대기 및 보조 탭
+                    if elapsed >= 4.0 and not re_tapped:
+                        logger.info(f"[{self.device_id}] [ℹ️ 전환 대기/보조 탭] 클릭 후 {elapsed}초 경과 -> 타겟 좌표 ({cx}, {cy}) 1회 보조 탭 수행")
+                        self.inspector.run_adb(f"input tap {cx} {cy}")
+                        re_tapped = True
+                    continue
+
+                # 3. 상품 상세페이지 고유 식별자 검증 (하단 구매바 / 스마트스토어 전용 요소)
+                PURCHASE_CTA = ["구매하기", "N Pay 구매", "바로구매", "선물하기", "장바구니"]
+                DETAIL_BODY_KEYS = ["톡톡문의", "스토어찜", "알림받기", "상세정보", "상품정보 제공고시", "배송/교환/반품", "Q&A", "옵션 선택"]
+
+                has_purchase_cta = any(any(cta == t or cta in t for cta in PURCHASE_CTA) for t in texts)
+                has_detail_body = any(k in combined for k in DETAIL_BODY_KEYS)
+
+                if has_purchase_cta or has_detail_body:
+                    logger.info(f"[{self.device_id}] [✓] 상품 상세페이지 정상 진입 100% 확정! (소요 시간: {elapsed}s | 검색창 소멸 확인 | 구매CTA: {has_purchase_cta})")
 
                     # 📸 [상세페이지 첫 화면 캡처 저장] logs/click_logs/click_after/
                     try:
@@ -418,12 +444,6 @@ class SearchNavigator:
                     except Exception:
                         pass
                     return True
-
-            # 8초 이상 경과했는데도 미진입 시 1회 보조 탭
-            if elapsed >= 8.0 and not re_tapped:
-                logger.info(f"[{self.device_id}] [ℹ️ 렉/미반응 보조] 클릭 후 {elapsed}초 경과 -> 타겟 좌표 ({cx}, {cy}) 1회 보조 탭 수행")
-                self.inspector.run_adb(f"input tap {cx} {cy}")
-                re_tapped = True
 
         logger.warning(f"[{self.device_id}] ❌ [!] 상품 상세페이지 로딩 타임아웃 ({timeout_sec}초 초과) -> 상세페이지 진입 실패 판정")
         return False
