@@ -171,9 +171,9 @@ cmd appops set {self.package_name} MOCK_LOCATION allow 2>/dev/null || true
             f.write(tutorial_pref_xml)
             
         subprocess.run(["adb", "-s", self.device_id, "push", tmp_null, f"/data/local/tmp/null_{self.device_id}.xml"],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
         subprocess.run(["adb", "-s", self.device_id, "push", tmp_tut, f"/data/local/tmp/tut_{self.device_id}.xml"],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
         
         app_uid = self.get_app_uid()
         self._run_adb_su(f"""
@@ -369,10 +369,10 @@ rm -f /data/local/tmp/null_{self.device_id}.xml /data/local/tmp/tut_{self.device
         with open(t_nu, "w", encoding="utf-8") as f: f.write(null_xml)
         with open(t_tu, "w", encoding="utf-8") as f: f.write(tut_xml)
 
-        subprocess.run(["adb", "-s", self.device_id, "push", t_ss, f"/data/local/tmp/ssaid_{self.device_id}.xml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.run(["adb", "-s", self.device_id, "push", t_ad, f"/data/local/tmp/adid_{self.device_id}.xml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.run(["adb", "-s", self.device_id, "push", t_nu, f"/data/local/tmp/null_{self.device_id}.xml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.run(["adb", "-s", self.device_id, "push", t_tu, f"/data/local/tmp/tut_{self.device_id}.xml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(["adb", "-s", self.device_id, "push", t_ss, f"/data/local/tmp/ssaid_{self.device_id}.xml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+        subprocess.run(["adb", "-s", self.device_id, "push", t_ad, f"/data/local/tmp/adid_{self.device_id}.xml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+        subprocess.run(["adb", "-s", self.device_id, "push", t_nu, f"/data/local/tmp/null_{self.device_id}.xml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+        subprocess.run(["adb", "-s", self.device_id, "push", t_tu, f"/data/local/tmp/tut_{self.device_id}.xml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
 
         for tmp_f in [t_ss, t_ad, t_nu, t_tu]:
             if os.path.exists(tmp_f): os.remove(tmp_f)
