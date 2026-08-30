@@ -272,7 +272,7 @@ class DeviceWorkerPipeline:
             "gps_lng": mut_res.get("gps_lng"),
             "latitude": mut_res.get("gps_lat"),
             "longitude": mut_res.get("gps_lng"),
-            "battery_level": current_batt,
+            "battery_level": round(current_batt_precise, 1),
             "error_reason": error_reason,
             "public_ip": public_ip
         }
