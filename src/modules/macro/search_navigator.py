@@ -46,29 +46,28 @@ class SearchNavigator:
 
             xml_str = self.inspector.run_adb("uiautomator dump /sdcard/home_chk.xml >/dev/null 2>&1 && cat /sdcard/home_chk.xml || true")
 
-            # 1. '나중에 할게요' 로그인 건너뛰기 감지 시 즉시 탭
+            # 1. '나중에 할게요' 로그인 건너뛰기 감지 시 정밀 탭 (맹목적 고정 좌표 탭 배제)
             if "laterLoginBtn" in xml_str or "나중에 할게요" in xml_str:
-                logger.info(f"[{self.device_id}] ⚡ [온보딩 감지] '나중에 할게요' 로그인 건너뛰기 자동 탭")
                 m = re.search(r'resource-id="[^"]*laterLoginBtn"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', xml_str)
                 if m:
+                    logger.info(f"[{self.device_id}] ⚡ [온보딩 감지] '나중에 할게요' 로그인 건너뛰기 정밀 탭")
                     x1, y1, x2, y2 = map(int, m.groups())
                     self.inspector.run_adb(f"input tap {(x1+x2)//2} {(y1+y2)//2}")
-                else:
-                    self.inspector.run_adb("input tap 540 2379")
-                time.sleep(0.6)
-                continue
+                    time.sleep(0.6)
+                    continue
 
-            # 2. '네이버 시작하기' 시작 버튼 감지 시 즉시 탭
+            # 2. '네이버 시작하기' 시작 버튼 감지 시 정밀 탭 (맹목적 고정 좌표 탭 배제)
             if "locationStartBtn" in xml_str or "startNaverBtnLayout" in xml_str or "네이버 시작하기" in xml_str:
-                logger.info(f"[{self.device_id}] ⚡ [온보딩 감지] '네이버 시작하기' 시작 버튼 자동 탭")
                 m = re.search(r'resource-id="[^"]*(?:locationStartBtn|startNaverBtnLayout|startNaver)"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', xml_str)
                 if m:
+                    logger.info(f"[{self.device_id}] ⚡ [온보딩 감지] '네이버 시작하기' 시작 버튼 정밀 탭")
                     x1, y1, x2, y2 = map(int, m.groups())
                     self.inspector.run_adb(f"input tap {(x1+x2)//2} {(y1+y2)//2}")
-                else:
-                    self.inspector.run_adb("input tap 540 2345")
-                time.sleep(0.6)
-                continue
+                    time.sleep(0.6)
+                    continue
+
+            # 3. 포그라운드 이탈 가드 (타사 앱/런처 방지)
+            self.inspector.ensure_naver_foreground()
 
             # 2. 네트워크 오류 화면 감지
             if any(k in xml_str for k in ["네트워크에 연결할 수 없습니다", "네트워크 오류", "인터넷 연결을 확인", "다시 시도", "ERR_INTERNET_DISCONNECTED", "ERR_NAME_NOT_RESOLVED"]):
@@ -256,6 +255,9 @@ class SearchNavigator:
         SAFE_Y_MAX = 2260  # 하단 고정 툴바 제외 경계선
 
         for pass_num in range(1, max_scroll_passes + 1):
+            # 🛡️ 타사 앱/런처 이탈 방지 가드
+            self.inspector.ensure_naver_foreground()
+
             root = self.inspector.get_ui_tree("safe_focus")
             if root is None:
                 logger.warning(f"[{self.device_id}] [!] 화면 덤프 재시도 (Pass #{pass_num})")

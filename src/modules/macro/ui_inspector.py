@@ -77,20 +77,19 @@ class UIInspector:
         except Exception:
             return ""
 
-    def get_ui_tree(self, tmp_name: str = "ui_dump") -> Optional[ET.Element]:
-        """UIAutomator XML을 덤프하고 파싱하여 ElementTree Root 반환"""
-        try:
-            sdcard_path = f"/sdcard/{tmp_name}.xml"
-            self.run_adb(f"uiautomator dump {sdcard_path}", timeout_sec=8.0)
-            xml_str = self.run_adb(f"cat {sdcard_path}", timeout_sec=5.0)
-            if not xml_str or "<hierarchy" not in xml_str:
-                xml_str = self.run_adb("cat /sdcard/window_dump.xml", timeout_sec=5.0)
-            if xml_str and "<hierarchy" in xml_str:
-                xml_clean = xml_str[xml_str.find("<hierarchy"):]
-                return ET.fromstring(xml_clean)
-        except Exception as e:
-            logger.warning(f"[{self.device_id}] get_ui_tree 파싱 실패: {e}")
-        return None
+    def is_naver_foreground(self) -> bool:
+        """현재 화면의 최상위 포커스 윈도우가 네이버 앱인지 검사"""
+        top_focus = self.run_adb("dumpsys window | grep -E 'mCurrentFocus|topResumedActivity'", timeout_sec=2)
+        return "com.nhn.android.search" in top_focus
+
+    def ensure_naver_foreground(self) -> bool:
+        """네이버 앱이 포그라운드가 아닐 경우 즉시 전면으로 복귀"""
+        if not self.is_naver_foreground():
+            logger.warning(f"[{self.device_id}] [⚠️ 포그라운드 이탈 감지] 타사 앱/런처 감지 -> 네이버 앱 포그라운드 강제 복귀 실행...")
+            self.run_adb("am start -n com.nhn.android.search/.ui.pages.SearchHomePage", timeout_sec=3)
+            time.sleep(1.0)
+            return self.is_naver_foreground()
+        return True
 
     # 단말기별 UI 액션 연속 실패 카운터 (메모리 내 관리, 오버헤드 0%)
     _failure_counters: Dict[str, Dict[str, int]] = {}
