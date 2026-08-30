@@ -387,8 +387,12 @@ settings put global rescue_party_disabled 1 2>/dev/null || true
 settings put global enable_rescue_party false 2>/dev/null || true
 rm -rf /data/system/users/0/rescue_party* /data/system/rescue* /data/system/dropbox/* 2>/dev/null || true
 
-# 2. 패키지 초기화 및 SSAID 등록
-pm clear {self.package_name}
+# 2. 패키지 프로세스 정리 (신규 생성 시에만 pm clear, 프로필 복원 시에는 프로세스 종료만 수행하여 캐시/쿠키 보존)
+if [ "{is_restore}" != "True" ]; then
+    pm clear {self.package_name}
+else
+    am force-stop {self.package_name} 2>/dev/null || true
+fi
 settings put secure android_id {target_ssaid}
 cp /data/local/tmp/ssaid_{self.device_id}.xml /data/system/users/0/settings_ssaid.xml
 cp /data/local/tmp/ssaid_{self.device_id}.xml /data/system/users/0/settings_ssaid.xml.fallback
@@ -402,21 +406,6 @@ cp /data/local/tmp/adid_{self.device_id}.xml /data/data/com.google.android.gms/s
 chown -R $(stat -c %u:%g /data/data/com.google.android.gms) /data/data/com.google.android.gms/shared_prefs 2>/dev/null || true
 chmod 660 /data/data/com.google.android.gms/shared_prefs/adid_settings.xml 2>/dev/null || true
 rm -rf /data/data/com.google.android.gms/files/appset/shared/* 2>/dev/null || true
-
-# 4. 프로필 복원 (RESTORE) 및 튜토리얼/로그인 스킵 주입 (전 모드 공통 100% 보장)
-if [ "{is_restore}" = "True" ] && [ -f "{target_profile_path}" ]; then
-    tar -xzf {target_profile_path} -C /data/data/{self.package_name} 2>/dev/null || true
-fi
-mkdir -p /data/data/{self.package_name}/shared_prefs
-cp /data/local/tmp/null_{self.device_id}.xml /data/data/{self.package_name}/shared_prefs/null.xml
-cp /data/local/tmp/tut_{self.device_id}.xml /data/data/{self.package_name}/shared_prefs/tutorial_pref.xml
-cp /data/local/tmp/null_{self.device_id}.xml /data/data/{self.package_name}/shared_prefs/{self.package_name}_preferences.xml
-chown -R {app_uid}:{app_uid} /data/data/{self.package_name} 2>/dev/null || true
-chmod -R 775 /data/data/{self.package_name} 2>/dev/null || true
-restorecon -R /data/data/{self.package_name} 2>/dev/null || true
-
-# 임시 파일 정리
-rm -f /data/local/tmp/ssaid_{self.device_id}.xml /data/local/tmp/adid_{self.device_id}.xml /data/local/tmp/null_{self.device_id}.xml /data/local/tmp/tut_{self.device_id}.xml
 """
         self._run_adb_su(pre_reset_cmd)
 
@@ -424,8 +413,8 @@ rm -f /data/local/tmp/ssaid_{self.device_id}.xml /data/local/tmp/adid_{self.devi
         logger.info(f"[{self.device_id}] [2/3] Zygote 소프트 리셋 실행 (NAPP_DI 갱신 보장)...")
         self.trigger_soft_reboot_and_wait()
 
-        # 7. [배치 2] 부팅 완료 후 런타임 권한 & GPS 스푸핑 일괄 적용
-        logger.info(f"[{self.device_id}] [3/3] 런타임 권한 승인 및 GPS 스푸핑 적용...")
+        # 7. [배치 2] 부팅 완료 후 런타임 권한, GPS 스푸핑 및 프로필/튜토리얼 복원 (부팅 후 주입하여 PackageManager 초기화에 의한 삭제 원천 차단)
+        logger.info(f"[{self.device_id}] [3/3] 런타임 권한 승인, GPS 스푸핑 및 프로필/튜토리얼 Zero-Tap 주입...")
         base_lat = mock_lat
         base_lng = mock_lng
         if base_lat is None or base_lng is None:
@@ -434,6 +423,9 @@ rm -f /data/local/tmp/ssaid_{self.device_id}.xml /data/local/tmp/adid_{self.devi
         lng_jitter = random.uniform(-0.00025, 0.00025)
         final_lat = round(base_lat + lat_jitter, 6)
         final_lng = round(base_lng + lng_jitter, 6)
+
+        # 부팅 완료 후 최신 실제 app_uid 동적 재계측
+        real_app_uid = self.get_app_uid()
 
         post_reset_cmd = ""
         for perm in RUNTIME_PERMISSIONS:
@@ -447,6 +439,21 @@ cmd appops set com.rosteam.gpsemulator MOCK_LOCATION allow 2>/dev/null || true
 cmd appops set com.rosteam.gpsemulator POST_NOTIFICATION allow 2>/dev/null || true
 am start-foreground-service -n com.rosteam.gpsemulator/.servicex2484 2>/dev/null || true
 am broadcast -a com.rosteam.fakegps.MAPS_RECEIVE --ef LATITUDE {final_lat:.6f} --ef LONGITUDE {final_lng:.6f} 2>/dev/null || true
+
+# 프로필 복원 (RESTORE) 및 튜토리얼/로그인 스킵 주입 (부팅 완료 후 주입 ➔ 100% 불변 보장)
+mkdir -p /data/data/{self.package_name}/shared_prefs
+if [ "{is_restore}" = "True" ] && [ -f "{target_profile_path}" ]; then
+    tar -xzf {target_profile_path} -C /data/data/{self.package_name} 2>/dev/null || true
+fi
+cp /data/local/tmp/null_{self.device_id}.xml /data/data/{self.package_name}/shared_prefs/null.xml
+cp /data/local/tmp/tut_{self.device_id}.xml /data/data/{self.package_name}/shared_prefs/tutorial_pref.xml
+cp /data/local/tmp/null_{self.device_id}.xml /data/data/{self.package_name}/shared_prefs/{self.package_name}_preferences.xml
+chown -R {real_app_uid}:{real_app_uid} /data/data/{self.package_name} 2>/dev/null || true
+chmod -R 775 /data/data/{self.package_name} 2>/dev/null || true
+restorecon -R /data/data/{self.package_name} 2>/dev/null || true
+
+# 임시 파일 정리
+rm -f /data/local/tmp/ssaid_{self.device_id}.xml /data/local/tmp/adid_{self.device_id}.xml /data/local/tmp/null_{self.device_id}.xml /data/local/tmp/tut_{self.device_id}.xml
 """
         self._run_adb_su(post_reset_cmd)
 
