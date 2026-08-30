@@ -369,10 +369,17 @@ rm -f /data/local/tmp/null_{self.device_id}.xml /data/local/tmp/tut_{self.device
         with open(t_nu, "w", encoding="utf-8") as f: f.write(null_xml)
         with open(t_tu, "w", encoding="utf-8") as f: f.write(tut_xml)
 
-        subprocess.run(["adb", "-s", self.device_id, "push", t_ss, f"/data/local/tmp/ssaid_{self.device_id}.xml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
-        subprocess.run(["adb", "-s", self.device_id, "push", t_ad, f"/data/local/tmp/adid_{self.device_id}.xml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
-        subprocess.run(["adb", "-s", self.device_id, "push", t_nu, f"/data/local/tmp/null_{self.device_id}.xml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
-        subprocess.run(["adb", "-s", self.device_id, "push", t_tu, f"/data/local/tmp/tut_{self.device_id}.xml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+        try:
+            subprocess.run(["adb", "-s", self.device_id, "push", t_ss, f"/data/local/tmp/ssaid_{self.device_id}.xml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+            subprocess.run(["adb", "-s", self.device_id, "push", t_ad, f"/data/local/tmp/adid_{self.device_id}.xml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+            subprocess.run(["adb", "-s", self.device_id, "push", t_nu, f"/data/local/tmp/null_{self.device_id}.xml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+            subprocess.run(["adb", "-s", self.device_id, "push", t_tu, f"/data/local/tmp/tut_{self.device_id}.xml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+        except Exception as push_err:
+            logger.warning(f"[{self.device_id}] [!] adb push 중 경고/타임아웃 (1회 재시도): {push_err}")
+            try:
+                subprocess.run(["adb", "-s", self.device_id, "reconnect"], timeout=3, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except Exception:
+                pass
 
         for tmp_f in [t_ss, t_ad, t_nu, t_tu]:
             if os.path.exists(tmp_f): os.remove(tmp_f)
