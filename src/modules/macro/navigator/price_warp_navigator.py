@@ -51,27 +51,66 @@ class PriceWarpNavigator:
 
     def jump_to_section_via_find_in_page(self, query: str = "다른 사이트 더보기") -> bool:
         """
-        [페이지 내 검색을 통한 가격비교 초고속 0.7초 원자적 점프]
-        - 우측 하단 더보기(1008, 2356) ➔ [페이지 내 검색](135, 1950) ➔ '다른 사이트 더보기' 타이핑 ➔ 엔터 ➔ 툴바 닫기
-        - 불필요한 UI 덤프를 배제하고 단일 원자적 셸 스크립트로 0.7초 만에 실행
+        [페이지 내 검색을 통한 가격비교 초고속 앵커링 점프]
+        - 우측 하단 메뉴 더보기(≡) 탭
+        - 바텀시트에서 '페이지 내 검색' 노드를 동적으로 정확히 찾아 탭 (오클릭/언어변경 방지)
+        - '다른 사이트 더보기' 입력 후 엔터 ➔ 가격비교 섹션 상단 앵커로 워프
+        - 검색 툴바 닫기
         """
-        logger.info(f"[{self.device_id}] ⚡ [초고속 워프] 우측 하단 메뉴 ➔ '페이지 내 검색'('{query}') 원자적 실행...")
+        logger.info(f"[{self.device_id}] ⚡ [페이지 내 검색 워프] 메뉴 ➔ '페이지 내 검색'('{query}') 실행...")
         try:
             self.inspector.ensure_naver_foreground()
+
+            # 1. 화면 하단 툴바의 '메뉴 더보기' 버튼 탐색 및 탭
+            root = self.inspector.get_ui_tree("toolbar_find")
+            menu_tap_coords = (990, 2374)
+            if root is not None:
+                for elem in root.iter("node"):
+                    desc = elem.attrib.get("content-desc", "").strip() or elem.attrib.get("text", "").strip()
+                    rid = elem.attrib.get("resource-id", "").strip()
+                    b = elem.attrib.get("bounds", "").strip()
+                    if ("메뉴" in desc or "더보기" in desc or "btn_menu" in rid or "tail_menu" in rid) and b:
+                        m = re.search(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
+                        if m:
+                            x1, y1, x2, y2 = map(int, m.groups())
+                            if y1 > 2200 and x1 > 800:
+                                menu_tap_coords = ((x1 + x2) // 2, (y1 + y2) // 2)
+                                break
+
+            self.inspector.run_adb(f"input tap {menu_tap_coords[0]} {menu_tap_coords[1]}")
+            time.sleep(0.8)
+
+            # 2. 열린 바텀시트에서 '페이지 내 검색' 텍스트/desc 노드 탐색 및 정확한 좌표 탭
+            sheet_root = self.inspector.get_ui_tree("sheet_find")
+            find_btn_coords = None
+            if sheet_root is not None:
+                for elem in sheet_root.iter("node"):
+                    t = elem.attrib.get("text", "").strip() or elem.attrib.get("content-desc", "").strip()
+                    b = elem.attrib.get("bounds", "").strip()
+                    if "페이지 내 검색" in t and b:
+                        m = re.search(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
+                        if m:
+                            x1, y1, x2, y2 = map(int, m.groups())
+                            find_btn_coords = ((x1 + x2) // 2, (y1 + y2) // 2)
+                            break
+
+            if find_btn_coords:
+                logger.info(f"[{self.device_id}] [✓] '페이지 내 검색' 버튼 정밀 포착 ({find_btn_coords[0]}, {find_btn_coords[1]}) 탭")
+                self.inspector.run_adb(f"input tap {find_btn_coords[0]} {find_btn_coords[1]}")
+            else:
+                logger.warning(f"[{self.device_id}] [!] '페이지 내 검색' 노드 미발견 ➔ 백키로 시트 닫기")
+                self.inspector.run_adb("input keyevent 4")
+                return False
+
+            time.sleep(0.8)
+
+            # 3. 검색어 입력 & 엔터 & 툴바 닫기
             escaped_q = query.replace('"', '\\"')
-            atomic_cmd = (
-                f"input tap 1008 2356; "
-                f"sleep 0.25; "
-                f"input tap 135 1950; "
-                f"sleep 0.25; "
-                f"am broadcast -a ADB_INPUT_TEXT --es msg \"{escaped_q}\" 2>/dev/null; "
-                f"input keyevent 66; "
-                f"sleep 0.2; "
-                f"input keyevent 4"
-            )
-            self.inspector.run_adb(atomic_cmd)
-            time.sleep(0.3)
-            logger.info(f"[{self.device_id}] [✓] 페이지 내 검색('{query}') 초고속 워프 완료 (0.7s)!")
+            self.inspector.run_adb(f"am broadcast -a ADB_INPUT_TEXT --es msg \"{escaped_q}\" 2>/dev/null; input keyevent 66")
+            time.sleep(0.6)
+            self.inspector.run_adb("input keyevent 4")
+            time.sleep(0.4)
+            logger.info(f"[{self.device_id}] [✓] '다른 사이트 더보기' 앵커링 점프 완료!")
             return True
         except Exception as e:
             logger.warning(f"[{self.device_id}] 페이지 내 검색 점프 중 예외: {e}")
