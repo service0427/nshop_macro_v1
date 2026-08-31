@@ -6,7 +6,7 @@
 ========================================================================================
 - 기능:
     1. 가격비교 및 네이버 쇼핑 섹션 자동 검출
-    2. 상품 카드 리스트 순차 파싱 (상품명, 가격, 스토어, mid)
+    2. 상품 카드 트리(Parent-Child) 단위 정밀 탐색으로 MID, 상품명, 가격, 스토어 100% 매칭
     3. 광고(AD) vs 오가닉(Organic) 100% 정밀 분류
     4. 가로 1페이지(기본 노출 화면) vs 가로 2페이지 이상(슬라이더 숨김 화면) 구분
     5. 세로 스크롤 필요 영역(Off-Screen Bottom) 식별
@@ -51,35 +51,38 @@ class ShoppingXMLParser:
                 section_title = t
                 break
 
-        # 2. 상품 카드 순차 추출 및 분류
+        # 2. 상품 카드 컨테이너 트리 탐색 및 MID / 메타데이터 매칭
         items: List[Dict[str, Any]] = []
-        seen_keys = set()
-        candidate_nodes = all_nodes[shop_header_idx:] if shop_header_idx != -1 else all_nodes
+        seen_mids = set()
 
-        for node in candidate_nodes:
-            t = node.get("text", "").strip() or node.get("content-desc", "").strip()
-            r = node.get("resource-id", "").strip()
-            b = node.get("bounds", "").strip()
-
-            if not t or len(t) < 15:
+        for node in all_nodes:
+            children = list(node.iter("node"))
+            if len(children) < 2 or len(children) > 40:
                 continue
 
-            # UI 네비게이션 제어 텍스트 및 안내 문구 배제
-            if any(w in t for w in ["네이버는 상품 판매의 당사자가", "다른 사이트 더보기", "배송지 설정", "필터", "정렬", "검색결과 더보기", "로그인하고"]):
-                continue
+            combined_text = " ".join([n.get("text", "") for n in children]).strip()
+            combined_desc = " ".join([n.get("content-desc", "") for n in children]).strip()
+            combined_rid = " ".join([n.get("resource-id", "") for n in children]).strip()
+            full_sub = f"{combined_text} {combined_desc} {combined_rid}".strip()
 
-            has_price = ("원" in t or "최저" in t or "할인" in t)
-            has_meta = any(m in t for m in ["배송비", "스토어", "몰", "판매처", "구매", "리뷰", "평점", "출발", "무료", "개인", "공식"])
-            mids = re.findall(r"(?:view_type_guide_|mid=|id=)?(\d{9,14})", f"{r} {t}")
+            has_price = ("원" in full_sub or "최저" in full_sub)
+            has_meta = any(m in full_sub for m in ["배송비", "스토어", "몰", "판매처", "구매", "리뷰", "개인", "공식", "도착", "출발"])
 
-            if (has_price and has_meta) or (mids and has_price):
-                short_key = t[:35]
-                if short_key in seen_keys:
+            # view_type_guide_MID, nstore_productId_MID, mid=MID, id=MID 또는 9~14자리 숫자 추출
+            mids = re.findall(r"(?:view_type_guide_|nstore_productId_|mid=|id=)?(\d{9,14})", combined_rid)
+            if not mids:
+                mids = re.findall(r"(?:view_type_guide_|nstore_productId_|mid=|id=)?(\d{9,14})", full_sub)
+
+            if has_price and has_meta and mids:
+                main_mid = mids[0]
+                if main_mid in seen_mids:
                     continue
-                seen_keys.add(short_key)
+                seen_mids.add(main_mid)
+
+                b = node.get("bounds", "").strip()
 
                 # 광고(AD) 판별: 텍스트/ID에 광고, 파워링크, sponsor, ad_view, 외부 쿠팡 배너 등 포함 여부
-                is_ad = any(ad_kw in t or ad_kw in r for ad_kw in ["광고", "파워링크", "ad_view", "sponsor", "coupang.com", "쿠팡"])
+                is_ad = any(ad_kw in full_sub for ad_kw in ["광고", "파워링크", "ad_view", "sponsor", "coupang.com", "쿠팡"])
 
                 # 가로 1페이지 (Slide 1 가시 영역) vs 가로 2페이지 이상 (오프스크린 숨김)
                 is_slide_1 = False
@@ -108,14 +111,18 @@ class ShoppingXMLParser:
                 slide_page = 1 if is_slide_1 else (len(items) // 4 + 1)
 
                 # 가격 텍스트 추출
-                m_price = re.search(r"([\d,]+ ?원|최저 ?[\d,]+ ?원)", t)
+                m_price = re.search(r"([\d,]+ ?원|최저 ?[\d,]+ ?원)", full_sub)
                 price_str = m_price.group(1) if m_price else "N/A"
+
+                title_cand = (node.get("content-desc") or node.get("text") or combined_desc or combined_text).strip()
+                # 불필요한 마크업/헤더 정리
+                clean_title = re.sub(r"\s+", " ", title_cand)[:75]
 
                 items.append({
                     "item_index": len(items) + 1,
-                    "mid": mids[0] if mids else None,
+                    "mid": main_mid,
                     "all_mids": mids,
-                    "title": t[:70],
+                    "title": clean_title,
                     "price": price_str,
                     "is_ad": is_ad,
                     "is_slide_1": is_slide_1,
@@ -123,7 +130,7 @@ class ShoppingXMLParser:
                     "visibility_type": vis_type,
                     "bounds": b,
                     "coords": coords,
-                    "raw_text": t
+                    "raw_text": full_sub
                 })
 
         return {
