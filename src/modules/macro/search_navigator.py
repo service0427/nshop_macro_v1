@@ -323,41 +323,74 @@ class SearchNavigator:
 
     def navigate_and_focus_target_card(self, target_mid: str, max_scroll_passes: int = 10, keyword: Optional[str] = None) -> Optional[Tuple[int, int]]:
         """
-        [STEP 3-3: 타겟 상품 mid 탐색, 고정영역 배제 안전 안착 및 상품 제목(Title) 정밀 탭 좌표 계산]
-        - 쇼핑 섹션이 없으면 스크롤 없이 즉시 조기 종료(Fail-Fast)
-        - 쇼핑 섹션이 있으면 최대 10~12회 스크롤 다운을 수행하며 1페이지 내 타겟 상품을 끝까지 탐색
-        - 발견 시 카드를 상하단 안전 영역(340~2260)에 안착시키고, 크롭 스크린샷 저장 및 타이틀 좌표 반환
+        [STEP 3-3: 2단계 게이트 판정 기반 초고속 가격비교 워프 및 상품 클릭 파이프라인]
+        1. [1차 게이트] DOM 덤프에서 '네이버 가격비교' 섹션 존재 유무 판정 -> 없으면 0회 스크롤 즉시 종료
+        2. [2차 게이트] 가격비교 내 타겟 상품(MID) 존재 유무 판정 -> 없으면 0회 스크롤 즉시 종료
+        3. [워프 & 클릭] 존재 시 '다른 사이트 더보기' 페이지 내 검색 워프 (0.7s) -> 슬라이드 확인 -> 타이틀 클릭
         """
         target_mid_str = str(target_mid).strip()
         logger.info(f"[{self.device_id}] ========================================================")
-        logger.info(f"[{self.device_id}] 🎯 [STEP 3-3] 타겟 상품 mid({target_mid_str}) 고정영역 배제 안전 포커싱")
+        logger.info(f"[{self.device_id}] 🎯 [STEP 3-3] 타겟 상품 mid({target_mid_str}) 2단계 게이트 판별 및 포커싱")
         logger.info(f"[{self.device_id}] ========================================================")
 
-        # 0. 1페이지 내 타겟 상품 탐색을 위해 최대 max_scroll_passes회 스크롤 순회
-        SAFE_Y_MIN = 340   # 상단 고정 헤더/탭 제외 경계선
-        SAFE_Y_MAX = 2260  # 하단 고정 툴바 제외 경계선
+        # 0. 검색 결과 페이지 DOM 덤프 획득
+        self.inspector.ensure_naver_foreground()
+        root = self.inspector.get_ui_tree("safe_focus_init")
+        if root is None:
+            logger.warning(f"[{self.device_id}] [!] 화면 덤프 실패 ➔ 조기 종료")
+            return None
 
-        for pass_num in range(1, max_scroll_passes + 1):
-            # 🛡️ 타사 앱/런처 이탈 방지 가드
-            self.inspector.ensure_naver_foreground()
+        # ---------------------------------------------------------------------------------
+        # 🚪 [1차 게이트] '네이버 가격비교' 섹션 존재 유무 판정
+        # ---------------------------------------------------------------------------------
+        all_texts = [(e.attrib.get("text", "") or e.attrib.get("content-desc", "")) for e in root.iter("node")]
+        combined_dom_text = " ".join(all_texts)
+        has_price_comparison = any(kw in combined_dom_text for kw in ["네이버 가격비교", "가격비교", "네이버 쇼핑", "네이버쇼핑"])
 
-            root = self.inspector.get_ui_tree("safe_focus")
+        if not has_price_comparison:
+            logger.warning(f"[{self.device_id}] 🚫 [Gate 1 통과 실패] '네이버 가격비교' 섹션 없음 ➔ 스크롤 0회, 즉시 종료 (Fail-Fast)")
+            try:
+                self.inspector.save_unexposed_dump(target_mid=target_mid_str, keyword=keyword)
+            except Exception:
+                pass
+            return None
+        logger.info(f"[{self.device_id}] [Gate 1 통과 ✓] '네이버 가격비교' 섹션 DOM 존재 확인 완료")
+
+        # ---------------------------------------------------------------------------------
+        # 🚪 [2차 게이트] 가격비교 내 타겟 상품(MID) 존재 유무 판정
+        # ---------------------------------------------------------------------------------
+        has_target_in_dom = any(
+            target_mid_str in e.attrib.get("resource-id", "") or target_mid_str in e.attrib.get("text", "") or target_mid_str in e.attrib.get("content-desc", "")
+            for e in root.iter("node")
+        )
+
+        if not has_target_in_dom:
+            logger.warning(f"[{self.device_id}] 🚫 [Gate 2 통과 실패] 가격비교 섹션 내 타겟 상품({target_mid_str}) 없음 ➔ 스크롤 0회, 즉시 종료 (Fail-Fast)")
+            try:
+                self.inspector.save_unexposed_dump(target_mid=target_mid_str, keyword=keyword)
+            except Exception:
+                pass
+            return None
+        logger.info(f"[{self.device_id}] [Gate 2 통과 ✓] 타겟 상품({target_mid_str}) DOM 존재 확인 완료 ➔ '다른 사이트 더보기'로 즉시 이동")
+
+        # ---------------------------------------------------------------------------------
+        # ⚡ [3단계] '다른 사이트 더보기' 페이지 내 검색 워프 (0.7s)
+        # ---------------------------------------------------------------------------------
+        self.jump_to_section_via_find_in_page("다른 사이트 더보기")
+        time.sleep(0.6)
+
+        # ---------------------------------------------------------------------------------
+        # 🎯 [4단계] 가로 슬라이더(Slide 1 / Slide 2) 및 화면 중앙 안전 안착 & 타이틀 클릭
+        # ---------------------------------------------------------------------------------
+        SAFE_Y_MIN = 340
+        SAFE_Y_MAX = 2260
+
+        for pass_num in range(1, 4):
+            root = self.inspector.get_ui_tree(f"focus_pass_{pass_num}")
             if root is None:
-                logger.warning(f"[{self.device_id}] [!] 화면 덤프 재시도 (Pass #{pass_num})")
                 time.sleep(0.5)
                 continue
 
-            # 🚨 [로그인 바텀시트 / 간편 로그인 팝업 감지 시 뒤로가기로 즉시 닫기]
-            all_texts = [elem.attrib.get("text", "") or elem.attrib.get("content-desc", "") for elem in root.iter("node")]
-            combined_texts = " ".join(all_texts)
-            if any(login_kw in combined_texts for login_kw in ["간편하게 로그인", "간편하고 안전한 로그인", "N 로그인", "로그인하고 혜택 받기"]):
-                logger.info(f"[{self.device_id}] ⚡ [로그인 바텀시트 감지] Android 백키(keyevent 4) 전송하여 로그인 팝업 즉시 닫기")
-                self.inspector.run_adb("input keyevent 4")
-                time.sleep(1.0)
-                continue
-
-            # ⚡ [STEP 1: DOM 존재 검증 및 '페이지 내 검색' 가격비교 다이렉트 워프]
-            # Pass #1에서 타겟이 화면에 바로 안착되어 있지 않고 DOM에 존재하는 경우 가격비교로 즉시 점프
             matched_card_bounds = None
             for elem in root.iter("node"):
                 rid = elem.attrib.get("resource-id", "").strip()
@@ -377,46 +410,26 @@ class SearchNavigator:
                             matched_card_bounds = (x1, y1, x2, y2, t or rid)
                             break
 
-            # 화면에 바로 안착되어 있지 않고 DOM 존재 시 Pass #1에서 즉시 '다른 사이트 더보기'로 가격비교 점프
-            if pass_num == 1 and matched_card_bounds is None:
-                has_target_in_dom = any(
-                    target_mid_str in e.attrib.get("resource-id", "") or target_mid_str in e.attrib.get("text", "") or target_mid_str in e.attrib.get("content-desc", "")
-                    for e in root.iter("node")
-                )
-                has_price_comp_in_dom = any(
-                    "가격비교" in (e.attrib.get("text", "") or e.attrib.get("content-desc", ""))
-                    for e in root.iter("node")
-                )
-
-                if has_target_in_dom or has_price_comp_in_dom:
-                    logger.info(f"[{self.device_id}] 🎯 [DOM 존재 확정] '다른 사이트 더보기' 검색을 통해 가격비교 섹션으로 즉시 이동 처리!")
-                    jump_success = self.jump_to_section_via_find_in_page("다른 사이트 더보기")
-                    if jump_success:
-                        time.sleep(0.8)
-                        continue
-
             if matched_card_bounds:
                 x1, y1, x2, y2, desc = matched_card_bounds
                 h = y2 - y1
                 logger.info(f"[{self.device_id}] [Pass #{pass_num}] 타겟 상품 카드 포착: [{x1}, {y1}][{x2}, {y2}] (높이: {h}px)")
 
-                # 1. 상단 고정바 침범/잘림 검사
+                # 상단 고정바 침범 검사
                 if y1 < SAFE_Y_MIN:
                     shift = min(650, (SAFE_Y_MIN - y1) + 350)
-                    logger.warning(f"[{self.device_id}]  ↳ [상단 침범/잘림 감지] y1({y1}) < SAFE_Y_MIN({SAFE_Y_MIN}) -> 역방향으로 {shift}px 내려 온전한 카드로 복원")
                     self.inspector.run_adb(f"input swipe 500 700 500 {700 + shift} 320")
                     time.sleep(0.5)
                     continue
 
-                # 2. 하단 고정바 침범/잘림 검사
+                # 하단 고정바 침범 검사
                 elif y2 > SAFE_Y_MAX:
                     shift = min(650, (y2 - SAFE_Y_MAX) + 350)
-                    logger.warning(f"[{self.device_id}]  ↳ [하단 고정바 충돌/잘림 감지] y2({y2}) > SAFE_Y_MAX({SAFE_Y_MAX}) -> 위로 {shift}px 올려 온전한 카드로 복원")
                     self.inspector.run_adb(f"input swipe 500 {1400 + shift} 500 1400 350")
                     time.sleep(0.5)
                     continue
 
-                # 3. 온전한 안전 가시 영역 안착
+                # 온전한 안전 가시 영역 안착
                 elif h >= 150:
                     pad_x = max(30, int((x2 - x1) * 0.15))
                     click_x = random.randint(x1 + pad_x, x2 - pad_x)
@@ -424,7 +437,7 @@ class SearchNavigator:
                     title_y_max = y1 + int(h * 0.35)
                     click_y = random.randint(title_y_min, max(title_y_min + 10, title_y_max))
                     logger.info(f"[{self.device_id}] [🎉 100% 안전 안착] 상품 카드 제목 영역 확정! [{SAFE_Y_MIN} <= Y1({y1}) & Y2({y2}) <= {SAFE_Y_MAX}] ➔ 타이틀 안전 터치: ({click_x}, {click_y})")
-                    
+
                     try:
                         self.inspector.crop_and_save_target_screenshot(
                             target_bounds=(x1, y1, x2, y2),
@@ -432,16 +445,16 @@ class SearchNavigator:
                             keyword=keyword,
                             click_coords=(click_x, click_y)
                         )
-                    except Exception as e:
-                        logger.warning(f"[{self.device_id}] 타겟 크롭 저장 중 예외: {e}")
+                    except Exception:
+                        pass
 
                     try:
                         self.inspector.draw_and_save_click_debug_image(
                             click_x, click_y,
                             target_mid=target_mid_str
                         )
-                    except Exception as e:
-                        logger.warning(f"[{self.device_id}] click_before 저장 중 예외: {e}")
+                    except Exception:
+                        pass
 
                     try:
                         self.inspector.save_exposed_dump(
@@ -449,12 +462,12 @@ class SearchNavigator:
                             keyword=keyword,
                             slide_page=1
                         )
-                    except Exception as e:
-                        logger.warning(f"[{self.device_id}] exposed_dumps 저장 중 예외: {e}")
+                    except Exception:
+                        pass
 
                     return (click_x, click_y)
 
-            # 🎯 [STEP 2: 가로 슬라이더 2페이지 감지 시 즉시 가로 스와이프 탐색]
+            # 🎯 [가로 슬라이더 2페이지 감지 시 1회 가로 스와이프]
             shop_block_y = None
             for elem in root.iter("node"):
                 t_e = elem.attrib.get("text", "").strip() or elem.attrib.get("content-desc", "").strip()
@@ -478,33 +491,16 @@ class SearchNavigator:
                 time.sleep(0.8)
                 continue
 
-            # ⚡ [불필요한 스크롤 배제: Fail-Fast 즉시 조기 종료]
-            # 가격비교 워프 및 슬라이더 확인 후에도 타겟이 없는 경우 불필요한 하향 스크롤을 하지 않고 즉시 종료
-            if pass_num >= 2 or not has_target_in_dom:
-                logger.warning(f"[{self.device_id}] [!] 가격비교 섹션(가로 2P 이내) 내 타겟 MID({target_mid_str}) 미노출 ➔ 불필요한 추가 스크롤 없이 즉시 종료 (Fail-Fast)")
-                try:
-                    self.inspector.save_unexposed_dump(target_mid=target_mid_str, keyword=keyword)
-                except Exception as e:
-                    logger.warning(f"[{self.device_id}] 미노출 덤프 저장 중 예외: {e}")
-                return None
+            # 미세 보정 스크롤 1회
+            if pass_num == 1:
+                self.inspector.run_adb("input swipe 500 1700 500 1100 350")
+                time.sleep(0.6)
 
-            # 타겟 카드가 아직 가시 화면에 완전히 들어오지 않은 경우 자연스러운 하향 스크롤 (최대 1회 보정)
-            scroll_dist = random.randint(500, 750)
-            x1_s = random.randint(480, 600)
-            y1_s = random.randint(1650, 1850)
-            x2_s = x1_s + random.randint(-15, 15)
-            y2_s = y1_s - scroll_dist
-            duration = random.randint(320, 380)
-
-            logger.info(f"[{self.device_id}]  ↳ [타겟 포커싱 미세 스크롤 Pass #{pass_num}] ({x1_s}, {y1_s}) -> ({x2_s}, {y2_s}) [이동: {scroll_dist}px | {duration}ms]")
-            self.inspector.run_adb(f"input swipe {x1_s} {y1_s} {x2_s} {y2_s} {duration}")
-            time.sleep(random.uniform(0.5, 0.7))
-
-        logger.warning(f"[{self.device_id}] [!] 타겟 MID({target_mid_str}) 미노출 ➔ 즉시 종료")
+        logger.warning(f"[{self.device_id}] [!] 가격비교 섹션 내 타겟 MID({target_mid_str}) 최종 미노출 ➔ 즉시 종료 (Fail-Fast)")
         try:
             self.inspector.save_unexposed_dump(target_mid=target_mid_str, keyword=keyword)
-        except Exception as e:
-            logger.warning(f"[{self.device_id}] 미노출 덤프 저장 중 예외: {e}")
+        except Exception:
+            pass
         return None
 
     def click_target_product_and_verify(self, target_coords_or_x: Any, click_y_or_mid: Any = None, timeout_sec: float = 30.0, target_mid: Optional[str] = None, keyword: Optional[str] = None, **kwargs) -> bool:
