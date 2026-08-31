@@ -293,12 +293,12 @@ class SearchNavigator:
         info = self.detect_shopping_section_and_code(target_mid)
         return info.get("target_found_on_page", False)
 
-    def jump_to_section_via_find_in_page(self, query: str = "네이버 가격비교") -> bool:
+    def jump_to_section_via_find_in_page(self, query: str = "다른 사이트 더보기") -> bool:
         """
         [페이지 내 검색을 통한 가격비교/카테고리 초고속 점프]
         - 우측 하단 더보기(≡) 메뉴 탭
         - [페이지 내 검색] 탭
-        - 검색어(예: '네이버 가격비교') 입력 후 엔터 ➔ 해당 영역으로 즉시 점프
+        - 검색어 '다른 사이트 더보기' 입력 후 엔터 ➔ 가격비교 섹션 상단으로 정확히 앵커링 점프
         - 검색 툴바 닫기
         """
         logger.info(f"[{self.device_id}] ⚡ [페이지 내 검색 워프] 우측 하단 메뉴 ➔ '페이지 내 검색'('{query}') 실행...")
@@ -352,7 +352,7 @@ class SearchNavigator:
             # 4. 페이지 내 검색 툴바 닫기 (백키 전송으로 포커스 해제)
             self.inspector.run_adb("input keyevent 4")
             time.sleep(0.5)
-            logger.info(f"[{self.device_id}] [✓] 페이지 내 검색('{query}')을 통해 가격비교/카테고리 초고속 점프 완료!")
+            logger.info(f"[{self.device_id}] [✓] 페이지 내 검색('{query}')을 통해 가격비교 섹션 정밀 앵커링 점프 완료!")
             return True
         except Exception as e:
             logger.warning(f"[{self.device_id}] 페이지 내 검색 점프 중 예외: {e}")
@@ -414,7 +414,7 @@ class SearchNavigator:
                             matched_card_bounds = (x1, y1, x2, y2, t or rid)
                             break
 
-            # 화면에 바로 안착되어 있지 않고 DOM 존재 시 Pass #1에서 즉시 '페이지 내 검색' 점프
+            # 화면에 바로 안착되어 있지 않고 DOM 존재 시 Pass #1에서 즉시 '다른 사이트 더보기'로 가격비교 점프
             if pass_num == 1 and matched_card_bounds is None:
                 has_target_in_dom = any(
                     target_mid_str in e.attrib.get("resource-id", "") or target_mid_str in e.attrib.get("text", "") or target_mid_str in e.attrib.get("content-desc", "")
@@ -426,8 +426,8 @@ class SearchNavigator:
                 )
 
                 if has_target_in_dom or has_price_comp_in_dom:
-                    logger.info(f"[{self.device_id}] 🎯 [DOM 존재 확정] 가로 2P 이내 타겟 존재 ➔ '페이지 내 검색'으로 가격비교 즉시 이동 처리!")
-                    jump_success = self.jump_to_section_via_find_in_page("네이버 가격비교")
+                    logger.info(f"[{self.device_id}] 🎯 [DOM 존재 확정] '다른 사이트 더보기' 검색을 통해 가격비교 섹션으로 즉시 이동 처리!")
+                    jump_success = self.jump_to_section_via_find_in_page("다른 사이트 더보기")
                     if jump_success:
                         time.sleep(0.8)
                         continue
