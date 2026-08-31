@@ -478,19 +478,29 @@ class SearchNavigator:
                 time.sleep(0.8)
                 continue
 
-            # 타겟 카드가 아직 가시 화면에 완전히 들어오지 않은 경우 자연스러운 하향 스크롤
-            scroll_dist = random.randint(650, 950)
+            # ⚡ [불필요한 스크롤 배제: Fail-Fast 즉시 조기 종료]
+            # 가격비교 워프 및 슬라이더 확인 후에도 타겟이 없는 경우 불필요한 하향 스크롤을 하지 않고 즉시 종료
+            if pass_num >= 2 or not has_target_in_dom:
+                logger.warning(f"[{self.device_id}] [!] 가격비교 섹션(가로 2P 이내) 내 타겟 MID({target_mid_str}) 미노출 ➔ 불필요한 추가 스크롤 없이 즉시 종료 (Fail-Fast)")
+                try:
+                    self.inspector.save_unexposed_dump(target_mid=target_mid_str, keyword=keyword)
+                except Exception as e:
+                    logger.warning(f"[{self.device_id}] 미노출 덤프 저장 중 예외: {e}")
+                return None
+
+            # 타겟 카드가 아직 가시 화면에 완전히 들어오지 않은 경우 자연스러운 하향 스크롤 (최대 1회 보정)
+            scroll_dist = random.randint(500, 750)
             x1_s = random.randint(480, 600)
             y1_s = random.randint(1650, 1850)
             x2_s = x1_s + random.randint(-15, 15)
             y2_s = y1_s - scroll_dist
-            duration = random.randint(320, 400)
+            duration = random.randint(320, 380)
 
-            logger.info(f"[{self.device_id}]  ↳ [타겟 포커싱 스크롤 Pass #{pass_num}] ({x1_s}, {y1_s}) -> ({x2_s}, {y2_s}) [이동: {scroll_dist}px | {duration}ms]")
+            logger.info(f"[{self.device_id}]  ↳ [타겟 포커싱 미세 스크롤 Pass #{pass_num}] ({x1_s}, {y1_s}) -> ({x2_s}, {y2_s}) [이동: {scroll_dist}px | {duration}ms]")
             self.inspector.run_adb(f"input swipe {x1_s} {y1_s} {x2_s} {y2_s} {duration}")
-            time.sleep(random.uniform(0.6, 0.9))
+            time.sleep(random.uniform(0.5, 0.7))
 
-        logger.warning(f"[{self.device_id}] [!] 최대 스크롤 횟수({max_scroll_passes}회) 도달 후에도 타겟 MID({target_mid_str}) 미노출 ➔ 사후 분석용 UI XML 덤프 저장")
+        logger.warning(f"[{self.device_id}] [!] 타겟 MID({target_mid_str}) 미노출 ➔ 즉시 종료")
         try:
             self.inspector.save_unexposed_dump(target_mid=target_mid_str, keyword=keyword)
         except Exception as e:
