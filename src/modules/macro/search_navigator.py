@@ -393,21 +393,19 @@ class SearchNavigator:
                 time.sleep(1.0)
                 continue
 
+            # ⚡ [STEP 1: DOM 존재 검증 및 '페이지 내 검색' 가격비교 다이렉트 워프]
+            # Pass #1에서 타겟이 화면에 바로 안착되어 있지 않고 DOM에 존재하는 경우 가격비교로 즉시 점프
             matched_card_bounds = None
             for elem in root.iter("node"):
                 rid = elem.attrib.get("resource-id", "").strip()
                 b = elem.attrib.get("bounds", "").strip()
                 t = elem.attrib.get("text", "").strip() or elem.attrib.get("content-desc", "").strip()
 
-                # 🚫 광고/쿠팡/파워링크 배제
                 if any(ad_kw in t or ad_kw in rid for ad_kw in ["파워링크", "광고", "coupang.com", "쿠팡", "ad_view", "sponsor"]):
                     continue
 
-                card_mids = re.findall(r"(?:view_type_guide_|mid=|id=)?(\d{9,14})", rid)
-                if not card_mids:
-                    card_mids = re.findall(r"(?:mid=|id=)?(\d{9,14})", t)
-
-                is_matched = target_mid_str in card_mids or target_mid_str in rid or target_mid_str in t or target_mid_str in elem.attrib.get("content-desc", "")
+                card_mids = re.findall(r"(?:view_type_guide_|nstore_productId_|mid=|id=)?(\d{9,14})", f"{rid} {t}")
+                is_matched = target_mid_str in card_mids or target_mid_str in rid or target_mid_str in t
                 if is_matched and b:
                     coords = b.replace("][", ",").replace("[", "").replace("]", "").split(",")
                     if len(coords) == 4:
@@ -415,6 +413,24 @@ class SearchNavigator:
                         if (y2 - y1) > 30 and y1 < 2340 and y2 > 100:
                             matched_card_bounds = (x1, y1, x2, y2, t or rid)
                             break
+
+            # 화면에 바로 안착되어 있지 않고 DOM 존재 시 Pass #1에서 즉시 '페이지 내 검색' 점프
+            if pass_num == 1 and matched_card_bounds is None:
+                has_target_in_dom = any(
+                    target_mid_str in e.attrib.get("resource-id", "") or target_mid_str in e.attrib.get("text", "") or target_mid_str in e.attrib.get("content-desc", "")
+                    for e in root.iter("node")
+                )
+                has_price_comp_in_dom = any(
+                    "가격비교" in (e.attrib.get("text", "") or e.attrib.get("content-desc", ""))
+                    for e in root.iter("node")
+                )
+
+                if has_target_in_dom or has_price_comp_in_dom:
+                    logger.info(f"[{self.device_id}] 🎯 [DOM 존재 확정] 가로 2P 이내 타겟 존재 ➔ '페이지 내 검색'으로 가격비교 즉시 이동 처리!")
+                    jump_success = self.jump_to_section_via_find_in_page("네이버 가격비교")
+                    if jump_success:
+                        time.sleep(0.8)
+                        continue
 
             if matched_card_bounds:
                 x1, y1, x2, y2, desc = matched_card_bounds
@@ -439,8 +455,6 @@ class SearchNavigator:
 
                 # 3. 온전한 안전 가시 영역 안착
                 elif h >= 150:
-                    # ⚠️ 정확한 상품 제목(Title) 영역 탭 (하단 스토어명/리뷰/찜 버튼/광고 오클릭 원천 방지)
-                    # 상품 카드의 상단 18% ~ 35% 영역이 순수 상품 타이틀 링크 영역입니다.
                     pad_x = max(30, int((x2 - x1) * 0.15))
                     click_x = random.randint(x1 + pad_x, x2 - pad_x)
                     title_y_min = y1 + int(h * 0.18)
@@ -448,7 +462,6 @@ class SearchNavigator:
                     click_y = random.randint(title_y_min, max(title_y_min + 10, title_y_max))
                     logger.info(f"[{self.device_id}] [🎉 100% 안전 안착] 상품 카드 제목 영역 확정! [{SAFE_Y_MIN} <= Y1({y1}) & Y2({y2}) <= {SAFE_Y_MAX}] ➔ 타이틀 안전 터치: ({click_x}, {click_y})")
                     
-                    # 📸 [타겟 상품 영역 크롭 저장 (logs/target_screenshot)]
                     try:
                         self.inspector.crop_and_save_target_screenshot(
                             target_bounds=(x1, y1, x2, y2),
@@ -459,7 +472,6 @@ class SearchNavigator:
                     except Exception as e:
                         logger.warning(f"[{self.device_id}] 타겟 크롭 저장 중 예외: {e}")
 
-                    # 📸 [공통: 타겟 상품 포착 직후 조준선 시각화 스샷 저장 (logs/click_logs/click_before)]
                     try:
                         self.inspector.draw_and_save_click_debug_image(
                             click_x, click_y,
@@ -468,7 +480,6 @@ class SearchNavigator:
                     except Exception as e:
                         logger.warning(f"[{self.device_id}] click_before 저장 중 예외: {e}")
 
-                    # 📸 [노출 성공 UI XML 덤프 및 전체 화면 캡처 저장 (logs/exposed_dumps)]
                     try:
                         self.inspector.save_exposed_dump(
                             target_mid=target_mid_str,
@@ -480,8 +491,7 @@ class SearchNavigator:
 
                     return (click_x, click_y)
 
-            # 🎯 [가로 슬라이더(Carousel) 감지 및 자동 가로 스와이프 탐색]
-            # 타겟 MID가 [0,0][0,0] 노드로 존재하거나 가로 슬라이더 후속 페이지에 있는 경우
+            # 🎯 [STEP 2: 가로 슬라이더 2페이지 감지 시 즉시 가로 스와이프 탐색]
             shop_block_y = None
             for elem in root.iter("node"):
                 t_e = elem.attrib.get("text", "").strip() or elem.attrib.get("content-desc", "").strip()
@@ -500,28 +510,10 @@ class SearchNavigator:
             )
 
             if has_hidden_target and shop_block_y:
-                logger.info(f"[{self.device_id}] ⚡ [가로 슬라이더 감지] 타겟 상품이 Slide 2+에 위치함 ➔ 가로 스와이프 수행 (Y: {shop_block_y})")
+                logger.info(f"[{self.device_id}] ⚡ [가로 슬라이더 감지] 타겟 상품이 가로 2페이지에 위치함 ➔ 가로 스와이프 수행 (Y: {shop_block_y})")
                 self.inspector.run_adb(f"input swipe 950 {shop_block_y} 130 {shop_block_y} 350")
                 time.sleep(0.8)
                 continue
-
-            # ⚡ [초고속 카테고리/가격비교 점프] DOM 트리에 타겟/가격비교가 '존재'함이 확인되었으나 아직 화면에 미안착된 경우 즉시 발동
-            if pass_num == 1:
-                has_target_in_dom = any(
-                    target_mid_str in e.attrib.get("resource-id", "") or target_mid_str in e.attrib.get("text", "") or target_mid_str in e.attrib.get("content-desc", "")
-                    for e in root.iter("node")
-                )
-                has_price_comp_in_dom = any(
-                    "가격비교" in (e.attrib.get("text", "") or e.attrib.get("content-desc", ""))
-                    for e in root.iter("node")
-                )
-
-                if has_target_in_dom or has_price_comp_in_dom:
-                    logger.info(f"[{self.device_id}] 🎯 [DOM 존재 확인 완료] 타겟 MID/가격비교 DOM 존재 확정 ➔ '페이지 내 검색'으로 다이렉트 고속 점프 실행!")
-                    jump_success = self.jump_to_section_via_find_in_page("네이버 가격비교")
-                    if jump_success:
-                        time.sleep(0.6)
-                        continue
 
             # 타겟 카드가 아직 가시 화면에 완전히 들어오지 않은 경우 자연스러운 하향 스크롤
             scroll_dist = random.randint(650, 950)
