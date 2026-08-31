@@ -293,6 +293,71 @@ class SearchNavigator:
         info = self.detect_shopping_section_and_code(target_mid)
         return info.get("target_found_on_page", False)
 
+    def jump_to_section_via_find_in_page(self, query: str = "네이버 가격비교") -> bool:
+        """
+        [페이지 내 검색을 통한 가격비교/카테고리 초고속 점프]
+        - 우측 하단 더보기(≡) 메뉴 탭
+        - [페이지 내 검색] 탭
+        - 검색어(예: '네이버 가격비교') 입력 후 엔터 ➔ 해당 영역으로 즉시 점프
+        - 검색 툴바 닫기
+        """
+        logger.info(f"[{self.device_id}] ⚡ [페이지 내 검색 워프] 우측 하단 메뉴 ➔ '페이지 내 검색'('{query}') 실행...")
+        try:
+            # 1. 우측 하단 더보기 메뉴 버튼 탭
+            self.inspector.ensure_naver_foreground()
+            root = self.inspector.get_ui_tree("bottom_menu")
+            menu_btn_coords = (1008, 2356)
+            if root is not None:
+                for elem in root.iter("node"):
+                    desc = elem.attrib.get("content-desc", "").strip() or elem.attrib.get("text", "").strip()
+                    rid = elem.attrib.get("resource-id", "").strip()
+                    b = elem.attrib.get("bounds", "").strip()
+                    if ("메뉴" in desc or "더보기" in desc or "btn_menu" in rid or "more" in rid) and b:
+                        m_b = re.search(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
+                        if m_b:
+                            x1, y1, x2, y2 = map(int, m_b.groups())
+                            if y1 > 2200 and x1 > 800:
+                                menu_btn_coords = ((x1 + x2) // 2, (y1 + y2) // 2)
+                                break
+            
+            self.inspector.run_adb(f"input tap {menu_btn_coords[0]} {menu_btn_coords[1]}")
+            time.sleep(0.8)
+
+            # 2. 바텀시트 메뉴에서 [페이지 내 검색] 찾아서 탭
+            menu_root = self.inspector.get_ui_tree("find_in_page_menu")
+            find_coords = None
+            if menu_root is not None:
+                for elem in menu_root.iter("node"):
+                    txt = elem.attrib.get("text", "").strip() or elem.attrib.get("content-desc", "").strip()
+                    b = elem.attrib.get("bounds", "").strip()
+                    if "페이지 내 검색" in txt and b:
+                        m_b = re.search(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
+                        if m_b:
+                            x1, y1, x2, y2 = map(int, m_b.groups())
+                            find_coords = ((x1 + x2) // 2, (y1 + y2) // 2)
+                            break
+
+            if find_coords:
+                self.inspector.run_adb(f"input tap {find_coords[0]} {find_coords[1]}")
+            else:
+                self.inspector.run_adb("input tap 135 1950")
+            time.sleep(0.8)
+
+            # 3. ADBKeyboard로 쿼리 입력 & 이동
+            escaped_q = query.replace('"', '\\"')
+            self.inspector.run_adb(f"am broadcast -a ADB_INPUT_TEXT --es msg \"{escaped_q}\" 2>/dev/null || true")
+            self.inspector.run_adb("input keyevent 66")
+            time.sleep(0.6)
+
+            # 4. 페이지 내 검색 툴바 닫기 (백키 전송으로 포커스 해제)
+            self.inspector.run_adb("input keyevent 4")
+            time.sleep(0.5)
+            logger.info(f"[{self.device_id}] [✓] 페이지 내 검색('{query}')을 통해 가격비교/카테고리 초고속 점프 완료!")
+            return True
+        except Exception as e:
+            logger.warning(f"[{self.device_id}] 페이지 내 검색 점프 중 예외: {e}")
+            return False
+
     def navigate_and_focus_target_card(self, target_mid: str, max_scroll_passes: int = 10, keyword: Optional[str] = None) -> Optional[Tuple[int, int]]:
         """
         [STEP 3-3: 타겟 상품 mid 탐색, 고정영역 배제 안전 안착 및 상품 제목(Title) 정밀 탭 좌표 계산]
@@ -439,6 +504,13 @@ class SearchNavigator:
                 self.inspector.run_adb(f"input swipe 950 {shop_block_y} 130 {shop_block_y} 350")
                 time.sleep(0.8)
                 continue
+
+            # ⚡ [초고속 카테고리/가격비교 점프] Pass #1에서 가격비교 섹션이 현재 뷰포트에 없는 경우 '페이지 내 검색'으로 즉시 워프
+            if pass_num == 1 and shop_block_y is None:
+                jump_success = self.jump_to_section_via_find_in_page("네이버 가격비교")
+                if jump_success:
+                    time.sleep(0.6)
+                    continue
 
             # 타겟 카드가 아직 가시 화면에 완전히 들어오지 않은 경우 자연스러운 하향 스크롤
             scroll_dist = random.randint(650, 950)
