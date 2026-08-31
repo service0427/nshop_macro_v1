@@ -124,14 +124,18 @@ cmd appops set {self.package_name} MOCK_LOCATION allow 2>/dev/null || true
         self._run_adb_su(grant_script)
 
     def get_app_uid(self) -> str:
-        """단말기 내 네이버 앱의 실제 Linux UID 동적 조회 (예: 10328)"""
+        """단말기 내 네이버 앱의 실제 Linux UID 동적 조회 (예: 10325, 10326, 10328, 10332)"""
         try:
-            res = self._run_adb(f"dumpsys package {self.package_name}")
-            match = re.search(r"userId=(\d+)", res)
+            res = self._run_adb_su(f"pm list packages -U {self.package_name}")
+            match = re.search(r"uid:(\d+)", res)
             if match:
                 return match.group(1)
-        except Exception:
-            pass
+            res2 = self._run_adb_su(f"dumpsys package {self.package_name}")
+            match2 = re.search(r"userId=(\d+)", res2)
+            if match2:
+                return match2.group(1)
+        except Exception as e:
+            logger.warning(f"[{self.device_id}] get_app_uid 조회 중 예외 발생: {e}")
         return "10328"
 
     def inject_tutorial_bypass(self):
@@ -292,11 +296,11 @@ rm -f /data/local/tmp/null_{self.device_id}.xml /data/local/tmp/tut_{self.device
         idfv: Optional[str] = None,
         mock_lat: Optional[float] = None,
         mock_lng: Optional[float] = None,
-        reset_method: str = "SELECTIVE"
+        reset_method: str = "PM_CLEAR"
     ) -> Dict[str, Any]:
         """
         [소프트 재부팅 기반 신원 변조 메인 파이프라인]
-        :param reset_method: "SELECTIVE" (기본 운영: 캐시 유지 + 신원 데이터 선택적 삭제) | "PM_CLEAR" (100주기 딥클린)
+        :param reset_method: "PM_CLEAR" (기본 운영: 완전한 클린 샌드박스 리셋) | "SELECTIVE" (캐시 유지)
         """
         t_start = time.time()
         logger.info(f"==========================================================================")
@@ -374,6 +378,12 @@ rm -f /data/local/tmp/null_{self.device_id}.xml /data/local/tmp/tut_{self.device
             subprocess.run(["adb", "-s", self.device_id, "push", t_ad, f"/data/local/tmp/adid_{self.device_id}.xml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
             subprocess.run(["adb", "-s", self.device_id, "push", t_nu, f"/data/local/tmp/null_{self.device_id}.xml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
             subprocess.run(["adb", "-s", self.device_id, "push", t_tu, f"/data/local/tmp/tut_{self.device_id}.xml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+            
+            # 골든 템플릿(온보딩 바이패스용 shared_prefs) 동기화
+            local_golden = "/home/tech/nshop_macro_v1/resources/golden_shared_prefs.tar.gz"
+            if os.path.exists(local_golden):
+                subprocess.run(["adb", "-s", self.device_id, "push", local_golden, "/data/local/tmp/golden_shared_prefs.tar.gz"],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
         except Exception as push_err:
             logger.warning(f"[{self.device_id}] [!] adb push 중 경고/타임아웃 (1회 재시도): {push_err}")
             try:
@@ -461,15 +471,20 @@ am broadcast -a com.rosteam.fakegps.MAPS_RECEIVE --ef LATITUDE {final_lat:.6f} -
 
 # 프로필 복원 (RESTORE) 및 튜토리얼/로그인 스킵 주입 (부팅 완료 후 주입 ➔ 100% 불변 보장)
 mkdir -p /data/data/{self.package_name}/shared_prefs
+mkdir -p /data/data/{self.package_name}/databases
+mkdir -p /data/data/{self.package_name}/files
 if [ "{is_restore}" = "True" ] && [ -f "{target_profile_path}" ]; then
     tar -xzf {target_profile_path} -C /data/data/{self.package_name} 2>/dev/null || true
+elif [ -f "/data/local/tmp/golden_shared_prefs.tar.gz" ]; then
+    tar -xzf /data/local/tmp/golden_shared_prefs.tar.gz -C /data/data/{self.package_name}/ 2>/dev/null || true
 fi
 cp /data/local/tmp/null_{self.device_id}.xml /data/data/{self.package_name}/shared_prefs/null.xml
 cp /data/local/tmp/tut_{self.device_id}.xml /data/data/{self.package_name}/shared_prefs/tutorial_pref.xml
 cp /data/local/tmp/null_{self.device_id}.xml /data/data/{self.package_name}/shared_prefs/{self.package_name}_preferences.xml
+
 chown -R {real_app_uid}:{real_app_uid} /data/data/{self.package_name} 2>/dev/null || true
 chmod -R 775 /data/data/{self.package_name} 2>/dev/null || true
-restorecon -R /data/data/{self.package_name} 2>/dev/null || true
+restorecon -F -R /data/data/{self.package_name} 2>/dev/null || true
 
 # 임시 파일 정리
 rm -f /data/local/tmp/ssaid_{self.device_id}.xml /data/local/tmp/adid_{self.device_id}.xml /data/local/tmp/null_{self.device_id}.xml /data/local/tmp/tut_{self.device_id}.xml
