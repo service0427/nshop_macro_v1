@@ -44,26 +44,32 @@ class SearchNavigator:
             time.sleep(0.35)
             elapsed = time.time() - start_t
 
-            xml_str = self.inspector.run_adb("uiautomator dump /sdcard/home_chk.xml >/dev/null 2>&1 && cat /sdcard/home_chk.xml || true")
+            xml_str = self.inspector.run_adb("rm -f /sdcard/home_chk.xml; uiautomator dump /sdcard/home_chk.xml >/dev/null 2>&1 && cat /sdcard/home_chk.xml || true")
 
             # 1. '나중에 할게요' 로그인 건너뛰기 감지 시 정밀 탭 (맹목적 고정 좌표 탭 배제)
             if "laterLoginBtn" in xml_str or "나중에 할게요" in xml_str:
                 m = re.search(r'resource-id="[^"]*laterLoginBtn"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', xml_str)
+                if not m:
+                    m = re.search(r'text="나중에 할게요"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', xml_str)
                 if m:
                     logger.info(f"[{self.device_id}] ⚡ [온보딩 감지] '나중에 할게요' 로그인 건너뛰기 정밀 탭")
                     x1, y1, x2, y2 = map(int, m.groups())
-                    self.inspector.run_adb(f"input tap {(x1+x2)//2} {(y1+y2)//2}")
-                    time.sleep(0.6)
+                    target_y = min((y1 + y2) // 2, y1 + 15)
+                    self.inspector.run_adb(f"input tap {(x1+x2)//2} {target_y}")
+                    time.sleep(0.8)
                     continue
 
             # 2. '네이버 시작하기' 시작 버튼 감지 시 정밀 탭 (맹목적 고정 좌표 탭 배제)
             if "locationStartBtn" in xml_str or "startNaverBtnLayout" in xml_str or "네이버 시작하기" in xml_str:
                 m = re.search(r'resource-id="[^"]*(?:locationStartBtn|startNaverBtnLayout|startNaver)"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', xml_str)
+                if not m:
+                    m = re.search(r'text="네이버 시작하기"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', xml_str)
                 if m:
                     logger.info(f"[{self.device_id}] ⚡ [온보딩 감지] '네이버 시작하기' 시작 버튼 정밀 탭")
                     x1, y1, x2, y2 = map(int, m.groups())
-                    self.inspector.run_adb(f"input tap {(x1+x2)//2} {(y1+y2)//2}")
-                    time.sleep(0.6)
+                    target_y = min((y1 + y2) // 2, y1 + 30)
+                    self.inspector.run_adb(f"input tap {(x1+x2)//2} {target_y}")
+                    time.sleep(0.8)
                     continue
 
             # 3. 포그라운드 이탈 가드 (타사 앱/런처 방지)

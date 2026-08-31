@@ -354,7 +354,13 @@ rm -f /data/local/tmp/null_{self.device_id}.xml /data/local/tmp/tut_{self.device
     <boolean name="keySecureScreenShot" value="true" />
     <boolean name="keyActiveAppCheck" value="false" />
     <boolean name="keyBridgeLinkInAppToolbar" value="true" />
+    <string name="KeyPrevNClicks">hct.locok2</string>
     <string name="KeyLastNClicks">hct.complete</string>
+    <string name="keyNativeHomeAreaCode">home</string>
+    <boolean name="keyShowNewMainTutorial" value="true" />
+    <boolean name="keyDtsStandAlone" value="true" />
+    <boolean name="keyShouldShowPayRedDotAtFirst" value="false" />
+    <boolean name="keyNaverWebEngineV2" value="true" />
     <int name="keyRefreshInterval" value="600" />
 </map>"""
         tut_xml = """<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
