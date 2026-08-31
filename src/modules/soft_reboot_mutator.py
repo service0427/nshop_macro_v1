@@ -437,18 +437,20 @@ rm -f /data/local/tmp/null_{self.device_id}.xml /data/local/tmp/tut_{self.device
         for tmp_f in [t_ss, t_ad, t_nu, t_tu]:
             if os.path.exists(tmp_f): os.remove(tmp_f)
 
-        # 리셋 방식 분기: PM_CLEAR (100주기 유지보수) vs SELECTIVE (기본 운영: 캐시 유지 + 신원 삭제)
+        # 리셋 방식 분기: PM_CLEAR (100주기 유지보수) vs SELECTIVE (초고속 딥클린: app_webview/app_xwhale/cache 전수 삭제)
         if reset_method == "PM_CLEAR" and not is_restore:
             cleanup_cmd = f"pm clear {self.package_name}"
         else:
             cleanup_cmd = f"""
 am force-stop {self.package_name} 2>/dev/null || true
 if [ "{is_restore}" != "True" ]; then
-    rm -rf /data/data/{self.package_name}/app_xwhale/Default/Cookies*
-    rm -rf /data/data/{self.package_name}/app_xwhale/Default/Local*
-    rm -rf /data/data/{self.package_name}/app_xwhale/Default/Session*
+    rm -rf /data/data/{self.package_name}/app_webview/*
+    rm -rf /data/data/{self.package_name}/app_xwhale/*
+    rm -rf /data/data/{self.package_name}/cache/*
+    rm -rf /data/data/{self.package_name}/code_cache/*
     rm -rf /data/data/{self.package_name}/databases/*
     rm -rf /data/data/{self.package_name}/files/*
+    rm -rf /data/data/{self.package_name}/no_backup/*
     rm -rf /data/data/{self.package_name}/shared_prefs/*
 fi
 """
