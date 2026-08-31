@@ -505,12 +505,23 @@ class SearchNavigator:
                 time.sleep(0.8)
                 continue
 
-            # ⚡ [초고속 카테고리/가격비교 점프] Pass #1에서 가격비교 섹션이 현재 뷰포트에 없는 경우 '페이지 내 검색'으로 즉시 워프
-            if pass_num == 1 and shop_block_y is None:
-                jump_success = self.jump_to_section_via_find_in_page("네이버 가격비교")
-                if jump_success:
-                    time.sleep(0.6)
-                    continue
+            # ⚡ [초고속 카테고리/가격비교 점프] DOM 트리에 타겟/가격비교가 '존재'함이 확인되었으나 아직 화면에 미안착된 경우 즉시 발동
+            if pass_num == 1:
+                has_target_in_dom = any(
+                    target_mid_str in e.attrib.get("resource-id", "") or target_mid_str in e.attrib.get("text", "") or target_mid_str in e.attrib.get("content-desc", "")
+                    for e in root.iter("node")
+                )
+                has_price_comp_in_dom = any(
+                    "가격비교" in (e.attrib.get("text", "") or e.attrib.get("content-desc", ""))
+                    for e in root.iter("node")
+                )
+
+                if has_target_in_dom or has_price_comp_in_dom:
+                    logger.info(f"[{self.device_id}] 🎯 [DOM 존재 확인 완료] 타겟 MID/가격비교 DOM 존재 확정 ➔ '페이지 내 검색'으로 다이렉트 고속 점프 실행!")
+                    jump_success = self.jump_to_section_via_find_in_page("네이버 가격비교")
+                    if jump_success:
+                        time.sleep(0.6)
+                        continue
 
             # 타겟 카드가 아직 가시 화면에 완전히 들어오지 않은 경우 자연스러운 하향 스크롤
             scroll_dist = random.randint(650, 950)
