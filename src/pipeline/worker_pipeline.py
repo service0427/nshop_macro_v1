@@ -89,23 +89,37 @@ class DeviceWorkerPipeline:
         profile_ssaid = profile_obj.get("ssaid") if isinstance(profile_obj, dict) else None
         profile_adid = profile_obj.get("adid") if isinstance(profile_obj, dict) else None
         profile_idfv = profile_obj.get("idfv") if isinstance(profile_obj, dict) else None
+        install_ts = profile_obj.get("install_ts") if isinstance(profile_obj, dict) else None
+        update_ts = profile_obj.get("update_ts") if isinstance(profile_obj, dict) else None
+        installer_pkg = profile_obj.get("installer_pkg", "com.android.vending") if isinstance(profile_obj, dict) else "com.android.vending"
+        app_version = profile_obj.get("app_version", "12.23.1") if isinstance(profile_obj, dict) else "12.23.1"
+        app_version_code = profile_obj.get("app_version_code", 12230102) if isinstance(profile_obj, dict) else 12230102
 
         target_profile_tar = self.mutator.resolve_profile_path(prof_name) if prof_name else None
 
         mode = "FRESH"
+        reset_method = "PM_CLEAR" if profile_id == 0 else "SELECTIVE"
         if profile_id > 0 and target_profile_tar and self.mutator.profile_exists_on_device(target_profile_tar):
             mode = "RESTORE"
+            reset_method = "SELECTIVE"
         elif target_profile_tar and self.mutator.profile_exists_on_device(target_profile_tar):
             mode = "RESTORE"
+            reset_method = "SELECTIVE"
 
         mut_res = self.mutator.mutate_identity(
             mode=mode,
             profile_tar=target_profile_tar if mode == "RESTORE" else None,
             ssaid=profile_ssaid,
             adid=profile_adid,
-            idfv=profile_idfv
+            idfv=profile_idfv,
+            install_ts=install_ts,
+            update_ts=update_ts,
+            installer_pkg=installer_pkg,
+            app_version=app_version,
+            app_version_code=app_version_code,
+            reset_method=reset_method
         )
-        logger.info(f"[{self.device_id}] [✓] 소프트 리셋 신원 변조 완료 ({mode} 모드 | 프로필: {prof_name} | SSAID: {mut_res.get('ssaid')})")
+        logger.info(f"[{self.device_id}] [✓] 소프트 리셋 신원 변조 완료 ({mode} 모드 | 프로필: {prof_name} | SSAID: {mut_res.get('ssaid')} | InstallTS: {mut_res.get('install_ts')})")
 
         # -------------------------------------------------------------
         # 1-1. 소프트 리셋 직후 시스템 프로세스 & Wi-Fi 베이스망 무결성 안정화 (버퍼링 방지)
@@ -282,6 +296,11 @@ class DeviceWorkerPipeline:
             "adid": mut_res.get("adid"),
             "nnb": extracted_nnb,
             "napp_di": extracted_napp_di,
+            "install_ts": mut_res.get("install_ts"),
+            "update_ts": mut_res.get("update_ts"),
+            "installer_pkg": mut_res.get("installer_pkg", installer_pkg),
+            "app_version": mut_res.get("app_version", app_version),
+            "app_version_code": mut_res.get("app_version_code", app_version_code),
             "gps_lat": mut_res.get("gps_lat"),
             "gps_lng": mut_res.get("gps_lng"),
             "latitude": mut_res.get("gps_lat"),

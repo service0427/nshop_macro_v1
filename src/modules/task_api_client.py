@@ -180,11 +180,18 @@ class TaskApiClient:
                 "error_reason": r.get("error_reason"),
 
                 # 프로필 및 식별자 (NNB, NAPP_DI, snapshot_size 포함)
-                "snapshot_size": r.get("snapshot_size"),
+                "snapshot_size": float(round(r["snapshot_size"], 1)) if r.get("snapshot_size") is not None else None,
                 "ssaid": r.get("ssaid"),
                 "adid": r.get("adid"),
                 "nnb": r.get("nnb"),
                 "napp_di": r.get("napp_di"),
+
+                # 앱 설치 타임스탬프 및 버전 메타데이터 (v3.1 Standard)
+                "install_ts": int(r["install_ts"]) if r.get("install_ts") is not None else None,
+                "update_ts": int(r["update_ts"]) if r.get("update_ts") is not None else None,
+                "installer_pkg": str(r.get("installer_pkg", "com.android.vending")),
+                "app_version": str(r.get("app_version", "12.23.1")),
+                "app_version_code": int(r.get("app_version_code", 12230102)),
 
                 # 최종 배터리 잔량 (소수점 2자리 정밀도 Float, 서버 단순 기록용)
                 "battery_level": round(float(r["battery_level"]), 2) if r.get("battery_level") is not None else None

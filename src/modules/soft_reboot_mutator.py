@@ -294,6 +294,11 @@ rm -f /data/local/tmp/null_{self.device_id}.xml /data/local/tmp/tut_{self.device
         ssaid: Optional[str] = None,
         adid: Optional[str] = None,
         idfv: Optional[str] = None,
+        install_ts: Optional[int] = None,
+        update_ts: Optional[int] = None,
+        installer_pkg: str = "com.android.vending",
+        app_version: str = "12.23.1",
+        app_version_code: int = 12230102,
         mock_lat: Optional[float] = None,
         mock_lng: Optional[float] = None,
         reset_method: str = "PM_CLEAR"
@@ -315,17 +320,35 @@ rm -f /data/local/tmp/null_{self.device_id}.xml /data/local/tmp/tut_{self.device
         target_adid = adid if adid else str(uuid.uuid4())
         target_idfv = idfv if idfv else str(uuid.uuid4())
 
-        # 3. 앱 및 GMS 서비스 종료
+        # 3. 앱 설치 타임스탬프 (30~365일 전) 및 최근 업데이트 타임스탬프 산출 (v3.1 Standard)
+        now_ms = int(time.time() * 1000)
+        if install_ts and int(install_ts) > 0:
+            target_install_ts = int(install_ts)
+        else:
+            # 30일 ~ 365일 전 사이의 자연스러운 랜덤 설치일시 (ms)
+            days_ago = random.randint(30, 365)
+            target_install_ts = now_ms - (days_ago * 86400 * 1000) + random.randint(0, 86400000)
+
+        if update_ts and int(update_ts) > 0:
+            target_update_ts = int(update_ts)
+        else:
+            # 최근 3일 ~ 25일 전 사이의 최근 업데이트 타임스탬프 (ms)
+            update_days_ago = random.randint(3, 25)
+            target_update_ts = now_ms - (update_days_ago * 86400 * 1000) + random.randint(0, 86400000)
+            if target_update_ts < target_install_ts:
+                target_update_ts = target_install_ts + random.randint(86400000, 86400000 * 10)
+
+        # 4. 앱 및 GMS 서비스 종료
         self._run_adb_su(f"am force-stop {self.package_name}; am force-stop com.google.android.gms")
 
-        # 4. 샌드박스 초기화 또는 프로필 복원 준비 (서버가 내려준 profile_tar 경로만 사용)
+        # 5. 샌드박스 초기화 또는 프로필 복원 준비 (서버가 내려준 profile_tar 경로만 사용)
         target_profile_path = profile_tar
         is_restore = (mode == "RESTORE" and target_profile_path and self.profile_exists_on_device(target_profile_path))
 
-        # 5. [배치 1] 리셋 전 원자적 환경 주입 (RescueParty 차단 + 리셋 분기 + SSAID + ADID)
-        logger.info(f"[{self.device_id}] [1/3] 원자적 신원/환경 데이터 주입 중... (SSAID: {target_ssaid})")
+        # 6. [배치 1] 리셋 전 원자적 환경 주입 (RescueParty 차단 + 리셋 분기 + SSAID + ADID + 타임스탬프)
+        logger.info(f"[{self.device_id}] [1/3] 원자적 신원/환경 데이터 주입 중... (SSAID: {target_ssaid} | InstallTS: {target_install_ts})")
         
-        # SSAID & ADID & 튜토리얼 파일 생성 및 푸시
+        # SSAID & ADID & 튜토리얼 & nlog_pref 파일 생성 및 푸시
         ssaid_payload = f"""<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
 <packages>
     <package name="{self.package_name}" value="{target_ssaid}" />
@@ -335,7 +358,7 @@ rm -f /data/local/tmp/null_{self.device_id}.xml /data/local/tmp/tut_{self.device
     <string name="adid_key">{target_adid}</string>
     <boolean name="enable_limit_ad_tracking" value="false" />
 </map>"""
-        null_xml = """<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+        null_xml = f"""<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
 <map>
     <boolean name="keyFirstRun" value="false" />
     <boolean name="keyUniverseTutorialComplete" value="true" />
@@ -362,28 +385,42 @@ rm -f /data/local/tmp/null_{self.device_id}.xml /data/local/tmp/tut_{self.device
     <boolean name="keyShouldShowPayRedDotAtFirst" value="false" />
     <boolean name="keyNaverWebEngineV2" value="true" />
     <int name="keyRefreshInterval" value="600" />
+    <long name="nlog_init_ts" value="{target_install_ts}" />
+    <long name="keyInstallDate" value="{target_install_ts}" />
+    <long name="keyUpdateDate" value="{target_update_ts}" />
+    <string name="keyAppVersion">{app_version}</string>
+    <int name="keyAppVersionCode" value="{app_version_code}" />
 </map>"""
         tut_xml = """<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
 <map>
     <boolean name="tutorial_shown" value="true" />
     <boolean name="is_first_launch" value="false" />
 </map>"""
+        nlog_pref_xml = f"""<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+<map>
+    <long name="nlog_init_ts" value="{target_install_ts}" />
+    <long name="nlog_install_ts" value="{target_install_ts}" />
+    <string name="nlog_app_ver">{app_version}</string>
+</map>"""
 
         t_ss = f"/tmp/ssaid_{self.device_id}.xml"
         t_ad = f"/tmp/adid_{self.device_id}.xml"
         t_nu = f"/tmp/null_{self.device_id}.xml"
         t_tu = f"/tmp/tut_{self.device_id}.xml"
+        t_nl = f"/tmp/nlog_{self.device_id}.xml"
         
         with open(t_ss, "w", encoding="utf-8") as f: f.write(ssaid_payload)
         with open(t_ad, "w", encoding="utf-8") as f: f.write(adid_xml)
         with open(t_nu, "w", encoding="utf-8") as f: f.write(null_xml)
         with open(t_tu, "w", encoding="utf-8") as f: f.write(tut_xml)
+        with open(t_nl, "w", encoding="utf-8") as f: f.write(nlog_pref_xml)
 
         try:
             subprocess.run(["adb", "-s", self.device_id, "push", t_ss, f"/data/local/tmp/ssaid_{self.device_id}.xml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
             subprocess.run(["adb", "-s", self.device_id, "push", t_ad, f"/data/local/tmp/adid_{self.device_id}.xml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
             subprocess.run(["adb", "-s", self.device_id, "push", t_nu, f"/data/local/tmp/null_{self.device_id}.xml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
             subprocess.run(["adb", "-s", self.device_id, "push", t_tu, f"/data/local/tmp/tut_{self.device_id}.xml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+            subprocess.run(["adb", "-s", self.device_id, "push", t_nl, f"/data/local/tmp/nlog_{self.device_id}.xml"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
             
             # 골든 템플릿(온보딩 바이패스용 shared_prefs) 동기화
             local_golden = "/home/tech/nshop_macro_v1/resources/golden_shared_prefs.tar.gz"
@@ -487,13 +524,14 @@ fi
 cp /data/local/tmp/null_{self.device_id}.xml /data/data/{self.package_name}/shared_prefs/null.xml
 cp /data/local/tmp/tut_{self.device_id}.xml /data/data/{self.package_name}/shared_prefs/tutorial_pref.xml
 cp /data/local/tmp/null_{self.device_id}.xml /data/data/{self.package_name}/shared_prefs/{self.package_name}_preferences.xml
+cp /data/local/tmp/nlog_{self.device_id}.xml /data/data/{self.package_name}/shared_prefs/nlog_pref.xml
 
 chown -R {real_app_uid}:{real_app_uid} /data/data/{self.package_name} 2>/dev/null || true
 chmod -R 775 /data/data/{self.package_name} 2>/dev/null || true
 restorecon -F -R /data/data/{self.package_name} 2>/dev/null || true
 
 # 임시 파일 정리
-rm -f /data/local/tmp/ssaid_{self.device_id}.xml /data/local/tmp/adid_{self.device_id}.xml /data/local/tmp/null_{self.device_id}.xml /data/local/tmp/tut_{self.device_id}.xml
+rm -f /data/local/tmp/ssaid_{self.device_id}.xml /data/local/tmp/adid_{self.device_id}.xml /data/local/tmp/null_{self.device_id}.xml /data/local/tmp/tut_{self.device_id}.xml /data/local/tmp/nlog_{self.device_id}.xml
 """
         self._run_adb_su(post_reset_cmd)
 
@@ -510,6 +548,11 @@ rm -f /data/local/tmp/ssaid_{self.device_id}.xml /data/local/tmp/adid_{self.devi
             "ssaid": target_ssaid,
             "adid": target_adid,
             "idfv": target_idfv,
+            "install_ts": target_install_ts,
+            "update_ts": target_update_ts,
+            "installer_pkg": installer_pkg,
+            "app_version": app_version,
+            "app_version_code": app_version_code,
             "gps_lat": final_lat,
             "gps_lng": final_lng,
             "execution_sec": duration,
