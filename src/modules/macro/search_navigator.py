@@ -158,7 +158,8 @@ class SearchNavigator:
 
     def detect_shopping_section_and_code(self, target_mid: Optional[str] = None) -> Dict[str, Any]:
         """
-        [STEP 3-1: 쇼핑 섹션 및 타겟 상품 mid 다중 추출 & 진입 전략 수립]
+        [STEP 3-1: 쇼핑 섹션, 가로 슬라이더(Carousel) 구조 분석 및 타겟 상품 mid 슬라이드 페이지 판별]
+        - 가로 슬라이더 1페이지(기본 노출) vs 2페이지+ (가로 스와이프 필요) 정밀 구분
         - 광고/쿠팡/파워링크 노드를 원천 배제하고 순수 쇼핑 상품만 판별
         """
         target_mid_str = str(target_mid).strip() if target_mid else ""
@@ -166,9 +167,13 @@ class SearchNavigator:
             "has_shopping_section": False,
             "section_type": None,
             "target_found_on_page": False,
+            "target_slide_page": None,      # 1 (기본 노출), 2, 3...
+            "is_slide_1": False,           # 슬라이드 조작 전 기본 노출 여부
             "target_bounds": None,
             "action_strategy": "FAIL_FAST",
-            "extracted_mids": []
+            "extracted_mids": [],
+            "slide_1_mids": [],
+            "slide_2_plus_mids": []
         }
 
         root = self.inspector.get_ui_tree("detect_shop")
@@ -180,8 +185,8 @@ class SearchNavigator:
         shopping_block_node = None
         target_node = None
         extracted_mids = []
+        shopping_items = []
 
-        # 유효한 9~14자리 타겟 mid 형식 검사
         valid_target = bool(target_mid_str and target_mid_str != "0" and len(target_mid_str) >= 9)
 
         for elem in all_nodes:
@@ -197,32 +202,75 @@ class SearchNavigator:
                 shopping_block_node = elem
 
             m_mid = re.findall(r"(?:view_type_guide_|mid=|id=)?(\d{9,14})", rid)
-            # content-desc 및 text에서도 mid 매칭 추가
             if not m_mid:
                 m_mid = re.findall(r"(?:mid=|id=)?(\d{9,14})", t)
+
+            is_product_card = ('원' in t or '할인' in t or '배송' in t or '스토어' in t or '구매' in t) and len(t) > 25
+            if m_mid or is_product_card:
+                coords = []
+                if b and b != "[0,0][0,0]":
+                    m_b = re.search(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
+                    if m_b:
+                        coords = list(map(int, m_b.groups()))
+
+                is_visible_now = False
+                if len(coords) == 4:
+                    x1, y1, x2, y2 = coords
+                    if (x2 - x1) >= 40 and (y2 - y1) >= 40 and x1 >= 0 and x2 <= 1080 and y2 > 150:
+                        is_visible_now = True
+
+                shopping_items.append({
+                    "idx": len(shopping_items),
+                    "mids": m_mid,
+                    "text": t,
+                    "bounds": b,
+                    "coords": coords,
+                    "is_visible_now": is_visible_now,
+                    "node": elem
+                })
 
             for m in m_mid:
                 if m not in extracted_mids:
                     extracted_mids.append(m)
 
-            # 정확한 mid 속성 일치 검증
             if valid_target and target_mid_str in m_mid:
                 target_node = elem
 
         res_info["extracted_mids"] = extracted_mids
 
-        # 쇼핑 블록 텍스트 또는 추출된 상품 mid가 1개 이상이면 쇼핑 섹션 존재로 판정
+        # 가로 슬라이더 페이지(Slide 1, 2, 3...) 분류
+        slide_1_mids = []
+        slide_2_plus_mids = []
+        target_slide_page = None
+
+        for item in shopping_items:
+            slide_page = (item["idx"] // 4) + 1
+            item["slide_page"] = slide_page
+            for m in item["mids"]:
+                if slide_page == 1 or item["is_visible_now"]:
+                    if m not in slide_1_mids: slide_1_mids.append(m)
+                else:
+                    if m not in slide_2_plus_mids: slide_2_plus_mids.append(m)
+
+                if valid_target and str(target_mid_str) == m:
+                    target_slide_page = slide_page
+
+        res_info["slide_1_mids"] = slide_1_mids
+        res_info["slide_2_plus_mids"] = slide_2_plus_mids
+        res_info["target_slide_page"] = target_slide_page
+        res_info["is_slide_1"] = (target_slide_page == 1)
+
+        # 쇼핑 블록 존재 판정
         if shopping_block_node is not None or len(extracted_mids) > 0:
             res_info["has_shopping_section"] = True
             res_info["section_type"] = "PRICE_COMPARISON"
             sb_bounds = shopping_block_node.attrib.get("bounds", "") if shopping_block_node else "DOM"
             t_block = (shopping_block_node.attrib.get("text", "").strip() or shopping_block_node.attrib.get("content-desc", "").strip()) if shopping_block_node else "쇼핑 상품 리스트"
-            logger.info(f"[{self.device_id}] [✓] 쇼핑 블록('{t_block}') 확인 완료! (Bounds: {sb_bounds})")
+            logger.info(f"[{self.device_id}] [✓] 쇼핑 블록('{t_block}') 확인 완료! (총 {len(shopping_items)}개 상품 / 슬라이드 1 기본 노출: {len(slide_1_mids)}개)")
         else:
             logger.warning(f"[{self.device_id}] [!] 쇼핑 섹션 없음 -> 쇼핑 무관 키워드로 판정")
             return res_info
 
-        # 순수 추출된 mid 목록에 타겟 mid가 정확히 존재하는지 확인
         if valid_target and (target_mid_str in extracted_mids or target_node is not None):
             res_info["target_found_on_page"] = True
             if target_node is not None:
@@ -230,13 +278,13 @@ class SearchNavigator:
                 m_tb = re.search(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", tb)
                 if m_tb:
                     res_info["target_bounds"] = list(map(int, m_tb.groups()))
-                logger.info(f"[{self.device_id}] [🎯 타겟 발견] 타겟 상품 mid({target_mid_str})가 현재 뷰포트 DOM에 존재함! (Bounds: {tb})")
+                logger.info(f"[{self.device_id}] [🎯 타겟 발견] 타겟 상품 mid({target_mid_str}) -> 가로 슬라이더 #{target_slide_page}페이지 (기본 노출 여부: {res_info['is_slide_1']}) (Bounds: {tb})")
             else:
-                logger.info(f"[{self.device_id}] [🎯 타겟 발견] 타겟 상품 mid({target_mid_str})가 뷰포트 mid 목록에 존재함!")
+                logger.info(f"[{self.device_id}] [🎯 타겟 발견] 타겟 상품 mid({target_mid_str}) -> 가로 슬라이더 #{target_slide_page}페이지 (기본 노출 여부: {res_info['is_slide_1']})")
         else:
             res_info["target_found_on_page"] = False
 
-        logger.info(f"[{self.device_id}]  ↳ 현재 페이지 노출된 상품 mid 목록 ({len(extracted_mids)}건): {extracted_mids[:10]}")
+        logger.info(f"[{self.device_id}]  ↳ Slide 1 (기본 노출): {slide_1_mids[:6]} | Slide 2+ (가로 슬라이드): {slide_2_plus_mids[:6]}")
         return res_info
 
     def check_target_exists_fast(self, target_mid: str) -> bool:
@@ -353,6 +401,16 @@ class SearchNavigator:
                         )
                     except Exception as e:
                         logger.warning(f"[{self.device_id}] click_before 저장 중 예외: {e}")
+
+                    # 📸 [노출 성공 UI XML 덤프 및 전체 화면 캡처 저장 (logs/exposed_dumps)]
+                    try:
+                        self.inspector.save_exposed_dump(
+                            target_mid=target_mid_str,
+                            keyword=keyword,
+                            slide_page=1
+                        )
+                    except Exception as e:
+                        logger.warning(f"[{self.device_id}] exposed_dumps 저장 중 예외: {e}")
 
                     return (click_x, click_y)
 
