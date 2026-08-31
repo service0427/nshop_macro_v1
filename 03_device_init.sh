@@ -95,8 +95,9 @@ init_single_device() {
     adb -s "$serial" shell "cmd uimode night yes" 2>/dev/null                               # 시스템 다크모드 강제 (AMOLED 블랙 픽셀 0W 절전)
     adb -s "$serial" shell "settings put system peak_refresh_rate 60.0" 2>/dev/null         # 120Hz -> 60Hz 고정 (GPU/패널 전력 50% 절감)
     adb -s "$serial" shell "settings put system min_refresh_rate 60.0" 2>/dev/null
-    adb -s "$serial" shell "settings put system screen_brightness_mode 0" 2>/dev/null       # 자동 밝기 해제
-    adb -s "$serial" shell "settings put system screen_brightness 10" 2>/dev/null           # 최소 밝기(10) 고정 (AMOLED 발열 차단)
+    # [개발/모니터링용 화면 밝기 기본값 유지 - 주석 처리]
+    # adb -s "$serial" shell "settings put system screen_brightness_mode 0" 2>/dev/null       # 자동 밝기 해제
+    # adb -s "$serial" shell "settings put system screen_brightness 10" 2>/dev/null           # 최소 밝기(10) 고정 (AMOLED 발열 차단)
     adb -s "$serial" shell "settings put system haptic_feedback_enabled 0" 2>/dev/null      # 터치 햅틱 진동 모터 완전 OFF (피크 전류 차단)
     adb -s "$serial" shell "settings put system touch_vibration_enabled 0" 2>/dev/null
     adb -s "$serial" shell "settings put system sound_effects_enabled 0" 2>/dev/null
