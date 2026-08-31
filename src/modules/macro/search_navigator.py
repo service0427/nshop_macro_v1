@@ -22,6 +22,7 @@ from typing import Dict, Any, Optional, Tuple, List
 
 from src.config import HOME_ACTIVITY
 from src.modules.macro.ui_inspector import UIInspector
+from src.modules.macro.shopping_xml_parser import ShoppingXMLParser
 
 logger = logging.getLogger("NaverMacroCore.SearchNavigator")
 
@@ -413,6 +414,31 @@ class SearchNavigator:
                         logger.warning(f"[{self.device_id}] exposed_dumps 저장 중 예외: {e}")
 
                     return (click_x, click_y)
+
+            # 🎯 [가로 슬라이더(Carousel) 감지 및 자동 가로 스와이프 탐색]
+            # 타겟 MID가 [0,0][0,0] 노드로 존재하거나 가로 슬라이더 후속 페이지에 있는 경우
+            shop_block_y = None
+            for elem in root.iter("node"):
+                t_e = elem.attrib.get("text", "").strip() or elem.attrib.get("content-desc", "").strip()
+                b_e = elem.attrib.get("bounds", "").strip()
+                if any(kw in t_e for kw in ["가격비교", "네이버 쇼핑", "네이버쇼핑", "쇼핑", "스마트스토어"]) and b_e:
+                    m_be = re.search(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b_e)
+                    if m_be:
+                        _, y1_b, _, y2_b = map(int, m_be.groups())
+                        if y2_b > 200 and y1_b < 2100:
+                            shop_block_y = min(1800, max(600, (y1_b + y2_b) // 2 + 350))
+                            break
+
+            has_hidden_target = any(
+                (target_mid_str in e.attrib.get("resource-id", "") or target_mid_str in e.attrib.get("text", "") or target_mid_str in e.attrib.get("content-desc", "")) and e.attrib.get("bounds") in ["[0,0][0,0]", ""]
+                for e in root.iter("node")
+            )
+
+            if has_hidden_target and shop_block_y:
+                logger.info(f"[{self.device_id}] ⚡ [가로 슬라이더 감지] 타겟 상품이 Slide 2+에 위치함 ➔ 가로 스와이프 수행 (Y: {shop_block_y})")
+                self.inspector.run_adb(f"input swipe 950 {shop_block_y} 130 {shop_block_y} 350")
+                time.sleep(0.8)
+                continue
 
             # 타겟 카드가 아직 가시 화면에 완전히 들어오지 않은 경우 자연스러운 하향 스크롤
             scroll_dist = random.randint(650, 950)
