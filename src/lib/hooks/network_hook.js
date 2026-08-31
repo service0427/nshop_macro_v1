@@ -16,6 +16,11 @@ try {
 } catch (e) {
     console.log("[-] Module native_anti_detect.js load error: " + e);
 }
+try {
+    require('./search_interceptor.js');
+} catch (e) {
+    console.log("[-] Module search_interceptor.js load error: " + e);
+}
 
 function hook_java_all() {
     console.log("[SSL Bypass 🛡️] Injecting Universal Java SSL Pinning Bypasses...");
