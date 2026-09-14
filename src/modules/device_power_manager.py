@@ -85,9 +85,9 @@ class DevicePowerManager:
         [단말기 Wakeup] 화면 WAKEUP 신호 전송 및 잠금 해제
         """
         try:
-            logger.info(f"[{device_id}] 🔋 [화면 WAKEUP] 충전/쿨다운 완료 ➔ 화면 점등 및 작업 풀 복귀")
+            # cmd device_state state 3 = 플립 단말기 메인 화면(OPEN) 강제 활성화 (커버 화면 SubHome 모드 방지)
             # 224 = KEYCODE_WAKEUP, 82 = KEYCODE_MENU (잠금화면 슬라이드 해제)
-            cmd = "input keyevent 224 2>/dev/null; sleep 0.2; input keyevent 82 2>/dev/null || true"
+            cmd = "cmd device_state state 3 2>/dev/null; input keyevent 224 2>/dev/null; sleep 0.2; input keyevent 82 2>/dev/null || true"
             subprocess.run(
                 ["adb", "-s", device_id, "shell", cmd],
                 stdout=subprocess.DEVNULL,

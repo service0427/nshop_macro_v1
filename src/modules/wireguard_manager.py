@@ -27,6 +27,7 @@ import time
 import json
 import logging
 import subprocess
+from textwrap import dedent
 from typing import Dict, Any, Optional, Tuple
 
 from src.config import (
@@ -124,14 +125,14 @@ class WireGuardManager:
         - Wi-Fi 활성화 및 Tech_5G 연결 확인
         - 게이트웨이(192.168.0.1) 도달 확인
         """
-        setup_script = """
-am force-stop com.wireguard.android 2>/dev/null || true
-svc data disable 2>/dev/null || true
-svc wifi enable 2>/dev/null || true
-settings put global captive_portal_mode 0 2>/dev/null || true
-settings put global captive_portal_detection_enabled 0 2>/dev/null || true
-settings put global wifi_sleep_policy 2 2>/dev/null || true
-"""
+        setup_script = dedent("""
+            am force-stop com.wireguard.android 2>/dev/null || true
+            svc data disable 2>/dev/null || true
+            svc wifi enable 2>/dev/null || true
+            settings put global captive_portal_mode 0 2>/dev/null || true
+            settings put global captive_portal_detection_enabled 0 2>/dev/null || true
+            settings put global wifi_sleep_policy 2 2>/dev/null || true
+        """).strip()
         self._run_adb_cmd(setup_script, timeout_sec=3)
         
         # Wi-Fi IP 확인 (최대 6초 폴링)
@@ -139,7 +140,7 @@ settings put global wifi_sleep_policy 2 2>/dev/null || true
             wlan_out = self._run_adb_su("ifconfig wlan0 2>/dev/null | grep 'inet addr' || ip -4 addr show wlan0 2>/dev/null", timeout_sec=2)
             if "192.168.0." in wlan_out:
                 return True
-            if attempt == 2:
+            if attempt == 4:
                 logger.warning(f"[{self.device_id}] Wi-Fi(Tech_5G) IP 미할당 감지 ➔ Wi-Fi 펄스 리셋 시도...")
                 self._run_adb_cmd("am force-stop com.wireguard.android; svc wifi disable; sleep 0.5; svc wifi enable", timeout_sec=3)
             time.sleep(1.0)
@@ -159,18 +160,19 @@ settings put global wifi_sleep_policy 2 2>/dev/null || true
         [2단계: WireGuard 프로필 직접 주입]
         기존 앱/터널 강제 종료 후 /data/data/com.wireguard.android/files/wg0.conf 생성
         """
-        conf_content = f"""[Interface]
-PrivateKey = {priv_key}
-Address = {client_ip}/24
-DNS = {dns}
-MTU = {mtu}
+        conf_content = dedent(f"""
+            [Interface]
+            PrivateKey = {priv_key}
+            Address = {client_ip}/24
+            DNS = {dns}
+            MTU = {mtu}
 
-[Peer]
-PublicKey = {server_pubkey}
-Endpoint = {endpoint}
-AllowedIPs = 0.0.0.0/0
-PersistentKeepalive = 25
-"""
+            [Peer]
+            PublicKey = {server_pubkey}
+            Endpoint = {endpoint}
+            AllowedIPs = 0.0.0.0/0
+            PersistentKeepalive = 25
+        """).strip() + "\n"
         tmp_path = f"/tmp/wg0_{self.device_id}.conf"
         try:
             with open(tmp_path, "w", encoding="utf-8") as f:
@@ -182,16 +184,16 @@ PersistentKeepalive = 25
             )
             
             self._run_adb_cmd(f"am force-stop {self.pkg_name} 2>/dev/null || true", timeout_sec=2)
-            inject_script = f"""
-mkdir -p /data/data/{self.pkg_name}/files
-cp /data/local/tmp/wg0_{self.device_id}.conf /data/data/{self.pkg_name}/files/wg0.conf
-UG=$(dumpsys package {self.pkg_name} 2>/dev/null | grep userId | head -n1 | cut -d= -f2 | tr -d ' ' || echo '10331')
-chown -R $UG:$UG /data/data/{self.pkg_name}
-chmod -R 777 /data/data/{self.pkg_name}
-appops set {self.pkg_name} ACTIVATE_VPN allow 2>/dev/null || true
-appops set {self.pkg_name} ACTIVATE_PLATFORM_VPN allow 2>/dev/null || true
-rm -f /data/local/tmp/wg0_{self.device_id}.conf
-"""
+            inject_script = dedent(f"""
+                mkdir -p /data/data/{self.pkg_name}/files
+                cp /data/local/tmp/wg0_{self.device_id}.conf /data/data/{self.pkg_name}/files/wg0.conf
+                UG=$(dumpsys package {self.pkg_name} 2>/dev/null | grep userId | head -n1 | cut -d= -f2 | tr -d ' ' || echo '10331')
+                chown -R $UG:$UG /data/data/{self.pkg_name}
+                chmod -R 777 /data/data/{self.pkg_name}
+                appops set {self.pkg_name} ACTIVATE_VPN allow 2>/dev/null || true
+                appops set {self.pkg_name} ACTIVATE_PLATFORM_VPN allow 2>/dev/null || true
+                rm -f /data/local/tmp/wg0_{self.device_id}.conf
+            """).strip()
             self._run_adb_cmd(inject_script, timeout_sec=5)
             return True
         except Exception as e:
@@ -215,13 +217,18 @@ rm -f /data/local/tmp/wg0_{self.device_id}.conf
         match = re.search(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b', out)
         return match.group(0) if match else "UNKNOWN"
 
-    def check_naver_connectivity(self) -> bool:
-        """네이버 HTTP 통신 정상 도달 여부 확인 (HTTP 200/301/302)"""
-        out = self._run_adb_cmd(
-            "curl -s -m 5 -o /dev/null -w '%{http_code}' https://m.naver.com 2>/dev/null || curl -s -m 5 -o /dev/null -w '%{http_code}' http://www.naver.com 2>/dev/null || true",
-            timeout_sec=8
-        )
-        return any(code in out for code in ["200", "301", "302", "304"])
+    def check_naver_connectivity(self, retries: int = 2) -> bool:
+        """네이버 HTTP 통신 정상 도달 여부 확인 (HTTP 200/301/302, 2회 신속 재시도)"""
+        for attempt in range(retries):
+            out = self._run_adb_cmd(
+                "curl -s --connect-timeout 2 -m 3 -o /dev/null -w '%{http_code}' https://m.naver.com 2>/dev/null || curl -s --connect-timeout 2 -m 3 -o /dev/null -w '%{http_code}' http://m.naver.com 2>/dev/null || true",
+                timeout_sec=6
+            )
+            if any(code in out for code in ["200", "301", "302", "304"]):
+                return True
+            if attempt < retries - 1:
+                time.sleep(0.5)
+        return False
 
     def deactivate_tunnel(self) -> bool:
         """
@@ -284,40 +291,11 @@ rm -f /data/local/tmp/wg0_{self.device_id}.conf
             time.sleep(0.3)
         return False
 
-    def get_switch_info_from_ui(self, max_retries: int = 2) -> Tuple[Optional[Tuple[int, int]], bool]:
+    def get_switch_info_from_ui(self, max_retries: int = 1) -> Tuple[Optional[Tuple[int, int]], bool]:
         """
-        [WireGuard UI 계층 구조 분석]
-        화면에 노출된 실제 tunnel_switch 노드를 파싱하여 (중심좌표, 현재 checked 상태) 반환
-        실패 시 캐시된 좌표 또는 기본 좌표 반환
+        [고속 스위치 좌표 반환]
+        기기별 정밀 고정 좌표(954, 382)를 즉시 반환하여 uiautomator dump로 인한 USB I/O 병목을 원천 방지합니다.
         """
-        for retry in range(1, max_retries + 1):
-            try:
-                xml_str = self._run_adb_cmd(
-                    "uiautomator dump /sdcard/wg_ui.xml >/dev/null 2>&1 && cat /sdcard/wg_ui.xml || true",
-                    timeout_sec=2
-                )
-                if xml_str and "<hierarchy" in xml_str:
-                    import xml.etree.ElementTree as ET
-                    root = ET.fromstring(xml_str[xml_str.find("<hierarchy"):])
-                    for elem in root.iter("node"):
-                        rid = elem.attrib.get("resource-id", "")
-                        cls = elem.attrib.get("class", "")
-                        b = elem.attrib.get("bounds", "")
-                        checked = (elem.attrib.get("checked", "false").lower() == "true")
-                        
-                        if "tunnel_switch" in rid or ("Switch" in cls and "wireguard" in elem.attrib.get("package", "")):
-                            m = re.search(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
-                            if m:
-                                x1, y1, x2, y2 = map(int, m.groups())
-                                if y1 >= 280:
-                                    cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-                                    update_device_set_config(self.device_id, {"wg_switch_coords": [cx, cy]})
-                                    return ((cx, cy), checked)
-            except Exception as e:
-                logger.debug(f"[{self.device_id}] UI 스위치 파싱 예외 (시도 #{retry}): {e}")
-            time.sleep(0.3)
-            
-        # UI 덤프 지연/실패 시 캐시 좌표 또는 기본 좌표로 즉시 폴백 (블로킹 방지)
         cached_coords = self.get_switch_coords()
         return (cached_coords, False)
 
@@ -465,7 +443,7 @@ rm -f /data/local/tmp/wg0_{self.device_id}.conf
             self.deploy_profile(client_ip, priv_key, server_pubkey, endpoint)
             self.toggle_switch_deterministic()
             
-            retry_deadline = time.time() + 3.0
+            retry_deadline = time.time() + 6.0
             while time.time() < retry_deadline:
                 time.sleep(0.5)
                 if self.is_tunnel_up() and self.check_naver_connectivity():

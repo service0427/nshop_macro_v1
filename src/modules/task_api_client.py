@@ -32,6 +32,7 @@ import os
 import json
 import time
 import logging
+from datetime import datetime
 import requests
 from typing import Dict, Any, List, Optional
 
@@ -45,7 +46,8 @@ if not logger.handlers:
 
 from src.config import (
     PRIMARY_SERVER_URL, BACKUP_SERVER_URL, ALLOCATE_ENDPOINT, RELEASE_ENDPOINT,
-    ALLOCATE_HISTORY_DIR, RELEASE_HISTORY_DIR
+    ALLOCATE_HISTORY_DIR, RELEASE_HISTORY_DIR, LOGS_DIR,
+    get_dated_dir, prune_dir_by_age, LOG_RETENTION_DAYS
 )
 
 # 기본 API 서버 URL 및 폴백 리스트
@@ -53,24 +55,6 @@ API_HOSTS = [
     PRIMARY_SERVER_URL,
     BACKUP_SERVER_URL
 ]
-
-def _prune_history_dir(dir_path: str, max_files: int = 100):
-    """지정된 디렉터리의 JSON 감사 파일이 max_files(100개)를 넘지 않도록 오래된 파일 자동 회전 삭제 (FIFO)"""
-    try:
-        if not os.path.exists(dir_path):
-            return
-        files = sorted(
-            [os.path.join(dir_path, f) for f in os.listdir(dir_path) if f.endswith(".json")],
-            key=os.path.getmtime
-        )
-        if len(files) > max_files:
-            for old_file in files[: len(files) - max_files]:
-                try:
-                    os.remove(old_file)
-                except Exception:
-                    pass
-    except Exception:
-        pass
 
 
 class TaskApiClient:
@@ -84,6 +68,18 @@ class TaskApiClient:
             "User-Agent": "NShopMacro-ZeroReboot/2.0",
             "Content-Type": "application/json"
         }
+        self.last_wait_info: Optional[Dict[str, Any]] = None
+
+    def _record_no_task(self, record: Dict[str, Any]):
+        """일자별 파일 하나(no_task_records.jsonl)에 시간, code, sub_code, message 등을 JSONL 레코드 형식으로 기록"""
+        try:
+            alloc_dated_dir = get_dated_dir(ALLOCATE_HISTORY_DIR)
+            record_file = os.path.join(alloc_dated_dir, "no_task_records.jsonl")
+            with open(record_file, "a", encoding="utf-8") as rf:
+                rf.write(json.dumps(record, ensure_ascii=False) + "\n")
+            prune_dir_by_age(ALLOCATE_HISTORY_DIR, retention_days=LOG_RETENTION_DAYS)
+        except Exception as e:
+            logger.debug(f"[-] no_task_records 기록 실패: {e}")
 
     def allocate_tasks(self, device_ids: List[str]) -> Optional[Dict[str, Any]]:
         """
@@ -97,6 +93,8 @@ class TaskApiClient:
         """
         dev_param = ",".join(device_ids)
         params = {"device_ids": dev_param}
+        self.last_wait_info = None
+        recorded = False
 
         for base_url in self.hosts:
             endpoint = f"{base_url}/api/v1/allocate"
@@ -107,26 +105,71 @@ class TaskApiClient:
                     data = res.json()
                     task_list = data.get("tasks") or data.get("jobs") or []
                     alloc_id = data.get("alloc_id")
+                    
+                    if not task_list:
+                        logger.info(f"[*] ⏸️ 가용 작업 없음 (200 OK, tasks: [])")
+                        self.last_wait_info = {
+                            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "status_code": 200,
+                            "code": "NO_TASKS",
+                            "sub_code": "EMPTY_TASKS",
+                            "message": "서버 응답은 200 성공이나 가용 작업이 비어있습니다 (tasks: []).",
+                            "requested_devices": device_ids
+                        }
+                        if not recorded:
+                            self._record_no_task(self.last_wait_info)
+                            recorded = True
+                        return data
+
                     logger.info(f"[✓] 작업 할당 수신 성공! (alloc_id: {alloc_id}, 작업 수: {len(task_list)})")
                     
-                    # 로컬 JSON 감사 로그 저장 (최대 100개 자동 유지)
+                    # 로컬 JSON 감사 로그 저장 (일자별 서브디렉토리, 최소 30일 보존)
                     try:
                         ts = int(time.time())
-                        alloc_dir = ALLOCATE_HISTORY_DIR
-                        os.makedirs(alloc_dir, exist_ok=True)
-                        with open(f"{alloc_dir}/alloc_{alloc_id}_{ts}.json", "w", encoding="utf-8") as jf:
+                        alloc_dated_dir = get_dated_dir(ALLOCATE_HISTORY_DIR)
+                        with open(f"{alloc_dated_dir}/alloc_{alloc_id}_{ts}.json", "w", encoding="utf-8") as jf:
                             json.dump(data, jf, ensure_ascii=False, indent=2)
-                        _prune_history_dir(alloc_dir, max_files=100)
+                        prune_dir_by_age(ALLOCATE_HISTORY_DIR, retention_days=LOG_RETENTION_DAYS)
                     except Exception:
                         pass
 
                     return data
+                elif res.status_code == 503:
+                    try:
+                        err_data = res.json()
+                    except Exception:
+                        err_data = {}
+
+                    code = err_data.get("code") or "NO_TASKS"
+                    sub_code = err_data.get("sub_code")
+                    message = err_data.get("message") or res.text[:100]
+
+                    sub_disp = f"/{sub_code}" if sub_code else ""
+                    logger.info(f"[*] ⏸️ 작업 대기 (503): [{code}{sub_disp}] {message}")
+
+                    self.last_wait_info = {
+                        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "status_code": 503,
+                        "code": code,
+                        "sub_code": sub_code,
+                        "message": message,
+                        "requested_devices": device_ids
+                    }
+                    if not recorded:
+                        self._record_no_task(self.last_wait_info)
+                        recorded = True
                 else:
                     logger.warning(f"[-] 서버 응답 오류 ({res.status_code}): {res.text[:100]}")
             except Exception as e:
                 logger.warning(f"[-] 할당 요청 실패 ({base_url}): {e}")
 
-        logger.error("[!] 모든 API 엔드포인트에 대한 작업 할당 요청 실패.")
+        if self.last_wait_info:
+            code = self.last_wait_info.get("code", "")
+            sub_code = self.last_wait_info.get("sub_code", "")
+            sub_disp = f"/{sub_code}" if sub_code else ""
+            logger.info(f"[*] ⏸️ 가용 작업 대기 유지 중: [{code}{sub_disp}] {self.last_wait_info.get('message')}")
+        else:
+            logger.error("[!] 모든 API 엔드포인트에 대한 작업 할당 요청 실패 (네트워크/서버 연결 실패).")
         return None
 
     def release_tasks(self, alloc_id: str, results: List[Dict[str, Any]]) -> bool:
@@ -205,14 +248,26 @@ class TaskApiClient:
             "results": formatted_results
         }
 
-        # 로컬 JSON 반환 감사 로그 저장 (최대 100개 자동 유지)
+        # 로컬 JSON 반환 감사 로그 저장 (일자별 서브디렉토리, 최소 30일 보존) 및 일일 task JSONL 누적
         try:
             ts = int(time.time())
-            release_dir = RELEASE_HISTORY_DIR
-            os.makedirs(release_dir, exist_ok=True)
-            with open(f"{release_dir}/release_{alloc_id}_{ts}.json", "w", encoding="utf-8") as jf:
+            release_dated_dir = get_dated_dir(RELEASE_HISTORY_DIR)
+            with open(f"{release_dated_dir}/release_{alloc_id}_{ts}.json", "w", encoding="utf-8") as jf:
                 json.dump(payload, jf, ensure_ascii=False, indent=2)
-            _prune_history_dir(release_dir, max_files=100)
+            prune_dir_by_age(RELEASE_HISTORY_DIR, retention_days=LOG_RETENTION_DAYS)
+
+            # 일일 클라이언트 상세 JSONL 로그 추가
+            import datetime
+            today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+            daily_events_file = os.path.join(LOGS_DIR, f"task_events_{today_str}.jsonl")
+            with open(daily_events_file, "a", encoding="utf-8") as elf:
+                for res_item in formatted_results:
+                    log_entry = {
+                        "alloc_id": str(alloc_id),
+                        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        **res_item
+                    }
+                    elf.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
         except Exception:
             pass
 

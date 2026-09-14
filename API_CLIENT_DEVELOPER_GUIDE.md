@@ -1,6 +1,6 @@
-# 📱 Mikrotik Mobile Automation Client API Developer Guide (v3.0 Production Standard)
+# 📱 Mikrotik Mobile Automation Client API Developer Guide (v3.1 Production Standard)
 
-본 문서는 안드로이드 실단말기(5~60대) 및 클라이언트 자동화 워커가 마이크로틱 라우터 API 서버와 통신하여 **WireGuard VPN 연결, 실전 2~3단어 검색/클릭 작업 수행, NNB/NAPP_DI/GPS 식별자 추출, 10자리 표준 프로필(pf_0000000001) 자동 시딩/에이징, snapshot_size(KB) 반납, DB 원장 기반 초경량 프로필 자동 동기화(Pruning), 단말기 1대씩 즉시 개별 반납, 4중 지능형 라우터 보호**를 수행하는 최신 프로덕션 실연동 표준 규격서입니다.
+본 문서는 안드로이드 실단말기(5~60대) 및 클라이언트 자동화 워커가 마이크로틱 라우터 API 서버와 통신하여 **WireGuard VPN 연결, 실전 2~3단어 검색/클릭 작업 수행, NNB/NAPP_DI/GPS/타임스탬프 식별자 추출, 10자리 표준 프로필(pf_0000000001) 자동 시딩/에이징, 앱 설치/업데이트 타임스탬프(install_ts/update_ts) 영구 보존, snapshot_size(KB) 반납, DB 원장 기반 초경량 프로필 자동 동기화(Pruning), 단말기 1대씩 즉시 개별 반납, 4중 지능형 라우터 보호**를 수행하는 최신 프로덕션 실연동 표준 규격서입니다.
 
 ---
 
@@ -29,14 +29,23 @@
 ### 💡 핵심 원칙 1: "10자리 고정 프로필 파일명 (`pf_0000000001`)"
 * 서버는 단말기별로 `pf_0000000001`부터 `pf_9999999999`까지 10자리 고정 일련번호를 부여합니다.
 * 단말기는 서버가 내려주는 **`profile_name`**을 기준으로 자신의 로컬 작업 폴더(예: `/data/local/tmp/profile_storage/`)에 `f"{profile_name}.tar.gz"` 파일로 압축/해제합니다.
-  - `profile_id == 0`: **신규 생성 (시딩)** ➔ 이전 프로필을 로드하지 않고 완전 초기화(Clean) 상태에서 네이버 앱 기동. 작업 완료 후 `f"{profile_name}.tar.gz"`로 압축 저장!
-  - `profile_id > 0`: **기존 숙성 프로필** ➔ 단말기 로컬의 `f"{profile_name}.tar.gz"`를 압축 해제(복원)하여 네이버 앱 기동!
 
-### 💡 핵심 원칙 2: "작업 완료 후 snapshot_size (KB Float) 반납"
-* 네이버 검색/작업 완주 후 생성된 `.tar.gz` 파일 크기를 **KB 단위 Float(예: `116.2`)**로 서버에 보고합니다.
+### 💡 핵심 원칙 2: "신규 시딩 시 네이버 앱 데이터 초기화 (`pm clear`) 필수"
+* `profile_id == 0`: **신규 생성 (시딩)**
+  - 네이버 앱 실행 전 **반드시 `adb shell pm clear com.nhn.android.search` (앱 데이터 완전 초기화)** 를 실행합니다.
+  - 깨끗한 상태에서 네이버 앱을 기동하여 이번 할당된 키워드 1개만 검색 후 `f"{profile_name}.tar.gz"`로 압축 저장합니다. (검색어 누적 방지)
+* `profile_id > 0`: **기존 숙성 프로필**
+  - 단말기 로컬의 `f"{profile_name}.tar.gz"`를 압축 해제(복원)하여 네이버 앱을 기동합니다.
+
+### 💡 핵심 원칙 3: "앱 설치 타임스탬프 및 버전 메타데이터 영구 보존"
+* 서버는 각 프로필마다 **과거 45~300일 전의 고유한 앱 설치 타임스탬프(`install_ts`, 13자리 밀리초 Unix epoch)** 와 업데이트 타임스탬프(`update_ts`)를 발급하여 영구 보존합니다.
+* 단말기는 서버가 내려준 메타데이터(`installer_pkg`, `app_version`, `app_version_code`)를 네이버 앱 환경 파라미터 및 반납 시 1:1로 활용합니다.
+
+### 💡 핵심 원칙 4: "작업 완료 후 snapshot_size (KB Float) 반납"
+* 네이버 검색/작업 완주 후 생성된 `.tar.gz` 파일 크기를 **KB 단위 Float(예: `116.2`)** 로 서버에 보고합니다.
 * 앱 기동 실패 또는 네트워크 단절 등으로 파일이 생성되지 않은 경우 `snapshot_size: null`로 반납합니다.
 
-### 💡 핵심 원칙 3: "중앙 서버 제어 기반 100회 주기당 1회 온디바이스 자동 정제"
+### 💡 핵심 원칙 5: "중앙 서버 제어 기반 100회 주기당 1회 온디바이스 자동 정제"
 * **원격 중앙 제어**: 중앙 서버 관리자가 오래된 프로필을 삭제하거나 `RETIRED`/`DELETED` 처리하면, 단말기 워커가 100주기마다 서버를 조회하여 **서버 DB에 없는 파일들을 단말기 로컬 저장소에서 알아서 영구 삭제(Prune)**합니다.
 * 단말기 5~60대에 개별 접속할 필요 없이 **중앙 서버 DB에서 원클릭으로 모든 단말기의 프로필을 원격 중앙 관리**합니다.
 
@@ -63,32 +72,122 @@ Host: 114.207.112.173:5000
 ```json
 {
   "status": "success",
-  "alloc_id": "3100",
+  "alloc_id": "3969",
   "router": {
-    "router_num": "008",
-    "endpoint": "221.163.54.24:45820",
-    "macvlan_ip": "125.130.247.245",
-    "server_public_key": "si9407EffGLzEbcWCodH7tp1KR4eUE2MjeoBU0nqgWk="
+    "router_num": "011",
+    "endpoint": "119.197.146.94:45820",
+    "macvlan_ip": "119.197.183.68",
+    "server_public_key": "caunbt0kvyX6VKcqrib223HO1kfqg4GEEL6f7CZc2Qk="
   },
   "tasks": [
     {
       "device_id": "R3CR70SZ0JJ",
-      "ip": "10.8.0.3",
-      "private_key": "6Cl0ROVXfDFV+J...",
-      "mid": "91230953977",
-      "keyword": "디테일애드 여름 버킷햇",
-      "product_title": "여름 버킷햇 벙거지 남자 여성 사파리 모자",
+      "ip": "10.8.0.2",
+      "private_key": "eCZyQJvL6KmYA6ABNcWphCNPPeve44gYUcFtRWFA62k=",
+      "mid": "91281457083",
+      "keyword": "gold finger 출퇴근용 자동우산",
+      "product_title": "골드핑거 자동 접이식 우산 휴대용 여행 출근 야외우산",
       "allow_click": true,
       "job_type": "GOLDEN_CLICK",
+      "wifi_list": [
+        {
+          "ssid": "iptime_5G_22E0",
+          "bssid": "64:e5:99:a3:22:e0",
+          "frequency": 5240,
+          "rssi": -57,
+          "connectedSecurityType": 2
+        },
+        {
+          "ssid": "SK_WiFiGIGA_2.4G",
+          "bssid": "e4:26:8b:c3:4d:f0",
+          "frequency": 2437,
+          "rssi": -85
+        },
+        {
+          "ssid": "KT_GiGA_5G_Home",
+          "bssid": "50:46:ae:34:a1:c2",
+          "frequency": 5745,
+          "rssi": -69
+        }
+      ],
       "profile": {
-        "profile_id": 0,
-        "profile_name": "pf_0000000015",
-        "ssaid": null
+        "profile_id": 663,
+        "profile_name": "pf_0000000074",
+        "ssaid": "6e2951e4222952ff",
+        "adid": "eaa62887-3407-4055-9f96-ebccdca1d57e",
+        "install_ts": 1767419009903,
+        "update_ts": 1786764966607,
+        "installer_pkg": "com.android.vending",
+        "app_version": "12.23.1",
+        "app_version_code": 12230102
       }
     }
   ]
 }
 ```
+
+#### 🔹 작업 대기 및 쿨다운 응답 (503 Service Unavailable)
+서버에 가용 작업이 없거나(스토어 쿨다운) 라우터/IP 대기 중인 경우, 서버는 HTTP 503과 함께 세부 사유 코드를 반환합니다. 클라이언트는 이를 `logs/allocate_history/YYYY-MM-DD/no_task_records.jsonl`에 레코드 형식으로 기록하며, 단말기는 WireGuard나 앱을 실행하지 않고 안전 유휴(IDLE) 대기 상태를 유지합니다.
+
+```json
+// 1. 일감 없을 때 (스토어 쿨다운 등)
+HTTP/1.1 503 Service Unavailable
+{
+  "status": "error",
+  "code": "NO_TASKS",
+  "sub_code": "STORE_COOLDOWN",
+  "message": "스토어 쿨다운 진행 중입니다."
+}
+
+// 2. 가용 라우터/IP 없을 때
+HTTP/1.1 503 Service Unavailable
+{
+  "status": "error",
+  "code": "NO_IP",
+  "sub_code": "ROUTER_WAITING",
+  "message": "가용 라우터 대기 중입니다."
+}
+```
+
+* **`wifi_list` 배열 상세 설명 (필수 - 누락 시 Fail-Fast 차단)**:
+  - `wifi_list[0]` (0번 인덱스): 단말기가 접속한 **메인 연결 공유기 (Connected AP)**. `"connectedSecurityType": 2` 필수 포함.
+  - `wifi_list[1:]` (1번 이후 인덱스): 단말기 주변에서 탐색된 **이웃집 스캔 Wi-Fi AP**.
+  - `ssid`: 공유기 명칭 (예: `iptime_5G_22E0`, `SK_WiFiGIGA_2.4G`, `KT_GiGA_5G_Home`)
+  - `bssid`: 공유기 MAC 주소 (6바이트 소문자 콜론 표기)
+  - `frequency`: 주파수 (2.4GHz: 2412, 2437, 2462 / 5GHz: 5180, 5240, 5745, 5765 MHz)
+  - `rssi`: 신호 강도 (dBm) (연결 AP: -45~-60dBm, 주변 AP: -65~-88dBm)
+
+* **`profile` 객체 상세 설명**:
+  - `profile_id`: `0`이면 신규 생성, `> 0`이면 기존 숙성 프로필
+  - `profile_name`: `pf_0000000074` (10자리 표준 파일명)
+  - `install_ts`: 최초 앱 설치 타임스탬프 (13자리 Unix epoch ms)
+  - `update_ts`: 최근 앱 업데이트 타임스탬프 (13자리 Unix epoch ms)
+  - `installer_pkg`: 설치 출처 패키지명 (`com.android.vending` 고정)
+  - `app_version`: 설치된 네이버 앱 버전 문자열 (`12.23.1`)
+  - `app_version_code`: 설치된 네이버 앱 버전 코드 (`12230102`)
+
+* **🚀 [향후 로드맵 / API 확장 규격] 프로필별 하드웨어 지문 가상화 필드 (Hardware Virtualization Roadmap)**:
+  - 현재는 테스트 및 단일/유니크 프로필 검증 단계이므로 클라이언트 워커가 `profile_name` 해시 기반 결정론적 난수로 가상화(`R5CR...`)를 수행 중입니다.
+  - **향후 정식 프로덕션 단계에서 API가 사전 생성/보존하여 내려줄 확장 필드 규격**:
+    ```json
+    "profile": {
+      "profile_id": 663,
+      "profile_name": "pf_0000000074",
+      "ssaid": "6e2951e4222952ff",
+      "adid": "eaa62887-3407-4055-9f96-ebccdca1d57e",
+      "serialno": "R5CR91KMUTY",
+      "ap_serial": "0x01100583",
+      "nas_user_id": "088eba4c-c3a8-4498-961d-4447ac3f5ace",
+      "install_ts": 1767419009903,
+      "update_ts": 1786764966607,
+      "installer_pkg": "com.android.vending",
+      "app_version": "12.23.1",
+      "app_version_code": 12230102
+    }
+    ```
+  - `serialno`: 삼성 갤럭시 11자리 가상 하드웨어 시리얼 (`R3CR`/`R5CR` + 배치 7~C + 6자리 영숫자). API DB 원장에서 프로필별로 영구 바인딩하여 내려줌.
+  - `ap_serial`: 스냅드래곤 888 32-bit AP 퓨즈 번호 (`0x01` + 6자리 Hex).
+  - `nas_user_id`: 네이버 광고/FDS 식별자 (`com.naver.ads.flags.xml`에 주입되는 고유 UUID).
 
 ---
 
@@ -103,27 +202,31 @@ Host: 114.207.112.173:5000
 Content-Type: application/json
 
 {
-  "alloc_id": "3100",
+  "alloc_id": "3969",
   "results": [
     {
       "device_id": "R3CR70SZ0JJ",
       "status": "SUCCESS",
-      "target_code": "91230953977",
-      "keyword": "디테일애드 여름 버킷햇",
+      "target_code": "91281457083",
+      "keyword": "gold finger 출퇴근용 자동우산",
       "is_searched": true,
       "is_clicked": true,
       "is_exposed": true,
       "exposure_rank": 1,
-      "execution_sec": 84.5,
-      "cycle_duration_sec": 84.5,
-      "battery_level": 53.06,
+      "execution_sec": 65.2,
+      "battery_level": 91.50,
       "gps_lat": 37.497942,
       "gps_lng": 127.027621,
-      "ssaid": "5a21faf64ac349da",
-      "adid": "38b58cc3-e55c-029b-9808-3b545647f840",
+      "ssaid": "6e2951e4222952ff",
+      "adid": "eaa62887-3407-4055-9f96-ebccdca1d57e",
       "nnb": "5FBIWHUTY6JWU",
       "napp_di": "f035173eb53f14993a2286efe7d87ba8",
-      "snapshot_size": 116.2
+      "install_ts": 1767419009903,
+      "update_ts": 1786764966607,
+      "installer_pkg": "com.android.vending",
+      "app_version": "12.23.1",
+      "app_version_code": 12230102,
+      "snapshot_size": 118.0
     }
   ]
 }
@@ -133,13 +236,16 @@ Content-Type: application/json
 ```json
 {
   "status": "success",
-  "message": "Results processed",
-  "completed_device_ids": ["R3CR70SZ0JJ"],
-  "remaining_working": 2,
-  "toggled_routers": []
+  "session_state": "PARTIAL_RELEASED",
+  "is_session_closed": false,
+  "alloc_id": "3969",
+  "remaining_working": 1,
+  "processed_devices": ["R3CR70SZ0JJ"],
+  "toggled_routers": [],
+  "message": "세션 [3969] 조기 반납 접수 완료 (진행 중인 단말기 1대 존재로 라우터 IP 유지)"
 }
 ```
-*(세션 내 마지막 남은 단말기까지 모두 반납되면 `remaining_working: 0`이 되며 라우터 IP가 자동 세척/토글됩니다.)*
+*(세션 내 마지막 남은 단말기까지 모두 반납되면 `remaining_working: 0`, `is_session_closed: true`가 되며 라우터 IP가 자동 세척/토글됩니다.)*
 
 ---
 
@@ -192,3 +298,4 @@ Endpoint = {router.endpoint}
 AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
 ```
+

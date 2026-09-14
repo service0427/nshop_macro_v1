@@ -41,21 +41,8 @@ class GestureEngine:
         return (rx, ry)
 
     def warm_up_home_scroll(self):
-        """[홈 화면 랜덤 웜업 스크롤 ➔ 하단 '홈' 탭 1회 탭으로 최상단 새로고침 복귀]"""
-        logger.info(f"[{self.device_id}] 홈 화면 랜덤 웜업 스크롤 수행...")
-        scroll_count = random.randint(1, 2)
-        for _ in range(scroll_count):
-            start_y = random.randint(1550, 1750)
-            end_y = random.randint(700, 950)
-            duration = random.randint(250, 350)
-            self.inspector.run_adb(f"input swipe 540 {start_y} 540 {end_y} {duration}")
-            time.sleep(random.uniform(0.7, 1.2))
-
-        hx, hy = self.inspector.get_home_tab_coords()
-        logger.info(f"[{self.device_id}] 하단 '홈' 탭 버튼({hx}, {hy}) 탭 ➔ 최상단 새로고침 및 원점 복귀...")
-        self.inspector.run_adb(f"input tap {hx} {hy}")
-        time.sleep(1.2)
-        logger.info(f"[{self.device_id}] [✓] 홈 화면 최상단 원점 복귀 완료 (검색 준비 완료)")
+        """[홈 화면 스크롤 및 홈 버튼 탭 액션 제거 - 클린 홈 상단에서 검색창 즉시 진입]"""
+        logger.info(f"[{self.device_id}] [✓] 클린 홈 화면 상단 원점 확인 완료 (불필요한 메인 피드 스크롤/영상 오터치 방지를 위해 스크롤 생략)")
 
     def scroll_verify_search_results(self) -> None:
         """[검색 결과 로딩 확인차 가벼운 1~2회 하단 스크롤 후 TOP 버튼 탭으로 최상단 초고속 원점 복귀]"""
@@ -63,67 +50,110 @@ class GestureEngine:
         logger.info(f"[{self.device_id}] [기본 스크롤] 검색 결과 확인차 가벼운 {down_passes}회 하단 스크롤 ➔ TOP 버튼 원점 복귀...")
 
         for i in range(1, down_passes + 1):
-            x1 = random.randint(480, 600)
+            # 🛡️ 웹 링크/블로그/광고 카드 클릭 오인식 방지: 화면 우측 안전 여백(X: 880~950) 및 빠른 스와이프(200~240ms) 적용
+            x1 = random.randint(880, 950)
             y1 = random.randint(1550, 1750)
-            x2 = x1 + random.randint(-10, 10)
-            y2 = random.randint(1100, 1300)
-            duration = random.randint(320, 420)
-            logger.info(f"[{self.device_id}]  ↳ [기본 다운 #{i}/{down_passes}] ({x1}, {y1}) -> ({x2}, {y2}) [이동: {y1 - y2}px | {duration}ms]")
+            x2 = x1 + random.randint(-5, 5)
+            y2 = random.randint(1050, 1250)
+            duration = random.randint(200, 240)
+            logger.info(f"[{self.device_id}]  ↳ [기본 다운 #{i}/{down_passes}] ({x1}, {y1}) -> ({x2}, {y2}) [이동: {y1 - y2}px | {duration}ms (우측 여백 안전 스크롤)]")
             self.inspector.run_adb(f"input swipe {x1} {y1} {x2} {y2} {duration}")
-            time.sleep(random.uniform(0.6, 0.9))
+            time.sleep(random.uniform(0.5, 0.8))
 
         logger.info(f"[{self.device_id}]  ↳ [TOP 버튼 트리거 & 탭] 미세 위 플릭 ➔ TOP 플로팅 버튼(993, 2262) 탭")
-        self.inspector.run_adb("input swipe 500 1300 500 1450 150")
+        self.inspector.run_adb("input swipe 920 1300 920 1450 150")
         time.sleep(0.3)
         self.inspector.run_adb("input tap 993 2262")
         time.sleep(0.8)
         logger.info(f"[{self.device_id}] [✓] TOP 버튼을 통해 검색 결과 페이지 최상단 원점 복귀 완료 (부하 제로, 오차 제로)")
 
-    def browse_product_detail_page(self, target_dwell_sec: float = 30.0, min_scrolls: int = 4, max_scrolls: int = 7) -> bool:
+    def browse_product_detail_page(self, target_dwell_sec: float = 30.0, min_scrolls: int = 4, max_scrolls: int = 7, load_timeout_sec: float = 30.0) -> bool:
         """
-        [STEP 4: 상품 상세페이지 30초 자연스러운 체류(Dwell) 및 다단계 탐색 스크롤]
-        - 상세페이지에서 30초간 실제 사용자 패턴으로 체류 및 스크롤
+        [STEP 4: 상품 상세페이지 완전 로딩 확인 후 25~45초 랜덤 휴먼 체류 및 고도화된 탐색 스크롤]
         """
+        # 0. 상세페이지 본문 및 구매 CTA 완전 로딩 대기 (최대 30초)
+        logger.info(f"[{self.device_id}] 상세페이지 완전 로딩 및 CTA 렌더링 대기 중 (최대 {load_timeout_sec}초)...")
+        load_start = time.time()
+        fully_loaded = False
+        while time.time() - load_start < load_timeout_sec:
+            if self.inspector.is_on_product_detail_page():
+                fully_loaded = True
+                break
+            time.sleep(0.5)
+
+        if not fully_loaded:
+            logger.warning(f"[{self.device_id}] [⚠️ 상세페이지 로딩 미흡] {load_timeout_sec}초 내 상세페이지(m.smartstore/brand) 진입이 확인되지 않음 -> 체류 중단")
+            return False
+
         scroll_count = random.randint(min_scrolls, max_scrolls)
         logger.info(f"[{self.device_id}] ========================================================")
-        logger.info(f"[{self.device_id}] 📜 [STEP 4] 상품 상세페이지 {target_dwell_sec}초 체류 및 랜덤 {scroll_count}회 다단계 탐색 스크롤")
+        logger.info(f"[{self.device_id}] 📜 [STEP 4 강화 체류] 상품 상세페이지 로딩 완료 ➔ {target_dwell_sec}초 고도화 체류 시작 (스크롤 {scroll_count}회)")
         logger.info(f"[{self.device_id}] ========================================================")
 
         t_start = time.time()
-        for s_idx in range(1, scroll_count + 1):
-            # 🛡️ 상세 체류 중 타사 앱/알림 팝업에 의한 화면 가림 방지 가드
-            self.inspector.ensure_naver_foreground()
 
-            scroll_dist = random.randint(480, 750)
+        # 1. 상단 대표 썸네일 이미지 가로 슬라이더 탐색 (1~2회 스와이프)
+        try:
+            logger.info(f"[{self.device_id}]  ↳ [휴먼 제스처: 썸네일 탐색] 상단 상품 이미지 슬라이더 가로 스와이프")
+            self.inspector.run_adb("input swipe 850 850 250 850 280")
+            time.sleep(random.uniform(1.5, 2.2))
+            if random.random() < 0.5:
+                self.inspector.run_adb("input swipe 850 850 250 850 280")
+                time.sleep(random.uniform(1.2, 1.8))
+        except Exception:
+            pass
+
+        # 2. 다단계 상세 스크롤 및 체류 인터랙션
+        for s_idx in range(1, scroll_count + 1):
+            # 🛡️ 상세 체류 중 타사 앱/알림 팝업 및 페이지 이탈 검증 가드
+            self.inspector.ensure_naver_foreground()
+            if not self.inspector.is_on_product_detail_page():
+                logger.warning(f"[{self.device_id}] [⚠️ 상품 페이지 이탈 감지] 상세페이지에서 벗어남 -> 추가 스크롤 즉시 중단")
+                break
+
+            scroll_dist = random.randint(450, 750)
             start_x = random.randint(450, 650)
             start_y = random.randint(1550, 1780)
             end_x = start_x + random.randint(-15, 15)
 
-            if s_idx == scroll_count and random.random() < 0.6:
-                end_y = start_y + random.randint(300, 500)
-                action_label = "상향 훑기"
+            # 마지막 직전 혹은 중간에 자연스러운 상향(되돌아보기) 스크롤 1회 섞기
+            if (s_idx == scroll_count or s_idx == 3) and random.random() < 0.5:
+                end_y = start_y + random.randint(250, 450)
+                action_label = "상향 훑기 (재확인)"
             else:
                 end_y = start_y - scroll_dist
                 action_label = "하향 탐색"
 
-            duration = random.randint(380, 480)
+            duration = random.randint(350, 480)
             remaining_time = max(1.0, target_dwell_sec - (time.time() - t_start))
             remaining_scrolls = max(1, scroll_count - s_idx + 1)
-            pause_time = round(min(6.5, max(2.5, remaining_time / remaining_scrolls + random.uniform(-0.6, 0.6))), 2)
+            pause_time = round(min(7.0, max(3.0, remaining_time / remaining_scrolls + random.uniform(-0.5, 0.8))), 2)
 
-            logger.info(f"[{self.device_id}]  ↳ [상세 {action_label} #{s_idx}/{scroll_count}] ({start_x}, {start_y}) -> ({end_x}, {end_y}) [이동: {abs(end_y-start_y)}px | 체류 대기: {pause_time}s]")
+            logger.info(f"[{self.device_id}]  ↳ [상세 {action_label} #{s_idx}/{scroll_count}] ({start_x}, {start_y}) -> ({end_x}, {end_y}) [이동: {abs(end_y-start_y)}px | 정독 체류: {pause_time}s]")
             self.inspector.run_adb(f"input swipe {start_x} {start_y} {end_x} {end_y} {duration}")
             time.sleep(pause_time)
 
+        # 3. 목표 체류 시간 완주 대기
         elapsed = time.time() - t_start
         if elapsed < target_dwell_sec:
             extra_wait = round(target_dwell_sec - elapsed, 1)
-            logger.info(f"[{self.device_id}]  ↳ [30초 체류 충족 대기] 잔여 {extra_wait}초간 상세페이지 추가 체류 중...")
+            logger.info(f"[{self.device_id}]  ↳ [{target_dwell_sec}초 체류 충족 대기] 잔여 {extra_wait}초간 상세페이지 추가 체류 중...")
             time.sleep(extra_wait)
 
         total_dwell = round(time.time() - t_start, 1)
         subprocess.run(["adb", "-s", self.device_id, "shell", "screencap -p /sdcard/macro_product_final.png"], stdout=subprocess.DEVNULL)
         subprocess.run(["adb", "-s", self.device_id, "pull", "/sdcard/macro_product_final.png", f"/tmp/macro_product_final_{self.device_id}.png"], stdout=subprocess.DEVNULL)
         logger.info(f"[{self.device_id}] [📸 최종 상세페이지 캡처 저장 완료] -> /tmp/macro_product_final_{self.device_id}.png")
-        logger.info(f"[{self.device_id}] [🎉 STEP 4 완료] 상품 상세페이지 {total_dwell}초 체류 및 탐색 스크롤 완주!")
+        logger.info(f"[{self.device_id}] [🎉 STEP 4 완료] 상품 상세페이지 {total_dwell}초 체류 및 탐색 완주!")
+
+        # 4. [휴먼 세션 이탈 및 비콘 Flush 버퍼] 뒤로가기(BACK) 키 2회 전송 후 3초 대기 (wcs/nlog 비콘 완벽 전송)
+        try:
+            logger.info(f"[{self.device_id}] 🔙 [정상 세션 이탈] 뒤로가기(BACK) 키 전송 및 FDS 비콘/체류시간 Flush 대기(3초)...")
+            self.inspector.run_adb("input keyevent 4")
+            time.sleep(1.5)
+            self.inspector.run_adb("input keyevent 4")
+            time.sleep(2.0)
+        except Exception:
+            pass
+
         return True

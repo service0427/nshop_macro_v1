@@ -32,7 +32,7 @@
 """
 
 import logging
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List
 
 from src.modules.macro.ui_inspector import UIInspector
 from src.modules.macro.shopping_xml_parser import ShoppingXMLParser
@@ -74,6 +74,12 @@ class SearchNavigator:
     def wait_for_search_results_loaded(self, timeout_sec: float = 30.0) -> bool:
         """[Phase 2] 검색 결과 페이지(InAppBrowser) 완전 로딩 다중 지표 검증"""
         return self.lifecycle.wait_for_search_results_loaded(timeout_sec=timeout_sec)
+
+    @staticmethod
+    def build_intent_search_url(keyword: str) -> Tuple[str, Dict[str, Any]]:
+        """[Day 1] 모바일 상단 자동완성 추천(mtp_sug.top) Intent 직접 진입 URL 생성"""
+        from src.modules.macro_core import NaverMacroCore
+        return NaverMacroCore.build_intent_search_url(keyword)
 
     # ---------------------------------------------------------------------------------
     # 🔍 2. DOM 트리 기반 쇼핑 섹션 & 타겟 상품 분석
@@ -117,7 +123,7 @@ class SearchNavigator:
     def navigate_and_focus_target_card(
         self,
         target_mid: str,
-        max_scroll_passes: int = 3,
+        max_scroll_passes: int = 16,
         keyword: Optional[str] = None
     ) -> Optional[Tuple[int, int]]:
         """
@@ -126,7 +132,7 @@ class SearchNavigator:
         - Gate 2: 타겟 상품(MID) 없음 ➔ 스크롤 0회 즉시 종료 (Fail-Fast)
         - 통과 시: 워프 ➔ 슬라이더 보정 ➔ 타이틀 정밀 탭 좌표 (click_x, click_y) 반환
         """
-        return self.warp_navigator.navigate_and_focus_target_card(target_mid=target_mid, keyword=keyword)
+        return self.warp_navigator.navigate_and_focus_target_card(target_mid=target_mid, keyword=keyword, max_scroll_passes=max_scroll_passes)
 
     # ---------------------------------------------------------------------------------
     # 🛒 4. 상품 클릭 & 스마트스토어 30초 체류 완주 검증
@@ -157,3 +163,12 @@ class SearchNavigator:
             keyword=kw_val,
             timeout_sec=timeout_sec
         )
+
+    def get_session_exposed_products(self) -> List[Dict[str, Any]]:
+        """검색 세션에서 감지된 전체 상품 목록 반환 (타겟/비타겟, 자사/타사 전수)"""
+        return self.warp_navigator.get_session_exposed_products()
+
+    def save_raw_impressions_action_dump(self, **kwargs) -> str:
+        """액션별 개별 노출 덤프 파일 저장"""
+        return self.warp_navigator.save_raw_impressions_action_dump(**kwargs)
+

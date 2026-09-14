@@ -63,7 +63,7 @@ class BatteryTracker:
         charging = True
         try:
             out = subprocess.check_output(
-                ["adb", "-s", device_id, "shell", "dumpsys battery"],
+                ["adb", "-s", device_id, "shell", "dumpsys", "battery"],
                 timeout=2.0, stderr=subprocess.DEVNULL, text=True
             )
             counter = 0

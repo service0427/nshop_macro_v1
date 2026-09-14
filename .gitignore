@@ -21,14 +21,18 @@ env/
 venv/
 device_set.json
 
-# APK binaries & Archives (Managed via Google Drive to respect GitHub 100MB file limit)
-apks/*.apk
-apks/*.zip
-apks/*.tar.gz
-apks/naver_app/
-apks/wireguard/
-apks/adbkeyboard/
-apks/essential_tools/
+# APK binaries & Archives (Managed externally to respect GitHub file limits)
+apks/
+*.apk
+*.zip
+*.tar.gz
+!resources/golden_shared_prefs.tar.gz
+
+# Test dumps & raw artifacts
+tests/*.png
+tests/*.xml
+tests/*.jpg
+tests/*.jpeg
 
 # OS specific
 .DS_Store

@@ -1,0 +1,171 @@
+{
+  "scan_time": "2026-09-10 08:22:20",
+  "duration_sec": 4.4,
+  "total_files_scanned": 53949,
+  "total_candidates": 1588,
+  "category_breakdown": {
+    "DRM_SECURITY": 947,
+    "HARDWARE_BUILD": 181,
+    "WEBVIEW_FINGERPRINT": 145,
+    "INTEGRITY_SIGNATURE": 81,
+    "TELEPHONY": 54,
+    "LOCATION": 37,
+    "PACKAGE_MANAGER": 34,
+    "OS_IDENTIFIERS": 27,
+    "WIFI_NETWORK": 24,
+    "ROOT_DETECTION": 15,
+    "SHELL_EXEC": 13,
+    "SYSTEM_INFO": 12,
+    "CLIPBOARD": 7,
+    "DISPLAY": 6,
+    "KERNEL_FS": 3,
+    "BLUETOOTH": 2
+  },
+  "rule_breakdown": {
+    "DRM_WIDEVINE": 947,
+    "BUILD_PROPERTIES": 180,
+    "WEBVIEW_BRIDGE_UA": 145,
+    "APP_SIGNATURE_KEYSTORE": 81,
+    "LOCATION_SERVICES": 37,
+    "PKG_INSTALL_AUDIT": 34,
+    "OS_ANDROID_ID": 27,
+    "TEL_IMEI_DEVICEID": 20,
+    "ROOT_TAMPER_DETECTION": 15,
+    "SHELL_EXEC_PROP": 13,
+    "PROCESS_MEMORY": 12,
+    "CELLULAR_NETWORK_TYPE": 12,
+    "WIFI_MAC_IP": 11,
+    "TEL_OPERATOR_CELL": 11,
+    "TEL_SUBSCRIBER_SIM": 11,
+    "NET_INTERFACE_MAC": 8,
+    "CLIPBOARD_ACCESS": 7,
+    "DISPLAY_METRICS": 6,
+    "WIFI_BSSID_SSID": 5,
+    "FS_SYS_EFS_INSPECTION": 2,
+    "BT_IDENTIFIER": 2,
+    "BUILD_SERIAL": 1,
+    "FS_PROC_INSPECTION": 1
+  },
+  "top_data_collecting_classes": [
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/chromium/media/MediaDrmBridge.java",
+      "count": 210
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/chromium/media/mojom/MediaDrmStorage_Internal.java",
+      "count": 185
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/prismplayer/media3/exoplayer/drm/FrameworkMediaDrm.java",
+      "count": 87
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/chromium/media/MediaDrmBridgeJni.java",
+      "count": 41
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "count": 36
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/prismplayer/security/WidevineDrmInfoKt.java",
+      "count": 35
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/prismplayer/media3/exoplayer/drm/DummyExoMediaDrm.java",
+      "count": 34
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/prismplayer/media3/exoplayer/drm/DefaultDrmSessionManager.java",
+      "count": 27
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/chromium/media/MediaDrmStorageBridgeJni.java",
+      "count": 23
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/prismplayer/utils/DrmUtils.java",
+      "count": 18
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/chromium/media/MediaDrmStorageBridge.java",
+      "count": 18
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/prismplayer/media3/exoplayer/drm/DefaultDrmSession.java",
+      "count": 16
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/nhn/android/search/browser/webtab/WebViewTab.java",
+      "count": 14
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/jni_zero/GEN_JNI.java",
+      "count": 14
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/prismplayer/media3/exoplayer/drm/ExoMediaDrm.java",
+      "count": 13
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/nhn/android/search/browserfeatures/webmodal/WebModalFragmentImpl.java",
+      "count": 13
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/nhn/android/search/browserfeatures/slideweb/SlideWebFragmentImpl.java",
+      "count": 12
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/nhn/android/system/SystemInfo.java",
+      "count": 12
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/chromium/media/MediaDrmSessionManager.java",
+      "count": 12
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/google/android/gms/location/FusedLocationProviderClient.java",
+      "count": 10
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/EtiquetteTimeRequestBody.java",
+      "count": 9
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/PushConfigsRequestBody.java",
+      "count": 9
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/EventPushRequestBody.java",
+      "count": 9
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/DeviceRequestBody.java",
+      "count": 9
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/DeviceResult.java",
+      "count": 9
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/CategoryIntervalRequestBody.java",
+      "count": 9
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/CategoryConfigsRequestBody.java",
+      "count": 9
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/PromotionBody.java",
+      "count": 9
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/prismplayer/media3/exoplayer/drm/HttpMediaDrmCallback.java",
+      "count": 9
+    },
+    {
+      "file": "archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/appsflyer/internal/AFg1uSDK.java",
+      "count": 9
+    }
+  ]
+}

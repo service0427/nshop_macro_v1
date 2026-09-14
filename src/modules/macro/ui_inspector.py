@@ -21,44 +21,49 @@ import subprocess
 import xml.etree.ElementTree as ET
 from typing import Dict, Any, Optional, Tuple
 from src.config import (
-    DEVICE_SET_FILE, CLICK_LOGS_DIR, CLICK_BEFORE_DIR, CLICK_AFTER_DIR, SCREENSHOT_DIR, UNEXPOSED_DUMPS_DIR, EXPOSED_DUMPS_DIR
+    DEVICE_SET_FILE, CLICK_LOGS_DIR, CLICK_BEFORE_DIR, CLICK_AFTER_DIR, SCREENSHOT_DIR,
+    UNEXPOSED_DUMPS_DIR, EXPOSED_DUMPS_DIR, get_dated_dir, prune_dir_by_age, LOG_RETENTION_DAYS
 )
+from src.modules.macro.image_archiver import MacroImageArchiver
 
 logger = logging.getLogger("NaverMacroCore.UIInspector")
 
+_BOUNDS_REGEX = re.compile(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]")
+
+
+def parse_bounds(bounds_str: str) -> Optional[Tuple[int, int, int, int]]:
+    """안드로이드 XML UI dump의 bounds 문자열('[x1,y1][x2,y2]')을 정규식으로 파싱하여 정수 튜플 (x1, y1, x2, y2) 반환"""
+    if not bounds_str:
+        return None
+    m = _BOUNDS_REGEX.search(bounds_str)
+    if m:
+        return int(m.group(1)), int(m.group(2)), int(m.group(3)), int(m.group(4))
+    return None
+
 
 def prune_dir(dir_path: str, max_files: int = 200):
-    """지정된 디렉터리의 전체 파일이 max_files(200개)를 넘지 않도록 가장 오래된 파일 자동 회전 삭제 (FIFO)"""
-    try:
-        if not os.path.exists(dir_path):
-            return
-        files = sorted(
-            [os.path.join(dir_path, f) for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))],
-            key=os.path.getmtime
-        )
-        if len(files) > max_files:
-            for old_file in files[: len(files) - max_files]:
-                try:
-                    os.remove(old_file)
-                except Exception:
-                    pass
-    except Exception:
-        pass
+    """30일 기준 보존 정책으로 위임 (max_files 제한 제거)"""
+    prune_dir_by_age(dir_path, retention_days=LOG_RETENTION_DAYS)
 
 
 def prune_image_dir(dir_path: str, max_files: int = 200):
-    """호환성을 위한 prune_dir 별칭"""
-    prune_dir(dir_path, max_files=max_files)
+    """30일 기준 보존 정책으로 위임 (max_files 제한 제거)"""
+    prune_dir_by_age(dir_path, retention_days=LOG_RETENTION_DAYS)
 
 
 class UIInspector:
     def __init__(self, device_id: str):
         self.device_id = device_id
+        self.image_archiver = MacroImageArchiver(
+            device_id=device_id,
+            run_adb_fn=self.run_adb,
+            is_foreground_fn=self.is_naver_foreground
+        )
         os.makedirs(CLICK_BEFORE_DIR, exist_ok=True)
         os.makedirs(CLICK_AFTER_DIR, exist_ok=True)
         os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 
-    def run_adb(self, cmd: str, timeout_sec: int = 3) -> str:
+    def run_adb(self, cmd: str, timeout_sec: int = 6) -> str:
         """기본 ADB shell 명령 실행"""
         try:
             full_cmd = ["adb", "-s", self.device_id, "shell", cmd]
@@ -86,6 +91,137 @@ class UIInspector:
         if any(ime in focus_str for ime in ["inputmethod", "InputMethod", "ADBKeyboard"]):
             return True
         return False
+
+    def ensure_adb_keyboard_active(self) -> bool:
+        """
+        [키보드 상태 판별 및 ADBKeyboard 즉시 전환]
+        현재 기본 키보드가 ADBKeyboard(com.android.adbkeyboard/.AdbIME)인지 판단하고,
+        아닐 경우 즉시 활성화(enable) 및 기본 IME로 전환(set).
+        """
+        try:
+            curr_ime = self.run_adb("settings get secure default_input_method").strip()
+            if "com.android.adbkeyboard/.AdbIME" in curr_ime:
+                return True
+
+            logger.info(f"[{self.device_id}] ⌨️ 기본 키보드 '{curr_ime}' 감지 ➔ ADBKeyboard(AdbIME)로 전환...")
+            self.run_adb("ime enable com.android.adbkeyboard/.AdbIME 2>/dev/null || true")
+            self.run_adb("ime set com.android.adbkeyboard/.AdbIME 2>/dev/null || true")
+            self.run_adb("settings put secure default_input_method com.android.adbkeyboard/.AdbIME 2>/dev/null || true")
+            time.sleep(0.2)
+
+            chk_ime = self.run_adb("settings get secure default_input_method").strip()
+            if "com.android.adbkeyboard/.AdbIME" in chk_ime:
+                logger.info(f"[{self.device_id}] [✓] ADBKeyboard 전환 완료 ({chk_ime})")
+                return True
+            else:
+                logger.warning(f"[{self.device_id}] [!] ADBKeyboard 전환 재확인: {chk_ime}")
+                return False
+        except Exception as e:
+            logger.warning(f"[{self.device_id}] ADBKeyboard 전환 중 예외: {e}")
+            return False
+    def get_current_webview_url(self) -> str:
+        """Frida가 실시간 기록하는 인앱 웹뷰 현재 활성 URL 조회 (0.01s 초고속)"""
+        try:
+            return self.run_adb("cat /data/local/tmp/naver_webview_url.txt 2>/dev/null", timeout_sec=2).strip()
+        except Exception:
+            return ""
+
+    def is_on_search_page(self, root: Optional[ET.Element] = None) -> bool:
+        """현재 화면이 네이버 검색 결과 페이지(m.search.naver.com)인지 엄격 검증"""
+        # Activity 검사: 메인 홈 화면(SearchHomePage) 잔류 여부 확인
+        top_act = self.run_adb("dumpsys activity activities | grep topResumedActivity 2>/dev/null || true")
+        if "SearchHomePage" in top_act:
+            return False
+
+        # 보조 검증: UI 덤프에 검색 결과 고유 마커 존재 여부
+        if root is None:
+            root = self.get_ui_tree("search_page_check")
+        if root is not None:
+            all_text = " ".join([e.attrib.get("text", "") or e.attrib.get("content-desc", "") or e.attrib.get("resource-id", "") for e in root.iter("node")])
+            
+            # 0. 빈 검색어 / 결과 없음 화면 감지 시 즉시 False
+            if "에 대한 검색결과가 없습니다" in all_text or "결과없음" in all_text:
+                return False
+
+            # 메인 홈 화면 전용 고유 마커만 감지 (본문에 흔한 '날씨', '쇼핑' 등 배제)
+            MAIN_HOME_MARKERS = ["searchBarRootView", "검색어를 입력해주세요", "검색어 또는 URL 입력", "홈피드"]
+            if any(m in all_text for m in MAIN_HOME_MARKERS) and "SearchHomePage" in top_act:
+                return False
+
+            SEARCH_RESULT_MARKERS = [
+                "블로그", "카페", "클립", "이미지", "지식iN", "동영상", "쇼핑", "VIEW", "어학사전", "뉴스",
+                "inappWebView", "tailView", "search_clear", "통합검색", "다른 사이트 더보기", "네이버 가격비교", "쇼핑베스트",
+                "nx_query", "nx_search_form", "nx_header", "_sch_tab", "power_link"
+            ]
+            if any(k in all_text for k in SEARCH_RESULT_MARKERS):
+                return True
+
+        url = self.get_current_webview_url().lower()
+        if ("m.search.naver.com" in url or "search.naver.com" in url) and "SearchHomePage" not in top_act:
+            return True
+        return False
+
+    def is_on_product_detail_page(self, root: Optional[ET.Element] = None) -> bool:
+        """
+        현재 화면이 스마트스토어/브랜드스토어 상품 페이지(m.smartstore.naver.com / m.brand.naver.com)인지 엄격 2중 검증
+        - 1. URL 검증: m.smartstore.naver.com, m.brand.naver.com, smartstore.naver.com, brand.naver.com
+        - 2. DOM 검증: 'N Pay 구매', '구매하기', '바로구매', '장바구니', '선물하기' 등 구매 전용 CTA 렌더링 확인
+        """
+        url = self.get_current_webview_url().lower()
+        has_store_url = any(domain in url for domain in [
+            "m.smartstore.naver.com", "m.brand.naver.com", "smartstore.naver.com", "brand.naver.com",
+            "shopping.naver.com/v1/products", "shopping.naver.com/window-products", "/products/"
+        ])
+
+        if root is None:
+            root = self.get_ui_tree("detail_page_check")
+
+        has_purchase_cta = False
+        has_detail_body = False
+        if root is not None:
+            all_text = " ".join([e.attrib.get("text", "") or e.attrib.get("content-desc", "") for e in root.iter("node")])
+            PURCHASE_CTA = ["구매하기", "N Pay 구매", "바로구매", "선물하기", "장바구니"]
+            DETAIL_BODY_KEYS = ["톡톡문의", "스토어찜", "알림받기", "상세정보", "상품정보 제공고시", "배송/교환/반품", "Q&A", "옵션 선택"]
+            has_purchase_cta = any(cta in all_text for cta in PURCHASE_CTA)
+            has_detail_body = any(k in all_text for k in DETAIL_BODY_KEYS)
+
+        # 1. URL이 스마트스토어/브랜드스토어이고 구매 CTA가 있으면 100% 확정
+        if has_store_url and (has_purchase_cta or has_detail_body):
+            return True
+        # 2. URL이 기록되지 않았더라도 구매 CTA 및 상세 바디가 모두 갖춰져 있고 검색 페이지가 아니면 확정
+        elif has_purchase_cta and has_detail_body and "m.search.naver.com" not in url:
+            return True
+        return False
+
+    def human_bio_tap(self, cx: int, cy: int, w: int = 400, h: int = 80) -> Tuple[int, int]:
+        """
+        [네이버 미어캣(Meerkat) / LCS 완벽 통과용 휴먼 생체 탭 엔진]
+        1. 2D 가우시안 정규분포를 통한 자연스러운 타원형 터치 오프셋 (정중앙 기계적 편중 탈피)
+        2. 미세 손떨림 및 마이크로 슬립 궤적(1~2px) 생성 -> screenCoords 다중 궤적 배열 자동 충족
+        3. 실제 인간 엄지손가락 접촉 체류 시간(75ms ~ 115ms) -> from 시간 기계성 배제
+        4. isTrusted: true 100% 보장 (안드로이드 OS 하드웨어 터치 파이프라인)
+        """
+        import random
+        sigma_x = max(10, min(50, w // 8))
+        sigma_y = max(8, min(20, h // 8))
+        jitter_x = int(random.gauss(0, sigma_x / 2))
+        jitter_y = int(random.gauss(0, sigma_y / 2))
+
+        actual_x = cx + max(-w // 4, min(w // 4, jitter_x))
+        actual_y = cy + max(-h // 4, min(h // 4, jitter_y))
+
+        # 미세 손떨림 / 마이크로 궤적 (Micro-motion Trajectory: 1~2px 슬립)
+        slip_dx = random.choice([-2, -1, 0, 1, 2])
+        slip_dy = random.choice([-2, -1, 0, 1, 2])
+        end_x = actual_x + slip_dx
+        end_y = actual_y + slip_dy
+
+        # 생체 접촉 지속 시간 (Human Dwell: 75ms ~ 115ms)
+        duration_ms = random.randint(75, 115)
+
+        logger.info(f"[{self.device_id}] 👆 [휴먼 생체 탭] ({actual_x}, {actual_y}) -> ({end_x}, {end_y}) [체류: {duration_ms}ms | 궤적 생성]")
+        self.run_adb(f"input swipe {actual_x} {actual_y} {end_x} {end_y} {duration_ms}")
+        return (actual_x, actual_y)
 
     def ensure_naver_foreground(self) -> bool:
         """네이버 앱이 포그라운드가 아닐 경우 즉시 전면으로 복귀"""
@@ -229,26 +365,28 @@ class UIInspector:
                     rid = elem.attrib.get("resource-id", "")
                     d = elem.attrib.get("content-desc", "")
                     b = elem.attrib.get("bounds", "")
-                    if "searchBarRootView" in rid or "검색어 또는 URL 입력" in d:
-                        m = re.search(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", b)
-                        if m:
-                            x1, y1, x2, y2 = map(int, m.groups())
+                    if any(k in rid for k in ["searchBar", "search_window", "query", "edit_search"]) or any(k in d for k in ["검색어 또는 URL 입력", "검색어를 입력해주세요", "검색창", "검색"]):
+                        parsed = parse_bounds(b)
+                        if parsed:
+                            x1, y1, x2, y2 = parsed
                             w = x2 - x1
                             h = y2 - y1
-                            safe_bounds = {
-                                "x_min": int(x1 + w * 0.25),
-                                "x_max": int(x2 - w * 0.35),
-                                "y_min": int(y1 + h * 0.20),
-                                "y_max": int(y2 - h * 0.20),
-                                "raw_bounds": [x1, y1, x2, y2]
-                            }
-                            logger.info(f"[{self.device_id}] [✓] 검색창 안전 영역 추출 완료: X({safe_bounds['x_min']}~{safe_bounds['x_max']}), Y({safe_bounds['y_min']}~{safe_bounds['y_max']})")
-                            self.update_device_config({"search_bar_safe_bounds": safe_bounds})
-                            return safe_bounds
+                            if w > 300 and h > 50:  # 유효한 검색창 크기 필터
+                                safe_bounds = {
+                                    "x_min": int(x1 + w * 0.25),
+                                    "x_max": int(x2 - w * 0.35),
+                                    "y_min": int(y1 + h * 0.20),
+                                    "y_max": int(y2 - h * 0.20),
+                                    "raw_bounds": [x1, y1, x2, y2]
+                                }
+                                logger.info(f"[{self.device_id}] [✓] 검색창 안전 영역 추출 완료: X({safe_bounds['x_min']}~{safe_bounds['x_max']}), Y({safe_bounds['y_min']}~{safe_bounds['y_max']})")
+                                self.update_device_config({"search_bar_safe_bounds": safe_bounds})
+                                return safe_bounds
         except Exception as e:
             logger.debug(f"[{self.device_id}] 검색창 영역 파싱 예외: {e}")
 
-        default_safe = {"x_min": 300, "x_max": 680, "y_min": 480, "y_max": 580, "raw_bounds": [60, 438, 1020, 618]}
+        # 공통 해상도(1080x2400) 구형/신형 레이아웃 교집합 중심 (Y: 430~470)
+        default_safe = {"x_min": 350, "x_max": 650, "y_min": 430, "y_max": 470, "raw_bounds": [60, 380, 1020, 520]}
         self.update_device_config({"search_bar_safe_bounds": default_safe})
         return default_safe
 
@@ -260,51 +398,14 @@ class UIInspector:
         extra_info: Optional[str] = None,
         stage: str = "click_before"
     ) -> str:
-        """
-        [클릭/탐색 직전 화면 캡처 및 타겟 좌표 시각화 디버깅 스크린샷 저장]
-        - 저장 경로: logs/click_logs/click_before/click_before_{YYYYMMDD_HHMMSS}_{device_id}_mid_{mid}.png
-        - 200장 초과 시 FIFO 자동 회전 삭제
-        """
-        now_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        mid_tag = f"_mid_{target_mid}" if target_mid else ""
-        archive_path = os.path.join(CLICK_BEFORE_DIR, f"{stage}_{now_str}_{self.device_id}{mid_tag}.png")
-        local_raw = f"/tmp/macro_pre_click_{self.device_id}.png"
-        local_out = f"/tmp/macro_click_debug_{self.device_id}.png"
-
-        try:
-            with open(local_raw, "wb") as f:
-                subprocess.run(["adb", "-s", self.device_id, "exec-out", "screencap", "-p"], stdout=f, timeout=5)
-
-            if os.path.exists(local_raw) and os.path.getsize(local_raw) > 1000:
-                from PIL import Image, ImageDraw, ImageFont
-                img = Image.open(local_raw).convert("RGBA")
-                draw = ImageDraw.Draw(img)
-                cx, cy = click_x, click_y
-                r = 30
-                # 붉은색 타겟 조준선 및 원형 마커 표시
-                draw.ellipse((cx - r, cy - r, cx + r, cy + r), outline="red", width=6)
-                draw.ellipse((cx - 10, cy - 10, cx + 10, cy + 10), fill="red")
-                draw.line((cx - 65, cy, cx + 65, cy), fill="red", width=4)
-                draw.line((cx, cy - 65, cx, cy + 65), fill="red", width=4)
-
-                try:
-                    font = ImageFont.load_default(size=26)
-                except Exception:
-                    font = None
-
-                banner_text = f"TARGET: ({cx}, {cy}) | MID: {target_mid or 'N/A'}"
-                draw.rectangle((cx + 40, cy - 35, cx + 450, cy + 20), fill="black", outline="red", width=2)
-                draw.text((cx + 50, cy - 30), banner_text, fill="yellow", font=font)
-
-                # /tmp 및 click_logs/click_before 양쪽에 저장
-                img.save(local_out)
-                img.save(archive_path)
-                logger.info(f"[{self.device_id}] [📸 클릭/탐색 직전 시각화 스샷 저장 완료] -> {archive_path}")
-                prune_image_dir(CLICK_BEFORE_DIR, max_files=200)
-                return archive_path
-        except Exception as e:
-            logger.warning(f"[{self.device_id}] [!] 클릭 시각화 스샷 저장 실패: {e}")
-        return ""
+        """[위임] 클릭/탐색 직전 화면 캡처 및 타겟 좌표 시각화 디버깅 스크린샷 저장"""
+        return self.image_archiver.draw_and_save_click_debug_image(
+            click_x=click_x,
+            click_y=click_y,
+            target_mid=target_mid,
+            extra_info=extra_info,
+            stage=stage
+        )
 
     def crop_and_save_target_screenshot(
         self,
@@ -313,134 +414,35 @@ class UIInspector:
         keyword: Optional[str] = None,
         click_coords: Optional[Tuple[int, int]] = None
     ) -> str:
-        """
-        [타겟 상품 발견 시 해당 상품 영역만 크롭하여 저장 (일자별 폴더 없이 통으로 저장)]
-        - 저장 경로: logs/target_screenshot/{HHMMSS}_{mid}_{keyword}_{device_id}.png
-        - 200장 초과 시 FIFO 자동 회전 삭제
-        """
-        now = datetime.datetime.now()
-        time_str = now.strftime("%Y%m%d_%H%M%S")
-
-        safe_kw = re.sub(r'[\s/\\:*?"<>|]+', '_', (keyword or "UNKNOWN").strip()).strip('_')
-        filename = f"{time_str}_{target_mid}_{safe_kw}_{self.device_id}.png"
-        archive_path = os.path.join(SCREENSHOT_DIR, filename)
-        local_raw = f"/tmp/macro_screen_target_{self.device_id}.png"
-
-        try:
-            with open(local_raw, "wb") as f:
-                subprocess.run(["adb", "-s", self.device_id, "exec-out", "screencap", "-p"], stdout=f, timeout=5)
-
-            if os.path.exists(local_raw) and os.path.getsize(local_raw) > 1000:
-                from PIL import Image, ImageDraw, ImageFont
-                img = Image.open(local_raw).convert("RGBA")
-                w_img, h_img = img.size
-
-                x1, y1, x2, y2 = target_bounds
-                # 유효 좌표 범위 클램핑 (상하좌우 10px 여백 포함)
-                pad = 10
-                crop_x1 = max(0, min(x1 - pad, w_img - 1))
-                crop_y1 = max(0, min(y1 - pad, h_img - 1))
-                crop_x2 = max(0, min(x2 + pad, w_img))
-                crop_y2 = max(0, min(y2 + pad, h_img))
-
-                if crop_x2 <= crop_x1 or crop_y2 <= crop_y1:
-                    crop_x1, crop_y1, crop_x2, crop_y2 = max(0, x1), max(0, y1), min(w_img, x2), min(h_img, y2)
-
-                draw = ImageDraw.Draw(img)
-                # 타겟 상품 감지 박스 (초록색 외곽선)
-                draw.rectangle((x1, y1, x2, y2), outline="#00FF00", width=4)
-
-                # 클릭 좌표가 전달된 경우 타겟 포인트 표시 (빨간 조준선)
-                if click_coords:
-                    cx, cy = click_coords
-                    r = 18
-                    draw.ellipse((cx - r, cy - r, cx + r, cy + r), outline="red", width=4)
-                    draw.ellipse((cx - 6, cy - 6, cx + 6, cy + 6), fill="red")
-                    draw.line((cx - 35, cy, cx + 35, cy), fill="red", width=3)
-                    draw.line((cx, cy - 35, cx, cy + 35), fill="red", width=3)
-
-                # 타겟 상품 영역만 크롭
-                cropped = img.crop((crop_x1, crop_y1, crop_x2, crop_y2))
-                cropped.save(archive_path)
-                logger.info(f"[{self.device_id}] [📸 타겟 상품 영역 크롭 저장 완료] [{crop_x1},{crop_y1}][{crop_x2},{crop_y2}] -> {archive_path}")
-                prune_image_dir(SCREENSHOT_DIR, max_files=200)
-                return archive_path
-        except Exception as e:
-            logger.warning(f"[{self.device_id}] [!] 타겟 상품 영역 크롭 저장 실패: {e}")
-        return ""
+        """[위임] 타겟 상품 발견 시 해당 상품 영역만 크롭하여 일자별 폴더에 저장"""
+        return self.image_archiver.crop_and_save_target_screenshot(
+            target_bounds=target_bounds,
+            target_mid=target_mid,
+            keyword=keyword,
+            click_coords=click_coords
+        )
 
     def save_detail_page_screenshot(
         self,
         target_mid: str,
         keyword: Optional[str] = None
     ) -> str:
-        """
-        [상세페이지 진입 성공 시 랜딩 화면 전체 캡처 저장]
-        - 저장 경로: logs/click_logs/click_after/click_after_{YYYYMMDD_HHMMSS}_{mid}_{keyword}_{device_id}.png
-        - 200장 초과 시 FIFO 자동 회전 삭제
-        """
-        now = datetime.datetime.now()
-        time_str = now.strftime("%Y%m%d_%H%M%S")
-
-        safe_kw = re.sub(r'[\s/\\:*?"<>|]+', '_', (keyword or "UNKNOWN").strip()).strip('_')
-        filename = f"click_after_{time_str}_{target_mid}_{safe_kw}_{self.device_id}.png"
-        archive_path = os.path.join(CLICK_AFTER_DIR, filename)
-
-        try:
-            with open(archive_path, "wb") as f:
-                subprocess.run(["adb", "-s", self.device_id, "exec-out", "screencap", "-p"], stdout=f, timeout=5)
-            if os.path.exists(archive_path) and os.path.getsize(archive_path) > 1000:
-                logger.info(f"[{self.device_id}] [📸 상세페이지 랜딩 스크린샷 저장 완료] -> {archive_path}")
-                prune_image_dir(CLICK_AFTER_DIR, max_files=200)
-                return archive_path
-        except Exception as e:
-            logger.warning(f"[{self.device_id}] [!] 상세페이지 랜딩 스크린샷 저장 실패: {e}")
-        return ""
+        """[위임] 상세페이지 진입 성공 시 랜딩 화면 전체 캡처를 일자별 폴더에 저장"""
+        return self.image_archiver.save_detail_page_screenshot(
+            target_mid=target_mid,
+            keyword=keyword
+        )
 
     def save_unexposed_dump(
         self,
         target_mid: str,
         keyword: Optional[str] = None
     ) -> Tuple[str, str]:
-        """
-        [타겟 상품 미노출(is_exposed=False) 시 사후 분석을 위해 전체 UI XML 덤프 및 화면 캡처 저장]
-        - 저장 경로: logs/unexposed_dumps/unexposed_{YYYYMMDD_HHMMSS}_{mid}_{keyword}_{device_id}.xml / .png
-        - 200개 초과 시 FIFO 자동 회전 삭제
-        """
-        # 🛡️ 네이버 앱 화면이 아닐 경우 미노출 덤프 저장 원천 차단 (타사 앱/런처 오염 방지)
-        if not self.is_naver_foreground():
-            logger.warning(f"[{self.device_id}] [⚠️ 덤프 차단] 현재 포그라운드가 네이버 앱이 아니므로 unexposed_dumps 저장을 취소합니다.")
-            return ("", "")
-
-        now = datetime.datetime.now()
-        time_str = now.strftime("%Y%m%d_%H%M%S")
-        safe_kw = re.sub(r'[\s/\\:*?"<>|]+', '_', (keyword or "UNKNOWN").strip()).strip('_')
-        base_name = f"unexposed_{time_str}_{target_mid}_{safe_kw}_{self.device_id}"
-        xml_path = os.path.join(UNEXPOSED_DUMPS_DIR, f"{base_name}.xml")
-        png_path = os.path.join(UNEXPOSED_DUMPS_DIR, f"{base_name}.png")
-
-        try:
-            # 1. XML 덤프 저장
-            self.run_adb("uiautomator dump /sdcard/unexp_dump.xml", timeout_sec=8.0)
-            xml_str = self.run_adb("cat /sdcard/unexp_dump.xml", timeout_sec=5.0)
-            if xml_str and "<hierarchy" in xml_str:
-                xml_clean = xml_str[xml_str.find("<hierarchy"):]
-                with open(xml_path, "w", encoding="utf-8") as f:
-                    f.write(xml_clean)
-                logger.info(f"[{self.device_id}] [📝 미노출 UI XML 덤프 저장 완료] -> {xml_path}")
-
-            # 2. 화면 전체 스크린샷 캡처
-            with open(png_path, "wb") as f:
-                subprocess.run(["adb", "-s", self.device_id, "exec-out", "screencap", "-p"], stdout=f, timeout=5)
-            if os.path.exists(png_path) and os.path.getsize(png_path) > 1000:
-                logger.info(f"[{self.device_id}] [📸 미노출 전체 화면 캡처 저장 완료] -> {png_path}")
-
-            # 3. 자동 로테이션 정리 (최대 200개 유지, 초과 시 FIFO 자동 삭제)
-            prune_dir(UNEXPOSED_DUMPS_DIR, max_files=200)
-            return (xml_path, png_path)
-        except Exception as e:
-            logger.warning(f"[{self.device_id}] [!] 미노출 덤프/캡처 저장 실패: {e}")
-        return ("", "")
+        """[위임] 타겟 상품 미노출 시 사후 분석을 위해 전체 UI XML 덤프 및 화면 캡처 저장"""
+        return self.image_archiver.save_unexposed_dump(
+            target_mid=target_mid,
+            keyword=keyword
+        )
 
     def save_exposed_dump(
         self,
@@ -448,41 +450,9 @@ class UIInspector:
         keyword: Optional[str] = None,
         slide_page: int = 1
     ) -> Tuple[str, str]:
-        """
-        [타겟 상품 노출(is_exposed=True) 시 증적 및 연구 분석을 위해 전체 UI XML 덤프 및 화면 캡처 저장]
-        - 저장 경로: logs/exposed_dumps/exposed_{YYYYMMDD_HHMMSS}_{mid}_p{slide_page}_{keyword}_{device_id}.xml / .png
-        - 200개 초과 시 FIFO 자동 회전 삭제
-        """
-        if not self.is_naver_foreground():
-            logger.warning(f"[{self.device_id}] [⚠️ 덤프 차단] 현재 포그라운드가 네이버 앱이 아니므로 exposed_dumps 저장을 취소합니다.")
-            return ("", "")
-
-        now = datetime.datetime.now()
-        time_str = now.strftime("%Y%m%d_%H%M%S")
-        safe_kw = re.sub(r'[\s/\\:*?"<>|]+', '_', (keyword or "UNKNOWN").strip()).strip('_')
-        base_name = f"exposed_{time_str}_{target_mid}_p{slide_page}_{safe_kw}_{self.device_id}"
-        xml_path = os.path.join(EXPOSED_DUMPS_DIR, f"{base_name}.xml")
-        png_path = os.path.join(EXPOSED_DUMPS_DIR, f"{base_name}.png")
-
-        try:
-            # 1. XML 덤프 저장
-            self.run_adb("rm -f /sdcard/exp_dump.xml; uiautomator dump /sdcard/exp_dump.xml", timeout_sec=8.0)
-            xml_str = self.run_adb("cat /sdcard/exp_dump.xml", timeout_sec=5.0)
-            if xml_str and "<hierarchy" in xml_str:
-                xml_clean = xml_str[xml_str.find("<hierarchy"):]
-                with open(xml_path, "w", encoding="utf-8") as f:
-                    f.write(xml_clean)
-                logger.info(f"[{self.device_id}] [📝 노출 성공 UI XML 덤프 저장 완료 (Slide #{slide_page})] -> {xml_path}")
-
-            # 2. 화면 전체 스크린샷 캡처
-            with open(png_path, "wb") as f:
-                subprocess.run(["adb", "-s", self.device_id, "exec-out", "screencap", "-p"], stdout=f, timeout=5)
-            if os.path.exists(png_path) and os.path.getsize(png_path) > 1000:
-                logger.info(f"[{self.device_id}] [📸 노출 성공 전체 화면 캡처 저장 완료 (Slide #{slide_page})] -> {png_path}")
-
-            # 3. 자동 로테이션 정리 (최대 200개 유지, 초과 시 FIFO 자동 삭제)
-            prune_dir(EXPOSED_DUMPS_DIR, max_files=200)
-            return (xml_path, png_path)
-        except Exception as e:
-            logger.warning(f"[{self.device_id}] [!] 노출 덤프/캡처 저장 실패: {e}")
-        return ("", "")
+        """[위임] 타겟 상품 노출 시 증적 및 연구 분석을 위해 전체 UI XML 덤프 및 화면 캡처 저장"""
+        return self.image_archiver.save_exposed_dump(
+            target_mid=target_mid,
+            keyword=keyword,
+            slide_page=slide_page
+        )

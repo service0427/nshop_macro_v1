@@ -1,0 +1,3585 @@
+{
+  "total": 778,
+  "status_counts": {
+    "AUDIT_REQ": 220,
+    "PATCHED": 117,
+    "BENIGN": 441
+  },
+  "domain_status": {
+    "HARDWARE_BUILD": {
+      "AUDIT_REQ": 41,
+      "BENIGN": 118,
+      "PATCHED": 1
+    },
+    "PACKAGE_MANAGER": {
+      "PATCHED": 34
+    },
+    "ROOT_DETECTION": {
+      "PATCHED": 14
+    },
+    "DRM_SECURITY": {
+      "AUDIT_REQ": 163
+    },
+    "WEBVIEW_FINGERPRINT": {
+      "BENIGN": 145
+    },
+    "SYSTEM_INFO": {
+      "BENIGN": 12
+    },
+    "OS_IDENTIFIERS": {
+      "PATCHED": 27
+    },
+    "INTEGRITY_SIGNATURE": {
+      "BENIGN": 80
+    },
+    "SHELL_EXEC": {
+      "BENIGN": 13
+    },
+    "LOCATION": {
+      "PATCHED": 37
+    },
+    "WIFI_NETWORK": {
+      "AUDIT_REQ": 16,
+      "PATCHED": 1,
+      "BENIGN": 6
+    },
+    "TELEPHONY": {
+      "BENIGN": 52
+    },
+    "KERNEL_FS": {
+      "PATCHED": 3
+    },
+    "BLUETOOTH": {
+      "BENIGN": 2
+    },
+    "CLIPBOARD": {
+      "BENIGN": 7
+    },
+    "DISPLAY": {
+      "BENIGN": 6
+    }
+  },
+  "audit_required_count": 220,
+  "audit_required_items": [
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/j.java",
+      "line": 420,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "this((i2 & 1) != 0 ? null : locale, (i2 & 2) != 0 ? null : str, (i2 & 4) != 0 ? null : str2, (i2 & 8) != 0 ? null : f2, (i2 & 16) != 0 ? null : num, (i2 & 32) != 0 ? null : num2, (",
+      "context": [
+        "public /* synthetic */ j(Locale locale, String str, String str2, Float f2, Integer num, Integer num2, Integer num3, Inte",
+        "this((i2 & 1) != 0 ? null : locale, (i2 & 2) != 0 ? null : str, (i2 & 4) != 0 ? null : str2, (i2 & 8) != 0 ? null : f2, ",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/c0.java",
+      "line": 106,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "sb.append(\"BRAND: \" + Build.BRAND + '\\n');",
+      "context": [
+        "sb.append(\"DISPLAY: \" + Build.DISPLAY + '\\n');",
+        "sb.append(\"BRAND: \" + Build.BRAND + '\\n');",
+        "sb.append(\"BOARD: \" + Build.BOARD + '\\n');"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/c0.java",
+      "line": 107,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "sb.append(\"BOARD: \" + Build.BOARD + '\\n');",
+      "context": [
+        "sb.append(\"BRAND: \" + Build.BRAND + '\\n');",
+        "sb.append(\"BOARD: \" + Build.BOARD + '\\n');",
+        "sb.append(\"FINGERPRINT: \" + Build.FINGERPRINT + '\\n');"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/c0.java",
+      "line": 108,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "sb.append(\"FINGERPRINT: \" + Build.FINGERPRINT + '\\n');",
+      "context": [
+        "sb.append(\"BOARD: \" + Build.BOARD + '\\n');",
+        "sb.append(\"FINGERPRINT: \" + Build.FINGERPRINT + '\\n');",
+        "String packageName = context.getPackageName();"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/ah.java",
+      "line": 3,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "import android.media.MediaDrmException;",
+      "context": [
+        "",
+        "import android.media.MediaDrmException;",
+        "import android.os.PersistableBundle;"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/ah.java",
+      "line": 36,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public byte[] e() throws MediaDrmException {",
+      "context": [
+        "@Override // com.naver.ads.internal.video.ej",
+        "public byte[] e() throws MediaDrmException {",
+        "throw new MediaDrmException(\"Attempting to open a session using a dummy ExoMediaDrm.\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/ah.java",
+      "line": 37,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "throw new MediaDrmException(\"Attempting to open a session using a dummy ExoMediaDrm.\");",
+      "context": [
+        "public byte[] e() throws MediaDrmException {",
+        "throw new MediaDrmException(\"Attempting to open a session using a dummy ExoMediaDrm.\");",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/util/DeviceUtils.java",
+      "line": 510,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "java.lang.String r6 = android.os.Build.BRAND     // Catch: java.lang.Throwable -> L2c",
+      "context": [
+        "kotlin.Result$Companion r6 = kotlin.Result.Companion     // Catch: java.lang.Throwable -> L2c",
+        "java.lang.String r6 = android.os.Build.BRAND     // Catch: java.lang.Throwable -> L2c",
+        "java.lang.String r7 = \"BRAND\""
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/util/DeviceUtils.java",
+      "line": 528,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "java.lang.String r6 = android.os.Build.FINGERPRINT     // Catch: java.lang.Throwable -> L2c",
+      "context": [
+        "L2f:",
+        "java.lang.String r6 = android.os.Build.FINGERPRINT     // Catch: java.lang.Throwable -> L2c",
+        "kotlin.jvm.internal.Intrinsics.checkNotNullExpressionValue(r6, r2)     // Catch: java.lang.Throwable -> L2c"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/util/DeviceUtils.java",
+      "line": 536,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "java.lang.String r2 = android.os.Build.HARDWARE     // Catch: java.lang.Throwable -> L2c",
+      "context": [
+        "if (r2 != 0) goto Lcf",
+        "java.lang.String r2 = android.os.Build.HARDWARE     // Catch: java.lang.Throwable -> L2c",
+        "kotlin.jvm.internal.Intrinsics.checkNotNullExpressionValue(r2, r1)     // Catch: java.lang.Throwable -> L2c"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/sw.java",
+      "line": 7,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "import android.media.MediaDrm;",
+      "context": [
+        "import android.media.MediaCodec;",
+        "import android.media.MediaDrm;",
+        "import android.media.MediaDrmResetException;"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/sw.java",
+      "line": 8,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "import android.media.MediaDrmResetException;",
+      "context": [
+        "import android.media.MediaDrm;",
+        "import android.media.MediaDrmResetException;",
+        "import android.media.NotProvisionedException;"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/sw.java",
+      "line": 731,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "if (i3 >= 21 && (th2 instanceof MediaDrm.MediaDrmStateException)) {",
+      "context": [
+        "int i3 = ve0.f34585a;",
+        "if (i3 >= 21 && (th2 instanceof MediaDrm.MediaDrmStateException)) {",
+        "int d2 = ve0.d(((MediaDrm.MediaDrmStateException) th2).getDiagnosticInfo());"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/sw.java",
+      "line": 732,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "int d2 = ve0.d(((MediaDrm.MediaDrmStateException) th2).getDiagnosticInfo());",
+      "context": [
+        "if (i3 >= 21 && (th2 instanceof MediaDrm.MediaDrmStateException)) {",
+        "int d2 = ve0.d(((MediaDrm.MediaDrmStateException) th2).getDiagnosticInfo());",
+        "return new a(a(d2), d2);"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/sw.java",
+      "line": 734,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "} else if (i3 >= 23 && (th2 instanceof MediaDrmResetException)) {",
+      "context": [
+        "return new a(a(d2), d2);",
+        "} else if (i3 >= 23 && (th2 instanceof MediaDrmResetException)) {",
+        "return new a(27, 0);"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/xg.java",
+      "line": 4,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "import android.media.MediaDrm;",
+      "context": [
+        "import android.media.DeniedByServerException;",
+        "import android.media.MediaDrm;",
+        "import android.media.MediaDrmResetException;"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/xg.java",
+      "line": 5,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "import android.media.MediaDrmResetException;",
+      "context": [
+        "import android.media.MediaDrm;",
+        "import android.media.MediaDrmResetException;",
+        "import android.media.NotProvisionedException;"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/xg.java",
+      "line": 53,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "return th instanceof MediaDrm.MediaDrmStateException;",
+      "context": [
+        "public static boolean a(@Nullable Throwable th) {",
+        "return th instanceof MediaDrm.MediaDrmStateException;",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/xg.java",
+      "line": 58,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "return ve0.f(ve0.d(((MediaDrm.MediaDrmStateException) th).getDiagnosticInfo()));",
+      "context": [
+        "public static int b(Throwable th) {",
+        "return ve0.f(ve0.d(((MediaDrm.MediaDrmStateException) th).getDiagnosticInfo()));",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/xg.java",
+      "line": 67,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "return th instanceof MediaDrmResetException;",
+      "context": [
+        "public static boolean a(@Nullable Throwable th) {",
+        "return th instanceof MediaDrmResetException;",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/o8.java",
+      "line": 849,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "@InlineMe(imports = {\"com.naver.ads.internal.video.media3.common.util.Util\"}, replacement = \"Util.getErrorCodeForMediaDrmErrorCode(mediaDrmErrorCode)\")",
+      "context": [
+        "",
+        "@InlineMe(imports = {\"com.naver.ads.internal.video.media3.common.util.Util\"}, replacement = \"Util.getErrorCodeForMediaDr",
+        "@ne0"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/wp.java",
+      "line": 89,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public static final String T = \"urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed\";",
+      "context": [
+        "public static final String S = \"identity\";",
+        "public static final String T = \"urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed\";",
+        "public static final String U = \"com.widevine\";"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/ej.java",
+      "line": 5,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "import android.media.MediaDrmException;",
+      "context": [
+        "import android.media.MediaCryptoException;",
+        "import android.media.MediaDrmException;",
+        "import android.media.NotProvisionedException;"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/ej.java",
+      "line": 235,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "byte[] e() throws MediaDrmException;",
+      "context": [
+        "",
+        "byte[] e() throws MediaDrmException;",
+        ""
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 7,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "import android.media.MediaDrm;",
+      "context": [
+        "import android.media.MediaCryptoException;",
+        "import android.media.MediaDrm;",
+        "import android.media.MediaDrmException;"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 8,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "import android.media.MediaDrmException;",
+      "context": [
+        "import android.media.MediaDrm;",
+        "import android.media.MediaDrmException;",
+        "import android.media.NotProvisionedException;"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 39,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public static final String f32409j = \"FrameworkMediaDrm\";",
+      "context": [
+        "/* renamed from: j  reason: collision with root package name */",
+        "public static final String f32409j = \"FrameworkMediaDrm\";",
+        "@ne0"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 66,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public final MediaDrm f32416h;",
+      "context": [
+        "/* renamed from: h  reason: collision with root package name */",
+        "public final MediaDrm f32416h;",
+        ""
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 75,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public static boolean a(MediaDrm mediaDrm, String str) {",
+      "context": [
+        "@DoNotInline",
+        "public static boolean a(MediaDrm mediaDrm, String str) {",
+        "boolean requiresSecureDecoder;"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 77,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "requiresSecureDecoder = mediaDrm.requiresSecureDecoder(str);",
+      "context": [
+        "boolean requiresSecureDecoder;",
+        "requiresSecureDecoder = mediaDrm.requiresSecureDecoder(str);",
+        "return requiresSecureDecoder;"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 82,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public static void a(MediaDrm mediaDrm, byte[] bArr, h20 h20Var) {",
+      "context": [
+        "@DoNotInline",
+        "public static void a(MediaDrm mediaDrm, byte[] bArr, h20 h20Var) {",
+        "LogSessionId logSessionId;"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 85,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "MediaDrm.PlaybackComponent playbackComponent;",
+      "context": [
+        "boolean equals;",
+        "MediaDrm.PlaybackComponent playbackComponent;",
+        "LogSessionId a2 = h20Var.a();"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 92,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "playbackComponent = mediaDrm.getPlaybackComponent(bArr);",
+      "context": [
+        "}",
+        "playbackComponent = mediaDrm.getPlaybackComponent(bArr);",
+        "C2429b8.a(z4.a(playbackComponent)).setLogSessionId(a2);"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 101,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "MediaDrm mediaDrm = new MediaDrm(a(uuid));",
+      "context": [
+        "this.f32415g = uuid;",
+        "MediaDrm mediaDrm = new MediaDrm(a(uuid));",
+        "this.f32416h = mediaDrm;"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 102,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "this.f32416h = mediaDrm;",
+      "context": [
+        "MediaDrm mediaDrm = new MediaDrm(a(uuid));",
+        "this.f32416h = mediaDrm;",
+        "this.f32417i = 1;"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 105,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "a(mediaDrm);",
+      "context": [
+        "if (o8.k2.equals(uuid) && g()) {",
+        "a(mediaDrm);",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 110,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "return MediaDrm.isCryptoSchemeSupported(a(uuid));",
+      "context": [
+        "public static boolean b(UUID uuid) {",
+        "return MediaDrm.isCryptoSchemeSupported(a(uuid));",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 127,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "this.f32416h.setOnEventListener(dVar == null ? null : new MediaDrm.OnEventListener() { // from class: u.W7",
+      "context": [
+        "public void a(@Nullable final ej.d dVar) {",
+        "this.f32416h.setOnEventListener(dVar == null ? null : new MediaDrm.OnEventListener() { // from class: u.W7",
+        "@Override // android.media.MediaDrm.OnEventListener"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 128,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "@Override // android.media.MediaDrm.OnEventListener",
+      "context": [
+        "this.f32416h.setOnEventListener(dVar == null ? null : new MediaDrm.OnEventListener() { // from class: u.W7",
+        "@Override // android.media.MediaDrm.OnEventListener",
+        "public final void onEvent(MediaDrm mediaDrm, byte[] bArr, int i2, int i3, byte[] bArr2) {"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 129,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public final void onEvent(MediaDrm mediaDrm, byte[] bArr, int i2, int i3, byte[] bArr2) {",
+      "context": [
+        "@Override // android.media.MediaDrm.OnEventListener",
+        "public final void onEvent(MediaDrm mediaDrm, byte[] bArr, int i2, int i3, byte[] bArr2) {",
+        "pn.this.a(dVar, mediaDrm, bArr, i2, i3, bArr2);"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 130,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "pn.this.a(dVar, mediaDrm, bArr, i2, i3, bArr2);",
+      "context": [
+        "public final void onEvent(MediaDrm mediaDrm, byte[] bArr, int i2, int i3, byte[] bArr2) {",
+        "pn.this.a(dVar, mediaDrm, bArr, i2, i3, bArr2);",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 169,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "yu.b(f32409j, \"Failed to instantiate a FrameworkMediaDrm for uuid: \" + uuid + NaverScaledFontRollingUpTextView.CharacterSet.f103703d);",
+      "context": [
+        "} catch (oe0 unused) {",
+        "yu.b(f32409j, \"Failed to instantiate a FrameworkMediaDrm for uuid: \" + uuid + NaverScaledFontRollingUpTextView.Character",
+        "return new ah();"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 182,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public byte[] e() throws MediaDrmException {",
+      "context": [
+        "@ne0",
+        "public byte[] e() throws MediaDrmException {",
+        "return this.f32416h.openSession();"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 227,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public final /* synthetic */ void a(ej.d dVar, MediaDrm mediaDrm, byte[] bArr, int i2, int i3, byte[] bArr2) {",
+      "context": [
+        "",
+        "public final /* synthetic */ void a(ej.d dVar, MediaDrm mediaDrm, byte[] bArr, int i2, int i3, byte[] bArr2) {",
+        "dVar.a(this, bArr, i2, i3, bArr2);"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 251,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "this.f32416h.setOnKeyStatusChangeListener(fVar == null ? null : new MediaDrm.OnKeyStatusChangeListener() { // from class: u.Z7",
+      "context": [
+        "if (ve0.f34585a >= 23) {",
+        "this.f32416h.setOnKeyStatusChangeListener(fVar == null ? null : new MediaDrm.OnKeyStatusChangeListener() { // from class",
+        "@Override // android.media.MediaDrm.OnKeyStatusChangeListener"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 252,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "@Override // android.media.MediaDrm.OnKeyStatusChangeListener",
+      "context": [
+        "this.f32416h.setOnKeyStatusChangeListener(fVar == null ? null : new MediaDrm.OnKeyStatusChangeListener() { // from class",
+        "@Override // android.media.MediaDrm.OnKeyStatusChangeListener",
+        "public final void onKeyStatusChange(MediaDrm mediaDrm, byte[] bArr, List list, boolean z2) {"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 253,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public final void onKeyStatusChange(MediaDrm mediaDrm, byte[] bArr, List list, boolean z2) {",
+      "context": [
+        "@Override // android.media.MediaDrm.OnKeyStatusChangeListener",
+        "public final void onKeyStatusChange(MediaDrm mediaDrm, byte[] bArr, List list, boolean z2) {",
+        "pn.this.a(fVar, mediaDrm, bArr, list, z2);"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 254,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "pn.this.a(fVar, mediaDrm, bArr, list, z2);",
+      "context": [
+        "public final void onKeyStatusChange(MediaDrm mediaDrm, byte[] bArr, List list, boolean z2) {",
+        "pn.this.a(fVar, mediaDrm, bArr, list, z2);",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 269,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "MediaDrm.ProvisionRequest provisionRequest = this.f32416h.getProvisionRequest();",
+      "context": [
+        "public ej.h b() {",
+        "MediaDrm.ProvisionRequest provisionRequest = this.f32416h.getProvisionRequest();",
+        "return new ej.h(provisionRequest.getData(), provisionRequest.getDefaultUrl());"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 352,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public final /* synthetic */ void a(ej.f fVar, MediaDrm mediaDrm, byte[] bArr, List list, boolean z2) {",
+      "context": [
+        "",
+        "public final /* synthetic */ void a(ej.f fVar, MediaDrm mediaDrm, byte[] bArr, List list, boolean z2) {",
+        "ArrayList arrayList = new ArrayList();"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 356,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "MediaDrm.KeyStatus keyStatus = (MediaDrm.KeyStatus) it.next();",
+      "context": [
+        "while (it.hasNext()) {",
+        "MediaDrm.KeyStatus keyStatus = (MediaDrm.KeyStatus) it.next();",
+        "arrayList.add(new ej.c(keyStatus.getStatusCode(), keyStatus.getKeyId()));"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 367,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "this.f32416h.setOnExpirationUpdateListener(eVar == null ? null : new MediaDrm.OnExpirationUpdateListener() { // from class: u.X7",
+      "context": [
+        "if (ve0.f34585a >= 23) {",
+        "this.f32416h.setOnExpirationUpdateListener(eVar == null ? null : new MediaDrm.OnExpirationUpdateListener() { // from cla",
+        "@Override // android.media.MediaDrm.OnExpirationUpdateListener"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 368,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "@Override // android.media.MediaDrm.OnExpirationUpdateListener",
+      "context": [
+        "this.f32416h.setOnExpirationUpdateListener(eVar == null ? null : new MediaDrm.OnExpirationUpdateListener() { // from cla",
+        "@Override // android.media.MediaDrm.OnExpirationUpdateListener",
+        "public final void onExpirationUpdate(MediaDrm mediaDrm, byte[] bArr, long j2) {"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 369,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public final void onExpirationUpdate(MediaDrm mediaDrm, byte[] bArr, long j2) {",
+      "context": [
+        "@Override // android.media.MediaDrm.OnExpirationUpdateListener",
+        "public final void onExpirationUpdate(MediaDrm mediaDrm, byte[] bArr, long j2) {",
+        "pn.this.a(eVar, mediaDrm, bArr, j2);"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 370,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "pn.this.a(eVar, mediaDrm, bArr, j2);",
+      "context": [
+        "public final void onExpirationUpdate(MediaDrm mediaDrm, byte[] bArr, long j2) {",
+        "pn.this.a(eVar, mediaDrm, bArr, j2);",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 378,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public final /* synthetic */ void a(ej.e eVar, MediaDrm mediaDrm, byte[] bArr, long j2) {",
+      "context": [
+        "",
+        "public final /* synthetic */ void a(ej.e eVar, MediaDrm mediaDrm, byte[] bArr, long j2) {",
+        "eVar.a(this, bArr, j2);"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 410,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "MediaDrm.KeyRequest keyRequest = this.f32416h.getKeyRequest(bArr, bArr2, str, i2, hashMap);",
+      "context": [
+        "}",
+        "MediaDrm.KeyRequest keyRequest = this.f32416h.getKeyRequest(bArr, bArr2, str, i2, hashMap);",
+        "byte[] a2 = a(this.f32415g, keyRequest.getData());"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 462,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "return this.f32416h.getPropertyByteArray(str);",
+      "context": [
+        "public byte[] a(String str) {",
+        "return this.f32416h.getPropertyByteArray(str);",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 527,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public static void a(MediaDrm mediaDrm) {",
+      "context": [
+        "",
+        "public static void a(MediaDrm mediaDrm) {",
+        "mediaDrm.setPropertyString(\"securityLevel\", \"L3\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/pn.java",
+      "line": 528,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "mediaDrm.setPropertyString(\"securityLevel\", \"L3\");",
+      "context": [
+        "public static void a(MediaDrm mediaDrm) {",
+        "mediaDrm.setPropertyString(\"securityLevel\", \"L3\");",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/ads/internal/video/gw.java",
+      "line": 973,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "((MediaCrypto) z4.a(this.f28675F0)).setMediaDrmSession(((on) k2).f31897b);",
+      "context": [
+        "try {",
+        "((MediaCrypto) z4.a(this.f28675F0)).setMediaDrmSession(((on) k2).f31897b);",
+        "} catch (MediaCryptoException e2) {"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/utils/DeviceUtilKt.java",
+      "line": 91,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "NowCoreLogger.f47287a.p(new DefaultMessage(\"DeviceIdError\", \"getDeviceUniqueIdInternal error : \" + a3, null, 4, null));",
+      "context": [
+        "String a3 = a(uuid);",
+        "NowCoreLogger.f47287a.p(new DefaultMessage(\"DeviceIdError\", \"getDeviceUniqueIdInternal error : \" + a3, null, 4, null));",
+        "return a3;"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/EtiquetteTimeRequestBody.java",
+      "line": 61,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public /* synthetic */ EtiquetteTimeRequestBody(int i2, @SerialName(\"appKey\") String str, @SerialName(\"appId\") String str2, @SerialName(\"appVersion\") String str3, @SerialName(\"devi",
+      "context": [
+        "@Deprecated(level = DeprecationLevel.HIDDEN, message = \"This synthesized declaration should not be used directly\", repla",
+        "public /* synthetic */ EtiquetteTimeRequestBody(int i2, @SerialName(\"appKey\") String str, @SerialName(\"appId\") String st",
+        "if (31 != (i2 & 31)) {"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/EtiquetteTimeRequestBody.java",
+      "line": 106,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "@SerialName(\"deviceUniqueId\")",
+      "context": [
+        "",
+        "@SerialName(\"deviceUniqueId\")",
+        "public static /* synthetic */ void o() {"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/EtiquetteTimeRequestBody.java",
+      "line": 160,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public final EtiquetteTimeRequestBody f(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @NotNull String deviceUniqueId, @NotNull EtiquetteTime etiquetteT",
+      "context": [
+        "@NotNull",
+        "public final EtiquetteTimeRequestBody f(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @NotN",
+        "Intrinsics.checkNotNullParameter(appKey, \"appKey\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/EtiquetteTimeRequestBody.java",
+      "line": 164,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+      "context": [
+        "Intrinsics.checkNotNullParameter(appVersion, \"appVersion\");",
+        "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+        "Intrinsics.checkNotNullParameter(etiquetteTime, \"etiquetteTime\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/EtiquetteTimeRequestBody.java",
+      "line": 166,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "return new EtiquetteTimeRequestBody(appKey, appId, appVersion, deviceUniqueId, etiquetteTime);",
+      "context": [
+        "Intrinsics.checkNotNullParameter(etiquetteTime, \"etiquetteTime\");",
+        "return new EtiquetteTimeRequestBody(appKey, appId, appVersion, deviceUniqueId, etiquetteTime);",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/EtiquetteTimeRequestBody.java",
+      "line": 205,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "return \"EtiquetteTimeRequestBody(appKey=\" + str + \", appId=\" + str2 + \", appVersion=\" + str3 + \", deviceUniqueId=\" + str4 + \", etiquetteTime=\" + etiquetteTime + \")\";",
+      "context": [
+        "EtiquetteTime etiquetteTime = this.f46027e;",
+        "return \"EtiquetteTimeRequestBody(appKey=\" + str + \", appId=\" + str2 + \", appVersion=\" + str3 + \", deviceUniqueId=\" + str",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/EtiquetteTimeRequestBody.java",
+      "line": 208,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public EtiquetteTimeRequestBody(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @NotNull String deviceUniqueId, @NotNull EtiquetteTime etiquetteTime) {",
+      "context": [
+        "",
+        "public EtiquetteTimeRequestBody(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @NotNull Stri",
+        "Intrinsics.checkNotNullParameter(appKey, \"appKey\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/EtiquetteTimeRequestBody.java",
+      "line": 212,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+      "context": [
+        "Intrinsics.checkNotNullParameter(appVersion, \"appVersion\");",
+        "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+        "Intrinsics.checkNotNullParameter(etiquetteTime, \"etiquetteTime\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/EtiquetteTimeRequestBody.java",
+      "line": 217,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "this.f46026d = deviceUniqueId;",
+      "context": [
+        "this.f46025c = appVersion;",
+        "this.f46026d = deviceUniqueId;",
+        "this.f46027e = etiquetteTime;"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/CategoryConfigsResult.java",
+      "line": 97,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "@SerialName(\"deviceUniqueId\")",
+      "context": [
+        "",
+        "@SerialName(\"deviceUniqueId\")",
+        "public static /* synthetic */ void C() {"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/CategoryConfigsResult.java",
+      "line": 305,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "return \"CategoryConfigsResult(promotionYn=\" + str + \", categoryConfigs=\" + list + \", categoryPeriods=\" + list2 + \", etiquetteTime=\" + etiquetteTime + \", deviceId=\" + str2 + \", appI",
+      "context": [
+        "String str7 = this.f45679j;",
+        "return \"CategoryConfigsResult(promotionYn=\" + str + \", categoryConfigs=\" + list + \", categoryPeriods=\" + list2 + \", etiq",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/CategoryConfigsResult.java",
+      "line": 324,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public /* synthetic */ CategoryConfigsResult(int i2, @SerialName(\"promotionYn\") String str, @SerialName(\"categoryConfigs\") List list, @SerialName(\"categoryPeriods\") List list2, @Se",
+      "context": [
+        "@Deprecated(level = DeprecationLevel.HIDDEN, message = \"This synthesized declaration should not be used directly\", repla",
+        "public /* synthetic */ CategoryConfigsResult(int i2, @SerialName(\"promotionYn\") String str, @SerialName(\"categoryConfigs",
+        "if ((i2 & 1) == 0) {"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/PromotionBody$$serializer.java",
+      "line": 37,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "pluginGeneratedSerialDescriptor.k(\"deviceUniqueId\", false);",
+      "context": [
+        "pluginGeneratedSerialDescriptor.k(a0.f25529O, false);",
+        "pluginGeneratedSerialDescriptor.k(\"deviceUniqueId\", false);",
+        "pluginGeneratedSerialDescriptor.k(\"promotionYn\", false);"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/EtiquetteTimeRequestBody$$serializer.java",
+      "line": 37,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "pluginGeneratedSerialDescriptor.k(\"deviceUniqueId\", false);",
+      "context": [
+        "pluginGeneratedSerialDescriptor.k(a0.f25529O, false);",
+        "pluginGeneratedSerialDescriptor.k(\"deviceUniqueId\", false);",
+        "pluginGeneratedSerialDescriptor.k(\"etiquetteTime\", false);"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/CategoryConfigsResult$$serializer.java",
+      "line": 47,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "pluginGeneratedSerialDescriptor.k(\"deviceUniqueId\", true);",
+      "context": [
+        "pluginGeneratedSerialDescriptor.k(SpaySdk.EXTRA_DEVICE_TYPE, true);",
+        "pluginGeneratedSerialDescriptor.k(\"deviceUniqueId\", true);",
+        "f45681b = pluginGeneratedSerialDescriptor;"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/PushConfigsRequestBody$$serializer.java",
+      "line": 39,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "pluginGeneratedSerialDescriptor.k(\"deviceUniqueId\", false);",
+      "context": [
+        "pluginGeneratedSerialDescriptor.k(a0.f25529O, false);",
+        "pluginGeneratedSerialDescriptor.k(\"deviceUniqueId\", false);",
+        "pluginGeneratedSerialDescriptor.k(\"promotionYn\", false);"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/NowApiService.java",
+      "line": 539,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "Single<DeviceResponse> getPushConfig(@NotNull @Query(\"appKey\") String str, @NotNull @Query(\"appId\") String str2, @NotNull @Query(\"appVersion\") String str3, @NotNull @Query(\"deviceT",
+      "context": [
+        "@NotNull",
+        "Single<DeviceResponse> getPushConfig(@NotNull @Query(\"appKey\") String str, @NotNull @Query(\"appId\") String str2, @NotNul",
+        ""
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/PushConfigsRequestBody.java",
+      "line": 81,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public /* synthetic */ PushConfigsRequestBody(int i2, @SerialName(\"appKey\") String str, @SerialName(\"appId\") String str2, @SerialName(\"appVersion\") String str3, @SerialName(\"device",
+      "context": [
+        "@Deprecated(level = DeprecationLevel.HIDDEN, message = \"This synthesized declaration should not be used directly\", repla",
+        "public /* synthetic */ PushConfigsRequestBody(int i2, @SerialName(\"appKey\") String str, @SerialName(\"appId\") String str2",
+        "if (255 != (i2 & 255)) {"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/PushConfigsRequestBody.java",
+      "line": 119,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "@SerialName(\"deviceUniqueId\")",
+      "context": [
+        "",
+        "@SerialName(\"deviceUniqueId\")",
+        "public static /* synthetic */ void w() {"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/PushConfigsRequestBody.java",
+      "line": 198,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public final PushConfigsRequestBody j(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @NotNull String deviceUniqueId, @NotNull String promotionYn, @NotNu",
+      "context": [
+        "@NotNull",
+        "public final PushConfigsRequestBody j(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @NotNul",
+        "Intrinsics.checkNotNullParameter(appKey, \"appKey\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/PushConfigsRequestBody.java",
+      "line": 202,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+      "context": [
+        "Intrinsics.checkNotNullParameter(appVersion, \"appVersion\");",
+        "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+        "Intrinsics.checkNotNullParameter(promotionYn, \"promotionYn\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/PushConfigsRequestBody.java",
+      "line": 206,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "return new PushConfigsRequestBody(appKey, appId, appVersion, deviceUniqueId, promotionYn, categoryConfigs, categoryPeriods, list);",
+      "context": [
+        "Intrinsics.checkNotNullParameter(categoryPeriods, \"categoryPeriods\");",
+        "return new PushConfigsRequestBody(appKey, appId, appVersion, deviceUniqueId, promotionYn, categoryConfigs, categoryPerio",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/PushConfigsRequestBody.java",
+      "line": 244,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "return \"PushConfigsRequestBody(appKey=\" + str + \", appId=\" + str2 + \", appVersion=\" + str3 + \", deviceUniqueId=\" + str4 + \", promotionYn=\" + str5 + \", categoryConfigs=\" + list + \",",
+      "context": [
+        "List<EtiquetteTime> list3 = this.f46552h;",
+        "return \"PushConfigsRequestBody(appKey=\" + str + \", appId=\" + str2 + \", appVersion=\" + str3 + \", deviceUniqueId=\" + str4 ",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/PushConfigsRequestBody.java",
+      "line": 262,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public PushConfigsRequestBody(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @NotNull String deviceUniqueId, @NotNull String promotionYn, @NotNull List<",
+      "context": [
+        "",
+        "public PushConfigsRequestBody(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @NotNull String",
+        "Intrinsics.checkNotNullParameter(appKey, \"appKey\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/PushConfigsRequestBody.java",
+      "line": 266,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+      "context": [
+        "Intrinsics.checkNotNullParameter(appVersion, \"appVersion\");",
+        "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+        "Intrinsics.checkNotNullParameter(promotionYn, \"promotionYn\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/PushConfigsRequestBody.java",
+      "line": 273,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "this.f46548d = deviceUniqueId;",
+      "context": [
+        "this.f46547c = appVersion;",
+        "this.f46548d = deviceUniqueId;",
+        "this.f46549e = promotionYn;"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/EventPushRequestBody.java",
+      "line": 61,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public /* synthetic */ EventPushRequestBody(int i2, @SerialName(\"appKey\") String str, @SerialName(\"appId\") String str2, @SerialName(\"appVersion\") String str3, @SerialName(\"deviceUn",
+      "context": [
+        "@Deprecated(level = DeprecationLevel.HIDDEN, message = \"This synthesized declaration should not be used directly\", repla",
+        "public /* synthetic */ EventPushRequestBody(int i2, @SerialName(\"appKey\") String str, @SerialName(\"appId\") String str2, ",
+        "if (31 != (i2 & 31)) {"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/EventPushRequestBody.java",
+      "line": 106,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "@SerialName(\"deviceUniqueId\")",
+      "context": [
+        "",
+        "@SerialName(\"deviceUniqueId\")",
+        "public static /* synthetic */ void o() {"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/EventPushRequestBody.java",
+      "line": 160,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public final EventPushRequestBody f(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @NotNull String deviceUniqueId, @NotNull EventPush eventPush) {",
+      "context": [
+        "@NotNull",
+        "public final EventPushRequestBody f(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @NotNull ",
+        "Intrinsics.checkNotNullParameter(appKey, \"appKey\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/EventPushRequestBody.java",
+      "line": 164,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+      "context": [
+        "Intrinsics.checkNotNullParameter(appVersion, \"appVersion\");",
+        "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+        "Intrinsics.checkNotNullParameter(eventPush, \"eventPush\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/EventPushRequestBody.java",
+      "line": 166,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "return new EventPushRequestBody(appKey, appId, appVersion, deviceUniqueId, eventPush);",
+      "context": [
+        "Intrinsics.checkNotNullParameter(eventPush, \"eventPush\");",
+        "return new EventPushRequestBody(appKey, appId, appVersion, deviceUniqueId, eventPush);",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/EventPushRequestBody.java",
+      "line": 205,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "return \"EventPushRequestBody(appKey=\" + str + \", appId=\" + str2 + \", appVersion=\" + str3 + \", deviceUniqueId=\" + str4 + \", eventPush=\" + eventPush + \")\";",
+      "context": [
+        "EventPush eventPush = this.f46038e;",
+        "return \"EventPushRequestBody(appKey=\" + str + \", appId=\" + str2 + \", appVersion=\" + str3 + \", deviceUniqueId=\" + str4 + ",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/EventPushRequestBody.java",
+      "line": 208,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public EventPushRequestBody(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @NotNull String deviceUniqueId, @NotNull EventPush eventPush) {",
+      "context": [
+        "",
+        "public EventPushRequestBody(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @NotNull String d",
+        "Intrinsics.checkNotNullParameter(appKey, \"appKey\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/EventPushRequestBody.java",
+      "line": 212,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+      "context": [
+        "Intrinsics.checkNotNullParameter(appVersion, \"appVersion\");",
+        "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+        "Intrinsics.checkNotNullParameter(eventPush, \"eventPush\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/EventPushRequestBody.java",
+      "line": 217,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "this.f46037d = deviceUniqueId;",
+      "context": [
+        "this.f46036c = appVersion;",
+        "this.f46037d = deviceUniqueId;",
+        "this.f46038e = eventPush;"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/DeviceRequestBody.java",
+      "line": 83,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public /* synthetic */ DeviceRequestBody(int i2, @SerialName(\"appKey\") String str, @SerialName(\"appId\") String str2, @SerialName(\"appVersion\") String str3, @SerialName(\"deviceType\"",
+      "context": [
+        "@Deprecated(level = DeprecationLevel.HIDDEN, message = \"This synthesized declaration should not be used directly\", repla",
+        "public /* synthetic */ DeviceRequestBody(int i2, @SerialName(\"appKey\") String str, @SerialName(\"appId\") String str2, @Se",
+        "if (1023 != (i2 & 1023)) {"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/DeviceRequestBody.java",
+      "line": 145,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "@SerialName(\"deviceUniqueId\")",
+      "context": [
+        "",
+        "@SerialName(\"deviceUniqueId\")",
+        "public static /* synthetic */ void x() {"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/DeviceRequestBody.java",
+      "line": 234,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public final DeviceRequestBody k(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @NotNull String deviceType, @NotNull String deviceId, @NotNull String de",
+      "context": [
+        "@NotNull",
+        "public final DeviceRequestBody k(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @NotNull Str",
+        "Intrinsics.checkNotNullParameter(appKey, \"appKey\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/DeviceRequestBody.java",
+      "line": 240,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+      "context": [
+        "Intrinsics.checkNotNullParameter(deviceId, \"deviceId\");",
+        "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+        "Intrinsics.checkNotNullParameter(vendor, \"vendor\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/DeviceRequestBody.java",
+      "line": 245,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "return new DeviceRequestBody(appKey, appId, appVersion, deviceType, deviceId, deviceUniqueId, vendor, manufacturer, model, os);",
+      "context": [
+        "Intrinsics.checkNotNullParameter(os, \"os\");",
+        "return new DeviceRequestBody(appKey, appId, appVersion, deviceType, deviceId, deviceUniqueId, vendor, manufacturer, mode",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/DeviceRequestBody.java",
+      "line": 280,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "return \"DeviceRequestBody(appKey=\" + str + \", appId=\" + str2 + \", appVersion=\" + str3 + \", deviceType=\" + str4 + \", deviceId=\" + str5 + \", deviceUniqueId=\" + str6 + \", vendor=\" + s",
+      "context": [
+        "String str10 = this.f45983j;",
+        "return \"DeviceRequestBody(appKey=\" + str + \", appId=\" + str2 + \", appVersion=\" + str3 + \", deviceType=\" + str4 + \", devi",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/DeviceRequestBody.java",
+      "line": 298,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public DeviceRequestBody(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @NotNull String deviceType, @NotNull String deviceId, @NotNull String deviceUniq",
+      "context": [
+        "",
+        "public DeviceRequestBody(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @NotNull String devi",
+        "Intrinsics.checkNotNullParameter(appKey, \"appKey\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/DeviceRequestBody.java",
+      "line": 304,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+      "context": [
+        "Intrinsics.checkNotNullParameter(deviceId, \"deviceId\");",
+        "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+        "Intrinsics.checkNotNullParameter(vendor, \"vendor\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/DeviceRequestBody.java",
+      "line": 314,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "this.f45979f = deviceUniqueId;",
+      "context": [
+        "this.f45978e = deviceId;",
+        "this.f45979f = deviceUniqueId;",
+        "this.f45980g = vendor;"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/CategoryIntervalRequestBody$$serializer.java",
+      "line": 38,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "pluginGeneratedSerialDescriptor.k(\"deviceUniqueId\", false);",
+      "context": [
+        "pluginGeneratedSerialDescriptor.k(a0.f25529O, false);",
+        "pluginGeneratedSerialDescriptor.k(\"deviceUniqueId\", false);",
+        "pluginGeneratedSerialDescriptor.k(\"categoryPeriods\", false);"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/EventPushRequestBody$$serializer.java",
+      "line": 37,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "pluginGeneratedSerialDescriptor.k(\"deviceUniqueId\", false);",
+      "context": [
+        "pluginGeneratedSerialDescriptor.k(a0.f25529O, false);",
+        "pluginGeneratedSerialDescriptor.k(\"deviceUniqueId\", false);",
+        "pluginGeneratedSerialDescriptor.k(\"eventPush\", false);"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/CategoryConfigsRequestBody$$serializer.java",
+      "line": 38,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "pluginGeneratedSerialDescriptor.k(\"deviceUniqueId\", false);",
+      "context": [
+        "pluginGeneratedSerialDescriptor.k(a0.f25529O, false);",
+        "pluginGeneratedSerialDescriptor.k(\"deviceUniqueId\", false);",
+        "pluginGeneratedSerialDescriptor.k(\"categoryConfigs\", false);"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/DeviceResult.java",
+      "line": 95,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public /* synthetic */ DeviceResult(int i2, @SerialName(\"promotionYn\") String str, @SerialName(\"categoryConfigs\") List list, @SerialName(\"categoryPeriods\") List list2, @SerialName(",
+      "context": [
+        "@Deprecated(level = DeprecationLevel.HIDDEN, message = \"This synthesized declaration should not be used directly\", repla",
+        "public /* synthetic */ DeviceResult(int i2, @SerialName(\"promotionYn\") String str, @SerialName(\"categoryConfigs\") List l",
+        "if (2017 != (i2 & WebFeature.CLIENT_HINTS_DEVICE_MEMORY_DEPRECATED)) {"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/DeviceResult.java",
+      "line": 132,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "@SerialName(\"deviceUniqueId\")",
+      "context": [
+        "",
+        "@SerialName(\"deviceUniqueId\")",
+        "public static /* synthetic */ void D() {"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/DeviceResult.java",
+      "line": 300,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public final DeviceResult m(@NotNull String promotionYn, @Nullable List<CategoryConfigs> list, @Nullable List<CategoryPeriods> list2, @Nullable EtiquetteTime etiquetteTime, @Nullab",
+      "context": [
+        "@NotNull",
+        "public final DeviceResult m(@NotNull String promotionYn, @Nullable List<CategoryConfigs> list, @Nullable List<CategoryPe",
+        "Intrinsics.checkNotNullParameter(promotionYn, \"promotionYn\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/DeviceResult.java",
+      "line": 307,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+      "context": [
+        "Intrinsics.checkNotNullParameter(deviceType, \"deviceType\");",
+        "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+        "return new DeviceResult(promotionYn, list, list2, etiquetteTime, eventPush, deviceId, appId, appVersion, appKey, deviceT"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/DeviceResult.java",
+      "line": 308,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "return new DeviceResult(promotionYn, list, list2, etiquetteTime, eventPush, deviceId, appId, appVersion, appKey, deviceType, deviceUniqueId);",
+      "context": [
+        "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+        "return new DeviceResult(promotionYn, list, list2, etiquetteTime, eventPush, deviceId, appId, appVersion, appKey, deviceT",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/DeviceResult.java",
+      "line": 339,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "return \"DeviceResult(promotionYn=\" + str + \", categoryConfigs=\" + list + \", categoryPeriods=\" + list2 + \", etiquetteTime=\" + etiquetteTime + \", eventPush=\" + eventPush + \", deviceI",
+      "context": [
+        "String str7 = this.f46000k;",
+        "return \"DeviceResult(promotionYn=\" + str + \", categoryConfigs=\" + list + \", categoryPeriods=\" + list2 + \", etiquetteTime",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/DeviceResult.java",
+      "line": 357,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public DeviceResult(@NotNull String promotionYn, @Nullable List<CategoryConfigs> list, @Nullable List<CategoryPeriods> list2, @Nullable EtiquetteTime etiquetteTime, @Nullable Event",
+      "context": [
+        "",
+        "public DeviceResult(@NotNull String promotionYn, @Nullable List<CategoryConfigs> list, @Nullable List<CategoryPeriods> l",
+        "Intrinsics.checkNotNullParameter(promotionYn, \"promotionYn\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/DeviceResult.java",
+      "line": 364,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+      "context": [
+        "Intrinsics.checkNotNullParameter(deviceType, \"deviceType\");",
+        "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+        "this.f45990a = promotionYn;"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/DeviceResult.java",
+      "line": 375,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "this.f46000k = deviceUniqueId;",
+      "context": [
+        "this.f45999j = deviceType;",
+        "this.f46000k = deviceUniqueId;",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/CategoryIntervalRequestBody.java",
+      "line": 69,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public /* synthetic */ CategoryIntervalRequestBody(int i2, @SerialName(\"appKey\") String str, @SerialName(\"appId\") String str2, @SerialName(\"appVersion\") String str3, @SerialName(\"d",
+      "context": [
+        "@Deprecated(level = DeprecationLevel.HIDDEN, message = \"This synthesized declaration should not be used directly\", repla",
+        "public /* synthetic */ CategoryIntervalRequestBody(int i2, @SerialName(\"appKey\") String str, @SerialName(\"appId\") String",
+        "if (31 != (i2 & 31)) {"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/CategoryIntervalRequestBody.java",
+      "line": 119,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "@SerialName(\"deviceUniqueId\")",
+      "context": [
+        "",
+        "@SerialName(\"deviceUniqueId\")",
+        "public static /* synthetic */ void r() {"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/CategoryIntervalRequestBody.java",
+      "line": 170,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public final CategoryIntervalRequestBody g(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @NotNull String deviceUniqueId, @NotNull List<CategoryPeriods>",
+      "context": [
+        "@NotNull",
+        "public final CategoryIntervalRequestBody g(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @N",
+        "Intrinsics.checkNotNullParameter(appKey, \"appKey\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/CategoryIntervalRequestBody.java",
+      "line": 174,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+      "context": [
+        "Intrinsics.checkNotNullParameter(appVersion, \"appVersion\");",
+        "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+        "Intrinsics.checkNotNullParameter(categoryPeriods, \"categoryPeriods\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/CategoryIntervalRequestBody.java",
+      "line": 176,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "return new CategoryIntervalRequestBody(appKey, appId, appVersion, deviceUniqueId, categoryPeriods);",
+      "context": [
+        "Intrinsics.checkNotNullParameter(categoryPeriods, \"categoryPeriods\");",
+        "return new CategoryIntervalRequestBody(appKey, appId, appVersion, deviceUniqueId, categoryPeriods);",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/CategoryIntervalRequestBody.java",
+      "line": 215,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "return \"CategoryIntervalRequestBody(appKey=\" + str + \", appId=\" + str2 + \", appVersion=\" + str3 + \", deviceUniqueId=\" + str4 + \", categoryPeriods=\" + list + \")\";",
+      "context": [
+        "List<CategoryPeriods> list = this.f45687e;",
+        "return \"CategoryIntervalRequestBody(appKey=\" + str + \", appId=\" + str2 + \", appVersion=\" + str3 + \", deviceUniqueId=\" + ",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/CategoryIntervalRequestBody.java",
+      "line": 218,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public CategoryIntervalRequestBody(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @NotNull String deviceUniqueId, @NotNull List<CategoryPeriods> categor",
+      "context": [
+        "",
+        "public CategoryIntervalRequestBody(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @NotNull S",
+        "Intrinsics.checkNotNullParameter(appKey, \"appKey\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/CategoryIntervalRequestBody.java",
+      "line": 222,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+      "context": [
+        "Intrinsics.checkNotNullParameter(appVersion, \"appVersion\");",
+        "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+        "Intrinsics.checkNotNullParameter(categoryPeriods, \"categoryPeriods\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/CategoryIntervalRequestBody.java",
+      "line": 227,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "this.f45686d = deviceUniqueId;",
+      "context": [
+        "this.f45685c = appVersion;",
+        "this.f45686d = deviceUniqueId;",
+        "this.f45687e = categoryPeriods;"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/CategoryConfigsRequestBody.java",
+      "line": 69,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public /* synthetic */ CategoryConfigsRequestBody(int i2, @SerialName(\"appKey\") String str, @SerialName(\"appId\") String str2, @SerialName(\"appVersion\") String str3, @SerialName(\"de",
+      "context": [
+        "@Deprecated(level = DeprecationLevel.HIDDEN, message = \"This synthesized declaration should not be used directly\", repla",
+        "public /* synthetic */ CategoryConfigsRequestBody(int i2, @SerialName(\"appKey\") String str, @SerialName(\"appId\") String ",
+        "if (31 != (i2 & 31)) {"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/CategoryConfigsRequestBody.java",
+      "line": 119,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "@SerialName(\"deviceUniqueId\")",
+      "context": [
+        "",
+        "@SerialName(\"deviceUniqueId\")",
+        "public static /* synthetic */ void r() {"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/CategoryConfigsRequestBody.java",
+      "line": 170,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public final CategoryConfigsRequestBody g(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @NotNull String deviceUniqueId, @NotNull List<CategoryConfig> c",
+      "context": [
+        "@NotNull",
+        "public final CategoryConfigsRequestBody g(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @No",
+        "Intrinsics.checkNotNullParameter(appKey, \"appKey\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/CategoryConfigsRequestBody.java",
+      "line": 174,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+      "context": [
+        "Intrinsics.checkNotNullParameter(appVersion, \"appVersion\");",
+        "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+        "Intrinsics.checkNotNullParameter(categoryConfigs, \"categoryConfigs\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/CategoryConfigsRequestBody.java",
+      "line": 176,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "return new CategoryConfigsRequestBody(appKey, appId, appVersion, deviceUniqueId, categoryConfigs);",
+      "context": [
+        "Intrinsics.checkNotNullParameter(categoryConfigs, \"categoryConfigs\");",
+        "return new CategoryConfigsRequestBody(appKey, appId, appVersion, deviceUniqueId, categoryConfigs);",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/CategoryConfigsRequestBody.java",
+      "line": 215,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "return \"CategoryConfigsRequestBody(appKey=\" + str + \", appId=\" + str2 + \", appVersion=\" + str3 + \", deviceUniqueId=\" + str4 + \", categoryConfigs=\" + list + \")\";",
+      "context": [
+        "List<CategoryConfig> list = this.f45663e;",
+        "return \"CategoryConfigsRequestBody(appKey=\" + str + \", appId=\" + str2 + \", appVersion=\" + str3 + \", deviceUniqueId=\" + s",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/CategoryConfigsRequestBody.java",
+      "line": 218,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public CategoryConfigsRequestBody(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @NotNull String deviceUniqueId, @NotNull List<CategoryConfig> categoryC",
+      "context": [
+        "",
+        "public CategoryConfigsRequestBody(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @NotNull St",
+        "Intrinsics.checkNotNullParameter(appKey, \"appKey\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/CategoryConfigsRequestBody.java",
+      "line": 222,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+      "context": [
+        "Intrinsics.checkNotNullParameter(appVersion, \"appVersion\");",
+        "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+        "Intrinsics.checkNotNullParameter(categoryConfigs, \"categoryConfigs\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/CategoryConfigsRequestBody.java",
+      "line": 227,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "this.f45662d = deviceUniqueId;",
+      "context": [
+        "this.f45661c = appVersion;",
+        "this.f45662d = deviceUniqueId;",
+        "this.f45663e = categoryConfigs;"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/DeviceResult$$serializer.java",
+      "line": 48,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "pluginGeneratedSerialDescriptor.k(\"deviceUniqueId\", false);",
+      "context": [
+        "pluginGeneratedSerialDescriptor.k(SpaySdk.EXTRA_DEVICE_TYPE, false);",
+        "pluginGeneratedSerialDescriptor.k(\"deviceUniqueId\", false);",
+        "f46002b = pluginGeneratedSerialDescriptor;"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/PromotionBody.java",
+      "line": 61,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public /* synthetic */ PromotionBody(int i2, @SerialName(\"appKey\") String str, @SerialName(\"appId\") String str2, @SerialName(\"appVersion\") String str3, @SerialName(\"deviceUniqueId\"",
+      "context": [
+        "@Deprecated(level = DeprecationLevel.HIDDEN, message = \"This synthesized declaration should not be used directly\", repla",
+        "public /* synthetic */ PromotionBody(int i2, @SerialName(\"appKey\") String str, @SerialName(\"appId\") String str2, @Serial",
+        "if (31 != (i2 & 31)) {"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/PromotionBody.java",
+      "line": 106,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "@SerialName(\"deviceUniqueId\")",
+      "context": [
+        "",
+        "@SerialName(\"deviceUniqueId\")",
+        "public static /* synthetic */ void o() {"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/PromotionBody.java",
+      "line": 160,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public final PromotionBody f(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @NotNull String deviceUniqueId, @NotNull String promotionYn) {",
+      "context": [
+        "@NotNull",
+        "public final PromotionBody f(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @NotNull String ",
+        "Intrinsics.checkNotNullParameter(appKey, \"appKey\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/PromotionBody.java",
+      "line": 164,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+      "context": [
+        "Intrinsics.checkNotNullParameter(appVersion, \"appVersion\");",
+        "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+        "Intrinsics.checkNotNullParameter(promotionYn, \"promotionYn\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/PromotionBody.java",
+      "line": 166,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "return new PromotionBody(appKey, appId, appVersion, deviceUniqueId, promotionYn);",
+      "context": [
+        "Intrinsics.checkNotNullParameter(promotionYn, \"promotionYn\");",
+        "return new PromotionBody(appKey, appId, appVersion, deviceUniqueId, promotionYn);",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/PromotionBody.java",
+      "line": 205,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "return \"PromotionBody(appKey=\" + str + \", appId=\" + str2 + \", appVersion=\" + str3 + \", deviceUniqueId=\" + str4 + \", promotionYn=\" + str5 + \")\";",
+      "context": [
+        "String str5 = this.f46532e;",
+        "return \"PromotionBody(appKey=\" + str + \", appId=\" + str2 + \", appVersion=\" + str3 + \", deviceUniqueId=\" + str4 + \", prom",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/PromotionBody.java",
+      "line": 208,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public PromotionBody(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @NotNull String deviceUniqueId, @NotNull String promotionYn) {",
+      "context": [
+        "",
+        "public PromotionBody(@NotNull String appKey, @NotNull String appId, @NotNull String appVersion, @NotNull String deviceUn",
+        "Intrinsics.checkNotNullParameter(appKey, \"appKey\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/PromotionBody.java",
+      "line": 212,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+      "context": [
+        "Intrinsics.checkNotNullParameter(appVersion, \"appVersion\");",
+        "Intrinsics.checkNotNullParameter(deviceUniqueId, \"deviceUniqueId\");",
+        "Intrinsics.checkNotNullParameter(promotionYn, \"promotionYn\");"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/PromotionBody.java",
+      "line": 217,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "this.f46531d = deviceUniqueId;",
+      "context": [
+        "this.f46530c = appVersion;",
+        "this.f46531d = deviceUniqueId;",
+        "this.f46532e = promotionYn;"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/now/core/api/now/DeviceRequestBody$$serializer.java",
+      "line": 41,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "pluginGeneratedSerialDescriptor.k(\"deviceUniqueId\", false);",
+      "context": [
+        "pluginGeneratedSerialDescriptor.k(SpaySdk.DEVICE_ID, false);",
+        "pluginGeneratedSerialDescriptor.k(\"deviceUniqueId\", false);",
+        "pluginGeneratedSerialDescriptor.k(i1.f29402f, false);"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/chatting/library/helper/NetworkUtils.java",
+      "line": 27,
+      "rule_id": "NET_INTERFACE_MAC",
+      "category": "WIFI_NETWORK",
+      "desc": "NetworkInterface 물리 MAC 주소 열람",
+      "code": "Iterator it = Collections.list(NetworkInterface.getNetworkInterfaces()).iterator();",
+      "context": [
+        "try {",
+        "Iterator it = Collections.list(NetworkInterface.getNetworkInterfaces()).iterator();",
+        "while (it.hasNext()) {"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "NetworkInterface.getHardwareAddress() 호출 시 루프백 또는 빈 배열 반환 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/navercorp/android/selective/livecommerceviewer/tools/ShoppingLiveViewerConstants.java",
+      "line": 242,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public static final String f69589d1 = \"DeviceUniqueID\";",
+      "context": [
+        "/* renamed from: d1  reason: collision with root package name */",
+        "public static final String f69589d1 = \"DeviceUniqueID\";",
+        "@NotNull"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/navercorp/nid/otp/security/obfuscator/EncryptionFingerprintFactory.java",
+      "line": 27,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "return new EncryptionFingerprint.Default(Bytes.from(bArr, Bytes.from(Settings.Secure.getString(context.getContentResolver(), \"android_id\")).array(), Bytes.from(String.valueOf(conte",
+      "context": [
+        "}",
+        "return new EncryptionFingerprint.Default(Bytes.from(bArr, Bytes.from(Settings.Secure.getString(context.getContentResolve",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naverfin/paylib/auth/bio/util/DeviceInfoUtil.java",
+      "line": 45,
+      "rule_id": "NET_INTERFACE_MAC",
+      "category": "WIFI_NETWORK",
+      "desc": "NetworkInterface 물리 MAC 주소 열람",
+      "code": "Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();",
+      "context": [
+        "Result.Companion companion = Result.Companion;",
+        "Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();",
+        "Intrinsics.m(networkInterfaces);"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "NetworkInterface.getHardwareAddress() 호출 시 루프백 또는 빈 배열 반환 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naverfin/paylib/auth/bio/util/DeviceInfoUtil.java",
+      "line": 80,
+      "rule_id": "WIFI_MAC_IP",
+      "category": "WIFI_NETWORK",
+      "desc": "Wi-Fi MAC / IP / 주변 AP 스캔 목록 조회",
+      "code": "return i(((WifiManager) systemService).getConnectionInfo().getIpAddress());",
+      "context": [
+        "Intrinsics.n(systemService, \"null cannot be cast to non-null type android.net.wifi.WifiManager\");",
+        "return i(((WifiManager) systemService).getConnectionInfo().getIpAddress());",
+        "}"
+      ],
+      "domain": "NAVER_COMMON_SDK",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Wi-Fi IP/스캔 결과 접근 로직 실기기 점검 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/gfpsdk/internal/location/WifiScanner.java",
+      "line": 117,
+      "rule_id": "WIFI_MAC_IP",
+      "category": "WIFI_NETWORK",
+      "desc": "Wi-Fi MAC / IP / 주변 AP 스캔 목록 조회",
+      "code": "if (wifiManager == null || (scanResults = wifiManager.getScanResults()) == null) {",
+      "context": [
+        "WifiManager wifiManager = (WifiManager) ContextCompat.getSystemService(this.f44213a, WifiManager.class);",
+        "if (wifiManager == null || (scanResults = wifiManager.getScanResults()) == null) {",
+        "arrayList = null;"
+      ],
+      "domain": "NAVER_TELEMETRY_TRACKER",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Wi-Fi IP/스캔 결과 접근 로직 실기기 점검 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/nelo/sdk/android/utils/DeviceInfo.java",
+      "line": 145,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "printStream.println(\"BRAND: \" + Build.BRAND);",
+      "context": [
+        "printStream.println(\"DISPLAY: \" + Build.DISPLAY);",
+        "printStream.println(\"BRAND: \" + Build.BRAND);",
+        "printStream.println(\"BOARD: \" + Build.BOARD);"
+      ],
+      "domain": "NAVER_TELEMETRY_TRACKER",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/nelo/sdk/android/utils/DeviceInfo.java",
+      "line": 146,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "printStream.println(\"BOARD: \" + Build.BOARD);",
+      "context": [
+        "printStream.println(\"BRAND: \" + Build.BRAND);",
+        "printStream.println(\"BOARD: \" + Build.BOARD);",
+        "printStream.println(\"FINGERPRINT: \" + Build.FINGERPRINT);"
+      ],
+      "domain": "NAVER_TELEMETRY_TRACKER",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/naver/nelo/sdk/android/utils/DeviceInfo.java",
+      "line": 147,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "printStream.println(\"FINGERPRINT: \" + Build.FINGERPRINT);",
+      "context": [
+        "printStream.println(\"BOARD: \" + Build.BOARD);",
+        "printStream.println(\"FINGERPRINT: \" + Build.FINGERPRINT);",
+        "if (context != null && StringUtils.isNotEmpty(context.getPackageName())) {"
+      ],
+      "domain": "NAVER_TELEMETRY_TRACKER",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/navercorp/android/shopping/common/nelo/ShoppingCommonSdkNeloHelper.java",
+      "line": 52,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "private static final String f73587j = \"DeviceUniqueID\";",
+      "context": [
+        "/* renamed from: j  reason: collision with root package name */",
+        "private static final String f73587j = \"DeviceUniqueID\";",
+        "@NotNull"
+      ],
+      "domain": "NAVER_TELEMETRY_TRACKER",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/navercorp/android/shopping/common/nelo/ShoppingCommonSdkNeloHelper.java",
+      "line": 149,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "logger.a(\"DeviceUniqueID\", \"android_id\");",
+      "context": [
+        "logger.a(f73589l, shoppingCommonSdkNeloConfig.o());",
+        "logger.a(\"DeviceUniqueID\", \"android_id\");",
+        "StringCompanionObject stringCompanionObject = StringCompanionObject.f144019a;"
+      ],
+      "domain": "NAVER_TELEMETRY_TRACKER",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/navercorp/nelo2/android/DeviceInfo.java",
+      "line": 39,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "printStream.println(\"BRAND: \" + Build.BRAND);",
+      "context": [
+        "printStream.println(\"DISPLAY: \" + Build.DISPLAY);",
+        "printStream.println(\"BRAND: \" + Build.BRAND);",
+        "printStream.println(\"BOARD: \" + Build.BOARD);"
+      ],
+      "domain": "NAVER_TELEMETRY_TRACKER",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/navercorp/nelo2/android/DeviceInfo.java",
+      "line": 40,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "printStream.println(\"BOARD: \" + Build.BOARD);",
+      "context": [
+        "printStream.println(\"BRAND: \" + Build.BRAND);",
+        "printStream.println(\"BOARD: \" + Build.BOARD);",
+        "printStream.println(\"FINGERPRINT: \" + Build.FINGERPRINT);"
+      ],
+      "domain": "NAVER_TELEMETRY_TRACKER",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/navercorp/nelo2/android/DeviceInfo.java",
+      "line": 41,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "printStream.println(\"FINGERPRINT: \" + Build.FINGERPRINT);",
+      "context": [
+        "printStream.println(\"BOARD: \" + Build.BOARD);",
+        "printStream.println(\"FINGERPRINT: \" + Build.FINGERPRINT);",
+        "if (neloHandle != null && (context2 = neloHandle.f74460l) != null && StringUtils.e(context2.getPackageName())) {"
+      ],
+      "domain": "NAVER_TELEMETRY_TRACKER",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/bumptech/glide/load/data/ParcelFileDescriptorRewinder.java",
+      "line": 63,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "return !\"robolectric\".equals(Build.FINGERPRINT);",
+      "context": [
+        "public static boolean b() {",
+        "return !\"robolectric\".equals(Build.FINGERPRINT);",
+        "}"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/google/android/gms/internal/fido/zzel.java",
+      "line": 29,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "String str = Build.FINGERPRINT;",
+      "context": [
+        "static {",
+        "String str = Build.FINGERPRINT;",
+        "boolean z2 = true;"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/google/android/gms/internal/fido/zzeo.java",
+      "line": 32,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "String str = Build.FINGERPRINT;",
+      "context": [
+        "static {",
+        "String str = Build.FINGERPRINT;",
+        "boolean z2 = false;"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/google/android/gms/internal/fido/zzeo.java",
+      "line": 35,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "String str2 = Build.HARDWARE;",
+      "context": [
+        "f15850c = str == null || \"robolectric\".equals(str);",
+        "String str2 = Build.HARDWARE;",
+        "f15851d = \"goldfish\".equals(str2) || \"ranchu\".equals(str2);"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/google/android/gms/internal/mlkit_common/zzi.java",
+      "line": 38,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "String str = Build.HARDWARE;",
+      "context": [
+        "static {",
+        "String str = Build.HARDWARE;",
+        "f16360b = new String[]{\"media\", (str.equals(\"goldfish\") || str.equals(\"ranchu\")) ? \"androidx.test.services.storage.runfi"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/google/android/gms/common/internal/zag.java",
+      "line": 35,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "Log.e(\"DialogRedirect\", true == Build.FINGERPRINT.contains(\"generic\") ? \"Failed to start resolution intent. This may occur when resolving Google Play services connection issues on ",
+      "context": [
+        "} catch (ActivityNotFoundException e2) {",
+        "Log.e(\"DialogRedirect\", true == Build.FINGERPRINT.contains(\"generic\") ? \"Failed to start resolution intent. This may occ",
+        "}"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/google/android/gms/common/api/GoogleApiActivity.java",
+      "line": 62,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "if (Build.FINGERPRINT.contains(\"generic\")) {",
+      "context": [
+        "String str = \"Activity not found while launching \" + pendingIntent.toString() + NaverScaledFontRollingUpTextView.Charact",
+        "if (Build.FINGERPRINT.contains(\"generic\")) {",
+        "str = str.concat(\" This may occur when resolving Google Play services connection issues on emulators with Google APIs bu"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/google/android/material/color/DynamicColors.java",
+      "line": 206,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "deviceSupportCondition = DYNAMIC_COLOR_SUPPORTED_BRANDS.get(Build.BRAND.toLowerCase(locale));",
+      "context": [
+        "if (deviceSupportCondition == null) {",
+        "deviceSupportCondition = DYNAMIC_COLOR_SUPPORTED_BRANDS.get(Build.BRAND.toLowerCase(locale));",
+        "}"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/nhn/android/network/UserAgent.java",
+      "line": 48,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "String format = String.format(locale, \"NaverSearch/%s/help-api (Android %s; %s)\", Arrays.copyOf(new Object[]{(packageInfo == null || (r1 = packageInfo.versionName) == null) ? \"\" : ",
+      "context": [
+        "PackageInfo packageInfo = DefaultAppContext.getPackageInfo();",
+        "String format = String.format(locale, \"NaverSearch/%s/help-api (Android %s; %s)\", Arrays.copyOf(new Object[]{(packageInf",
+        "Intrinsics.checkNotNullExpressionValue(format, \"format(...)\");"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/nhn/android/system/IntegrityChecker.java",
+      "line": 81,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "java.lang.String r0 = android.os.Build.BRAND",
+      "context": [
+        "r7 = this;",
+        "java.lang.String r0 = android.os.Build.BRAND",
+        "java.lang.String r1 = \"BRAND\""
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/nhn/android/system/IntegrityChecker.java",
+      "line": 96,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "java.lang.String r0 = android.os.Build.FINGERPRINT",
+      "context": [
+        "L1f:",
+        "java.lang.String r0 = android.os.Build.FINGERPRINT",
+        "java.lang.String r5 = \"FINGERPRINT\""
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/nhn/android/system/IntegrityChecker.java",
+      "line": 105,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "java.lang.String r0 = android.os.Build.HARDWARE",
+      "context": [
+        "if (r0 != 0) goto Ldf",
+        "java.lang.String r0 = android.os.Build.HARDWARE",
+        "java.lang.String r1 = \"HARDWARE\""
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/nhn/android/system/NetworkInfo.java",
+      "line": 65,
+      "rule_id": "WIFI_MAC_IP",
+      "category": "WIFI_NETWORK",
+      "desc": "Wi-Fi MAC / IP / 주변 AP 스캔 목록 조회",
+      "code": "if (wifiManager == null || (dhcpInfo = wifiManager.getDhcpInfo()) == null) {",
+      "context": [
+        "WifiManager wifiManager = (WifiManager) context.getSystemService(PerformanceMetricKt.f82021b);",
+        "if (wifiManager == null || (dhcpInfo = wifiManager.getDhcpInfo()) == null) {",
+        "return null;"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Wi-Fi IP/스캔 결과 접근 로직 실기기 점검 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/nhn/android/system/NetworkInfo.java",
+      "line": 168,
+      "rule_id": "WIFI_BSSID_SSID",
+      "category": "WIFI_NETWORK",
+      "desc": "Wi-Fi 물리 AP MAC(BSSID) / SSID 조회",
+      "code": "return connectionInfo.getSSID();",
+      "context": [
+        "if (connectionInfo != null) {",
+        "return connectionInfo.getSSID();",
+        "}"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Wi-Fi IP/스캔 결과 접근 로직 실기기 점검 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/nhn/android/system/SystemInfo.java",
+      "line": 89,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "if (!Build.BRAND.startsWith(\"generic\") || !Build.DEVICE.startsWith(\"generic\")) {",
+      "context": [
+        "public static boolean isEmulator() {",
+        "if (!Build.BRAND.startsWith(\"generic\") || !Build.DEVICE.startsWith(\"generic\")) {",
+        "String str = Build.FINGERPRINT;"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/nhn/android/system/SystemInfo.java",
+      "line": 90,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "String str = Build.FINGERPRINT;",
+      "context": [
+        "if (!Build.BRAND.startsWith(\"generic\") || !Build.DEVICE.startsWith(\"generic\")) {",
+        "String str = Build.FINGERPRINT;",
+        "if (!str.startsWith(\"generic\") && !str.startsWith(\"unknown\")) {"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/nhn/android/system/SystemInfo.java",
+      "line": 92,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "String str2 = Build.HARDWARE;",
+      "context": [
+        "if (!str.startsWith(\"generic\") && !str.startsWith(\"unknown\")) {",
+        "String str2 = Build.HARDWARE;",
+        "if (!str2.contains(\"goldfish\") && !str2.contains(\"ranchu\")) {"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/nhn/android/system/AppDetailReport.java",
+      "line": 253,
+      "rule_id": "WIFI_MAC_IP",
+      "category": "WIFI_NETWORK",
+      "desc": "Wi-Fi MAC / IP / 주변 AP 스캔 목록 조회",
+      "code": "DhcpInfo dhcpInfo = NetworkInfo.getDhcpInfo(context);",
+      "context": [
+        "addLine(sb, \"WIFI AP\", NetworkInfo.getWifiAPName(context));",
+        "DhcpInfo dhcpInfo = NetworkInfo.getDhcpInfo(context);",
+        "if (dhcpInfo != null) {"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Wi-Fi IP/스캔 결과 접근 로직 실기기 점검 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/samsung/android/sdk/samsungpay/v2/SpayValidity.java",
+      "line": 80,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "this.mBrand = Build.BRAND;",
+      "context": [
+        "this.context = context;",
+        "this.mBrand = Build.BRAND;",
+        "this.mManufacture = Build.MANUFACTURER;"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/android/media/MediaDrm$SessionException.java",
+      "line": 3,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public final /* synthetic */ class MediaDrm$SessionException extends RuntimeException implements MediaDrmThrowable {",
+      "context": [
+        "/* loaded from: classes.dex */",
+        "public final /* synthetic */ class MediaDrm$SessionException extends RuntimeException implements MediaDrmThrowable {",
+        "static {"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/android/media/MediaDrmThrowable.java",
+      "line": 3,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public /* synthetic */ interface MediaDrmThrowable {",
+      "context": [
+        "/* loaded from: classes.dex */",
+        "public /* synthetic */ interface MediaDrmThrowable {",
+        "static {"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/android/media/MediaDrm$OnSessionLostStateListener.java",
+      "line": 3,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public /* synthetic */ interface MediaDrm$OnSessionLostStateListener {",
+      "context": [
+        "/* loaded from: classes.dex */",
+        "public /* synthetic */ interface MediaDrm$OnSessionLostStateListener {",
+        "static {"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/io/realm/internal/Util.java",
+      "line": 133,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "String str = Build.FINGERPRINT;",
+      "context": [
+        "public static boolean m() {",
+        "String str = Build.FINGERPRINT;",
+        "if (!str.startsWith(\"generic\") && !str.startsWith(\"unknown\")) {"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/u/C2429b8.java",
+      "line": 3,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "import android.media.MediaDrm;",
+      "context": [
+        "",
+        "import android.media.MediaDrm;",
+        "/* renamed from: u.b8  reason: case insensitive filesystem */"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/u/C2429b8.java",
+      "line": 7,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public static /* bridge */ /* synthetic */ MediaDrm.PlaybackComponent a(Object obj) {",
+      "context": [
+        "public final /* synthetic */ class C2429b8 {",
+        "public static /* bridge */ /* synthetic */ MediaDrm.PlaybackComponent a(Object obj) {",
+        "return (MediaDrm.PlaybackComponent) obj;"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/u/C2429b8.java",
+      "line": 8,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "return (MediaDrm.PlaybackComponent) obj;",
+      "context": [
+        "public static /* bridge */ /* synthetic */ MediaDrm.PlaybackComponent a(Object obj) {",
+        "return (MediaDrm.PlaybackComponent) obj;",
+        "}"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/jni_zero/GEN_JNI.java",
+      "line": 2977,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public static void org_chromium_media_MediaDrmBridge_onMediaCryptoReady(long j2, Object obj, Object obj2) {",
+      "context": [
+        "",
+        "public static void org_chromium_media_MediaDrmBridge_onMediaCryptoReady(long j2, Object obj, Object obj2) {",
+        "N._V_JOO(21, j2, obj, obj2);"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/jni_zero/GEN_JNI.java",
+      "line": 2981,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public static void org_chromium_media_MediaDrmBridge_onPromiseRejected(long j2, Object obj, long j3, long j4, Object obj2) {",
+      "context": [
+        "",
+        "public static void org_chromium_media_MediaDrmBridge_onPromiseRejected(long j2, Object obj, long j3, long j4, Object obj",
+        "N._V_JJJOO(0, j2, j3, j4, obj, obj2);"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/jni_zero/GEN_JNI.java",
+      "line": 2985,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public static void org_chromium_media_MediaDrmBridge_onPromiseResolved(long j2, Object obj, long j3) {",
+      "context": [
+        "",
+        "public static void org_chromium_media_MediaDrmBridge_onPromiseResolved(long j2, Object obj, long j3) {",
+        "N._V_JJO(8, j2, j3, obj);"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/jni_zero/GEN_JNI.java",
+      "line": 2989,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public static void org_chromium_media_MediaDrmBridge_onPromiseResolvedWithSession(long j2, Object obj, long j3, Object obj2) {",
+      "context": [
+        "",
+        "public static void org_chromium_media_MediaDrmBridge_onPromiseResolvedWithSession(long j2, Object obj, long j3, Object o",
+        "N._V_JJOO(2, j2, j3, obj, obj2);"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/jni_zero/GEN_JNI.java",
+      "line": 2993,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public static void org_chromium_media_MediaDrmBridge_onProvisionRequest(long j2, Object obj, Object obj2, Object obj3) {",
+      "context": [
+        "",
+        "public static void org_chromium_media_MediaDrmBridge_onProvisionRequest(long j2, Object obj, Object obj2, Object obj3) {",
+        "N._V_JOOO(7, j2, obj, obj2, obj3);"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/jni_zero/GEN_JNI.java",
+      "line": 2997,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public static void org_chromium_media_MediaDrmBridge_onProvisioningComplete(long j2, Object obj, boolean z2) {",
+      "context": [
+        "",
+        "public static void org_chromium_media_MediaDrmBridge_onProvisioningComplete(long j2, Object obj, boolean z2) {",
+        "N._V_ZJO(14, z2, j2, obj);"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/jni_zero/GEN_JNI.java",
+      "line": 3001,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public static void org_chromium_media_MediaDrmBridge_onSessionClosed(long j2, Object obj, Object obj2) {",
+      "context": [
+        "",
+        "public static void org_chromium_media_MediaDrmBridge_onSessionClosed(long j2, Object obj, Object obj2) {",
+        "N._V_JOO(22, j2, obj, obj2);"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/jni_zero/GEN_JNI.java",
+      "line": 3005,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public static void org_chromium_media_MediaDrmBridge_onSessionExpirationUpdate(long j2, Object obj, Object obj2, long j3) {",
+      "context": [
+        "",
+        "public static void org_chromium_media_MediaDrmBridge_onSessionExpirationUpdate(long j2, Object obj, Object obj2, long j3",
+        "N._V_JJOO(3, j2, j3, obj, obj2);"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/jni_zero/GEN_JNI.java",
+      "line": 3009,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public static void org_chromium_media_MediaDrmBridge_onSessionKeysChange(long j2, Object obj, Object obj2, Object obj3, boolean z2, boolean z3) {",
+      "context": [
+        "",
+        "public static void org_chromium_media_MediaDrmBridge_onSessionKeysChange(long j2, Object obj, Object obj2, Object obj3, ",
+        "N._V_ZZJOOO(1, z2, z3, j2, obj, obj2, obj3);"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/jni_zero/GEN_JNI.java",
+      "line": 3013,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public static void org_chromium_media_MediaDrmBridge_onSessionMessage(long j2, Object obj, Object obj2, int i2, Object obj3) {",
+      "context": [
+        "",
+        "public static void org_chromium_media_MediaDrmBridge_onSessionMessage(long j2, Object obj, Object obj2, int i2, Object o",
+        "N._V_IJOOO(3, i2, j2, obj, obj2, obj3);"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/jni_zero/GEN_JNI.java",
+      "line": 3017,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public static void org_chromium_media_MediaDrmStorageBridge_onClearInfo(long j2, Object obj, Object obj2, Object obj3) {",
+      "context": [
+        "",
+        "public static void org_chromium_media_MediaDrmStorageBridge_onClearInfo(long j2, Object obj, Object obj2, Object obj3) {",
+        "N._V_JOOO(8, j2, obj, obj2, obj3);"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/jni_zero/GEN_JNI.java",
+      "line": 3021,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public static void org_chromium_media_MediaDrmStorageBridge_onLoadInfo(long j2, Object obj, Object obj2, Object obj3) {",
+      "context": [
+        "",
+        "public static void org_chromium_media_MediaDrmStorageBridge_onLoadInfo(long j2, Object obj, Object obj2, Object obj3) {",
+        "N._V_JOOO(9, j2, obj, obj2, obj3);"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/jni_zero/GEN_JNI.java",
+      "line": 3025,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public static void org_chromium_media_MediaDrmStorageBridge_onProvisioned(long j2, Object obj, Object obj2) {",
+      "context": [
+        "",
+        "public static void org_chromium_media_MediaDrmStorageBridge_onProvisioned(long j2, Object obj, Object obj2) {",
+        "N._V_JOO(23, j2, obj, obj2);"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/jni_zero/GEN_JNI.java",
+      "line": 3029,
+      "rule_id": "DRM_WIDEVINE",
+      "category": "DRM_SECURITY",
+      "desc": "MediaDrm 칩셋 고유 ID (Widevine deviceUniqueId) 조회",
+      "code": "public static void org_chromium_media_MediaDrmStorageBridge_onSaveInfo(long j2, Object obj, Object obj2, Object obj3) {",
+      "context": [
+        "",
+        "public static void org_chromium_media_MediaDrmStorageBridge_onSaveInfo(long j2, Object obj, Object obj2, Object obj3) {",
+        "N._V_JOOO(10, j2, obj, obj2, obj3);"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "쇼핑 웹뷰 및 광고 모듈 내 Widevine ID 참조 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/kr/co/coocon/sasapi/util/DeviceInfo.java",
+      "line": 11,
+      "rule_id": "NET_INTERFACE_MAC",
+      "category": "WIFI_NETWORK",
+      "desc": "NetworkInterface 물리 MAC 주소 열람",
+      "code": "Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();",
+      "context": [
+        "try {",
+        "Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();",
+        "while (networkInterfaces.hasMoreElements()) {"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "NetworkInterface.getHardwareAddress() 호출 시 루프백 또는 빈 배열 반환 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/kr/co/coocon/sasapi/util/DeviceInfo.java",
+      "line": 31,
+      "rule_id": "NET_INTERFACE_MAC",
+      "category": "WIFI_NETWORK",
+      "desc": "NetworkInterface 물리 MAC 주소 열람",
+      "code": "Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();",
+      "context": [
+        "try {",
+        "Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();",
+        "while (networkInterfaces.hasMoreElements()) {"
+      ],
+      "domain": "OTHER_OBFUSCATED",
+      "status": "AUDIT_REQ",
+      "eval_reason": "NetworkInterface.getHardwareAddress() 호출 시 루프백 또는 빈 배열 반환 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/raonsecure/license/RSLicenseChecker.java",
+      "line": 461,
+      "rule_id": "NET_INTERFACE_MAC",
+      "category": "WIFI_NETWORK",
+      "desc": "NetworkInterface 물리 MAC 주소 열람",
+      "code": "for (NetworkInterface networkInterface : Collections.list(NetworkInterface.getNetworkInterfaces())) {",
+      "context": [
+        "try {",
+        "for (NetworkInterface networkInterface : Collections.list(NetworkInterface.getNetworkInterfaces())) {",
+        "if (networkInterface.getName().equalsIgnoreCase(d.C(\"CeUg\\u0004\"))) {"
+      ],
+      "domain": "SECURITY_ANTI_TAMPER",
+      "status": "AUDIT_REQ",
+      "eval_reason": "NetworkInterface.getHardwareAddress() 호출 시 루프백 또는 빈 배열 반환 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/appsflyer/internal/AFd1tSDK.java",
+      "line": 493,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "java.lang.String r2 = android.os.Build.BRAND     // Catch: java.lang.Throwable -> Lc0",
+      "context": [
+        "java.lang.String r1 = r1.intern()     // Catch: java.lang.Throwable -> Lc0",
+        "java.lang.String r2 = android.os.Build.BRAND     // Catch: java.lang.Throwable -> Lc0",
+        "r0.put(r1, r2)     // Catch: java.lang.Throwable -> Lc0"
+      ],
+      "domain": "APPSFLYER_TRACKER",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/appsflyer/internal/AFj1nSDK.java",
+      "line": 234,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "return Build.BRAND.equals(\"OPPO\");",
+      "context": [
+        "public static boolean AFAdRevenueData() {",
+        "return Build.BRAND.equals(\"OPPO\");",
+        "}"
+      ],
+      "domain": "APPSFLYER_TRACKER",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/appsflyer/internal/AFf1vSDK.java",
+      "line": 222,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "aFh1tSDK.getMonetizationNetwork(((String) objArr[0]).intern(), Build.BRAND);",
+      "context": [
+        "a(\"\\u0002\\b\\u0004\\u0006㘕\", (CdmaCellLocation.convertQuartSecToDecDegrees(0) > 0.0d ? 1 : (CdmaCellLocation.convertQuartS",
+        "aFh1tSDK.getMonetizationNetwork(((String) objArr[0]).intern(), Build.BRAND);",
+        "AFInAppEventParameterName = (AFInAppEventType + 43) % 128;"
+      ],
+      "domain": "APPSFLYER_TRACKER",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/appsflyer/internal/AFd1lSDK.java",
+      "line": 360,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "hashMap.put(((String) objArr[0]).intern(), Build.BRAND);",
+      "context": [
+        "a(\"勌\\uefe9⢥敟ꘞ\", Color.alpha(0) + 48437, objArr);",
+        "hashMap.put(((String) objArr[0]).intern(), Build.BRAND);",
+        "hashMap.put(\"sdk\", Integer.toString(Build.VERSION.SDK_INT));"
+      ],
+      "domain": "APPSFLYER_TRACKER",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/appsflyer/internal/AFi1tSDK.java",
+      "line": 27,
+      "rule_id": "NET_INTERFACE_MAC",
+      "category": "WIFI_NETWORK",
+      "desc": "NetworkInterface 물리 MAC 주소 열람",
+      "code": "Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();",
+      "context": [
+        "try {",
+        "Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();",
+        "Intrinsics.checkNotNullExpressionValue(networkInterfaces, \"\");"
+      ],
+      "domain": "APPSFLYER_TRACKER",
+      "status": "AUDIT_REQ",
+      "eval_reason": "NetworkInterface.getHardwareAddress() 호출 시 루프백 또는 빈 배열 반환 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/appsflyer/internal/AFg1uSDK.java",
+      "line": 1590,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "map.put(((String) objArr2[0]).intern(), Build.BRAND);",
+      "context": [
+        "a((-328942807) - View.MeasureSpec.makeMeasureSpec(0, 0), Color.argb(0, 0, 0, 0) + 962452542, TextUtils.lastIndexOf(\"\", '",
+        "map.put(((String) objArr2[0]).intern(), Build.BRAND);",
+        "map.put(\"device\", Build.DEVICE);"
+      ],
+      "domain": "APPSFLYER_TRACKER",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/nhn/android/search/keep/extern/NetworkInfo.java",
+      "line": 111,
+      "rule_id": "WIFI_MAC_IP",
+      "category": "WIFI_NETWORK",
+      "desc": "Wi-Fi MAC / IP / 주변 AP 스캔 목록 조회",
+      "code": "DhcpInfo dhcpInfo = ((WifiManager) systemService).getDhcpInfo();",
+      "context": [
+        "Intrinsics.n(systemService, \"null cannot be cast to non-null type android.net.wifi.WifiManager\");",
+        "DhcpInfo dhcpInfo = ((WifiManager) systemService).getDhcpInfo();",
+        "if (dhcpInfo != null) {"
+      ],
+      "domain": "NAVER_SEARCH_SHOPPING_CORE",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Wi-Fi IP/스캔 결과 접근 로직 실기기 점검 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/nhn/android/search/keep/extern/NetworkInfo.java",
+      "line": 223,
+      "rule_id": "WIFI_BSSID_SSID",
+      "category": "WIFI_NETWORK",
+      "desc": "Wi-Fi 물리 AP MAC(BSSID) / SSID 조회",
+      "code": "return connectionInfo.getSSID();",
+      "context": [
+        "if (connectionInfo != null) {",
+        "return connectionInfo.getSSID();",
+        "}"
+      ],
+      "domain": "NAVER_SEARCH_SHOPPING_CORE",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Wi-Fi IP/스캔 결과 접근 로직 실기기 점검 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/com/nhn/android/search/crashreport/CrashReportSender.java",
+      "line": 146,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "str = Build.FINGERPRINT;",
+      "context": [
+        "try {",
+        "str = Build.FINGERPRINT;",
+        "} catch (Throwable th) {"
+      ],
+      "domain": "NAVER_SEARCH_SHOPPING_CORE",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/chromium/base/BuildInfo.java",
+      "line": 49,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "String str = Build.BRAND;",
+      "context": [
+        "private String[] getAllProperties() {",
+        "String str = Build.BRAND;",
+        "String str2 = Build.DEVICE;"
+      ],
+      "domain": "CHROMIUM_WEBVIEW_ENGINE",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/chromium/base/BuildInfo.java",
+      "line": 55,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "return new String[]{str, str2, str3, str4, str5, String.valueOf(i2), Build.TYPE, Build.BOARD, this.hostPackageName, String.valueOf(this.hostVersionCode), this.hostPackageLabel, thi",
+      "context": [
+        "int i2 = Build.VERSION.SDK_INT;",
+        "return new String[]{str, str2, str3, str4, str5, String.valueOf(i2), Build.TYPE, Build.BOARD, this.hostPackageName, Stri",
+        "}"
+      ],
+      "domain": "CHROMIUM_WEBVIEW_ENGINE",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/chromium/net/NetworkChangeNotifierAutoDetect.java",
+      "line": 1170,
+      "rule_id": "WIFI_BSSID_SSID",
+      "category": "WIFI_NETWORK",
+      "desc": "Wi-Fi 물리 AP MAC(BSSID) / SSID 조회",
+      "code": "return wifiInfoLocked.getSSID();",
+      "context": [
+        "if (wifiInfoLocked != null) {",
+        "return wifiInfoLocked.getSSID();",
+        "}"
+      ],
+      "domain": "CHROMIUM_WEBVIEW_ENGINE",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Wi-Fi IP/스캔 결과 접근 로직 실기기 점검 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/chromium/net/AndroidNetworkLibrary.java",
+      "line": 309,
+      "rule_id": "WIFI_BSSID_SSID",
+      "category": "WIFI_NETWORK",
+      "desc": "Wi-Fi 물리 AP MAC(BSSID) / SSID 조회",
+      "code": "return (wifiInfo == null || (ssid = wifiInfo.getSSID()) == null || ssid.equals(\"<unknown ssid>\")) ? \"\" : ssid;",
+      "context": [
+        "WifiInfo wifiInfo = getWifiInfo();",
+        "return (wifiInfo == null || (ssid = wifiInfo.getSSID()) == null || ssid.equals(\"<unknown ssid>\")) ? \"\" : ssid;",
+        "}"
+      ],
+      "domain": "CHROMIUM_WEBVIEW_ENGINE",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Wi-Fi IP/스캔 결과 접근 로직 실기기 점검 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/chromium/net/AndroidNetworkLibrary.java",
+      "line": 358,
+      "rule_id": "NET_INTERFACE_MAC",
+      "category": "WIFI_NETWORK",
+      "desc": "NetworkInterface 물리 MAC 주소 열람",
+      "code": "Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();",
+      "context": [
+        "try {",
+        "Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();",
+        "if (networkInterfaces == null) {"
+      ],
+      "domain": "CHROMIUM_WEBVIEW_ENGINE",
+      "status": "AUDIT_REQ",
+      "eval_reason": "NetworkInterface.getHardwareAddress() 호출 시 루프백 또는 빈 배열 반환 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/chromium/components/crash/PureJavaExceptionReporter.java",
+      "line": 91,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "this.mReportContent.put(BRAND, Build.BRAND);",
+      "context": [
+        "this.mReportContent.put(\"model\", Build.MODEL);",
+        "this.mReportContent.put(BRAND, Build.BRAND);",
+        "this.mReportContent.put(BOARD, Build.BOARD);"
+      ],
+      "domain": "CHROMIUM_WEBVIEW_ENGINE",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    },
+    {
+      "file": "/home/tech/nshop_macro_v1/archive/legacy_tmp/tmp/archive/legacy_tmp_dev/apks/naver_app/jadx_out/sources/org/chromium/components/crash/PureJavaExceptionReporter.java",
+      "line": 92,
+      "rule_id": "BUILD_PROPERTIES",
+      "category": "HARDWARE_BUILD",
+      "desc": "Build 펌웨어 지문 / 하드웨어 칩셋 / 보드 / 모델명 조회",
+      "code": "this.mReportContent.put(BOARD, Build.BOARD);",
+      "context": [
+        "this.mReportContent.put(BRAND, Build.BRAND);",
+        "this.mReportContent.put(BOARD, Build.BOARD);",
+        "this.mReportContent.put(ANDROID_BUILD_FP, buildInfo.androidBuildFingerprint);"
+      ],
+      "domain": "CHROMIUM_WEBVIEW_ENGINE",
+      "status": "AUDIT_REQ",
+      "eval_reason": "Build.FINGERPRINT 또는 기타 커스텀 롬 탐지 여부 실측 필요"
+    }
+  ]
+}
