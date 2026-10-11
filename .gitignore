@@ -3,37 +3,48 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Logs, Metrics & Runtime States
+# Backups & Legacy Archives
+backups/
+archive/
+tmp/
+*.bak*
+
+# Logs, Metrics, Dumps & Runtime States
 logs/
 click_logs/
+captures/
 *.log
 *.lock
 *.flag
-pause.flag
-.last_ip_toggle.json
-tmp/
-archive/
+*.jsonl
+.last_*
+device_set.json
 
-# Local Environment & Hardware Device Maps
+# Screenshots & Media Artifacts
+*.png
+*.jpg
+*.jpeg
+*.xml
+
+# Local Environment & Secrets
 .env
+.env.*
+!.env.example
 .venv/
 env/
 venv/
-device_set.json
 
-# APK binaries & Archives (Managed externally to respect GitHub file limits)
+# Large Binaries & APKs (Managed externally)
 apks/
+install/apks/
+bin/
+install/bin/
 *.apk
 *.zip
 *.tar.gz
-!resources/golden_shared_prefs.tar.gz
 
-# Test dumps & raw artifacts
-tests/*.png
-tests/*.xml
-tests/*.jpg
-tests/*.jpeg
-
-# OS specific
+# IDE & OS specific
 .DS_Store
 Thumbs.db
+.idea/
+.vscode/

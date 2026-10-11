@@ -1,0 +1,1 @@
+/home/tech/restart_rdp.sh
