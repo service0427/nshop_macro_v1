@@ -12,7 +12,7 @@ Playwright/Puppeteer 스타일의 단일화된 범용 전환/대기 엔진 (Univ
 import time
 import asyncio
 import logging
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Optional, Union, Callable
 from enum import Enum
 
 from config.settings import TIMINGS
@@ -78,7 +78,8 @@ async def wait_for_transition(
     packet_filter: Optional[str] = None,
     check_dom_fallback: bool = True,
     device_id: Optional[str] = None,
-    cdp_port: Optional[int] = None
+    cdp_port: Optional[int] = None,
+    abort_predicate: Optional[Callable[[], bool]] = None
 ) -> TransitionResult:
     """
     [Playwright waitForResponse 기반 범용 전환 대기 함수]
@@ -105,6 +106,8 @@ async def wait_for_transition(
     filter_keyword = packet_filter or expected_pattern
 
     def _packet_matcher(resp: CDPResponse) -> bool:
+        if any(k in resp.url for k in ("aitabshop", "tab.m_ait", "m_ait", "ait_agent_type")):
+            return False
         if filter_keyword in resp.url:
             return True
         if t_type == TransitionType.PAGE_NAV and ("shopping.naver.com" in resp.url or "where=m_shop" in resp.url or "msearch.shopping" in resp.url):
@@ -215,6 +218,19 @@ async def wait_for_transition(
         # B. 0.15초 대기
         await asyncio.sleep(TIMINGS.TRANSITION_POLL_INTERVAL)
         elapsed = time.time() - t0
+
+        # B-1. [FDS 로그인 챌린지 등 외부 중단 인터셉트 초고속 감지 (Fast-Fail Discard)]
+        if abort_predicate and abort_predicate():
+            dur = time.time() - t0
+            await _safe_cancel_packet_task()
+            logger.warning(f"🚨 [외부 인터셉트 감지 ({dur:.2f}s)] FDS 로그인 챌린지 신호 수신 -> 즉시 세션 Discard")
+            return TransitionResult(
+                success=False,
+                status="LOGIN_CHALLENGE_DETECTED",
+                error_message="네이버 FDS 로그인 챌린지 감지 (Fast-Fail Discard)",
+                duration_sec=dur,
+                final_url=cur_url
+            )
 
         # B-2. [안드로이드 최상위 포커스 윈도우 초고속 감지 (50~100ms Fast-Fail)]
         if device_id:
@@ -348,11 +364,16 @@ async def wait_for_transition(
                     const isError = (u.includes('error') && !u.includes('query=')) ||
                                     isVisible(document.querySelector('.error_content, [class*="error_page"]'));
 
+                    // 5. AI 검색 배너/탭 리다이렉트 여부
+                    const isAi = (u.includes('tab.m_ait') || u.includes('ssc=tab.m_ait') || u.includes('aitabshop') || u.includes('ait_agent_type')) &&
+                                 !u.includes('where=m_shop') && !u.includes('shopping.naver.com');
+
                     return {
                         url: u,
                         isCaptcha,
                         isLogin,
                         isError,
+                        isAi,
                         hasShoppingContent
                     };
                 })()
@@ -395,6 +416,19 @@ async def wait_for_transition(
                             success=False,
                             status="SERVER_ERROR",
                             error_message="네이버 서비스 일시 오류 페이지",
+                            duration_sec=dur,
+                            final_url=cur_url
+                        )
+
+                    # [Fast-Fail 4] AI 검색 배너/탭 오이동 즉시 감지 (Fast-Fail)
+                    if dom_stat.get("isAi"):
+                        dur = time.time() - t0
+                        await _safe_cancel_packet_task()
+                        logger.error(f"❌ [DOM 레벨 AI 검색 전환 감지 ({dur:.2f}s)] AI 배너로 오이동됨: {cur_url[:70]}")
+                        return TransitionResult(
+                            success=False,
+                            status="AI_SEARCH_REDIRECT",
+                            error_message="네이버 AI 검색 탭으로 리다이렉트됨",
                             duration_sec=dur,
                             final_url=cur_url
                         )

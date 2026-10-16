@@ -109,9 +109,36 @@ async def execute_shop_navigation(
         const searchScope = shpContainer || document;
 
         // 2. [Chromium Blink DOM querySelector 단독 정밀 타겟팅]
-        // [AI 배너 DOM 선제 제거]
+        // [AI 배너/AI탭 영구 무력화 CSS 쉴드 주입 및 DOM 즉시 파기]
         try {{
-            document.querySelectorAll('a[href*="aitabshop"], a[href*="m_ait"], a[href*="shopping_banner"], a[href*="shopping_banner"], div[class*="ait"]').forEach(el => el.remove());
+            if (!document.getElementById('__nshop_ai_shield')) {{
+                const style = document.createElement('style');
+                style.id = '__nshop_ai_shield';
+                style.innerHTML = `
+                    .eA6w58S8, .cGTdiNgw, .hbhTlgi0,
+                    [data-nlog-area*="aitab"],
+                    [data-nlog-area*="ait"],
+                    [data-nlog-area*="cue"],
+                    [href*="aitabshop"],
+                    [href*="m_ait"],
+                    [href*="shopping_banner"],
+                    [class*="ai_tab_banner"],
+                    [class*="aitab"],
+                    [role="tab"][href*="m_ait"],
+                    [role="tab"][href*="tab.m_ait"] {{
+                        display: none !important;
+                        height: 0 !important;
+                        max-height: 0 !important;
+                        overflow: hidden !important;
+                        pointer-events: none !important;
+                        visibility: hidden !important;
+                        position: absolute !important;
+                        top: -9999px !important;
+                    }}
+                `;
+                (document.head || document.documentElement).appendChild(style);
+            }}
+            document.querySelectorAll('.eA6w58S8, .cGTdiNgw, .hbhTlgi0, [data-nlog-area*="aitab"], a[href*="aitabshop"], a[href*="m_ait"], a[href*="shopping_banner"], div[class*="ait"], [role="tab"][href*="m_ait"]').forEach(el => el.remove());
         }} catch(e) {{}}
 
         const isAiLink = (el) => {{
@@ -119,23 +146,38 @@ async def execute_shop_navigation(
             const aTag = el.closest('a') || el;
             const h = (aTag.href || aTag.getAttribute('href') || el.href || el.getAttribute('href') || '').toLowerCase();
             const a = (el.getAttribute('data-nlog-area') || aTag.getAttribute('data-nlog-area') || '').toLowerCase();
-            return h.includes('ait') || h.includes('shopping_banner') || h.includes('banner') || a.includes('ait') || a.includes('banner');
+            const c = ((el.className || '') + ' ' + (aTag.className || '')).toLowerCase();
+            const t = ((el.innerText || '') + ' ' + (aTag.innerText || '')).toLowerCase();
+            return h.includes('ait') || h.includes('shopping_banner') || h.includes('banner') || h.includes('cue') ||
+                   a.includes('ait') || a.includes('banner') || a.includes('cue') ||
+                   c.includes('ait') || c.includes('cgtdingw') || c.includes('hbhtlgi0') || c.includes('ea6w58s8') || c.includes('cue') ||
+                   t.includes('ai로') || t.includes('ai탭') || t.includes('ai 검색') || t.includes('ai 브리핑');
+        }};
+
+        const isNotMoreBtn = (el) => {{
+            if (!el) return true;
+            const a = (el.getAttribute('data-nlog-area') || '').toLowerCase();
+            const t = ((el.innerText || '') + ' ' + (el.getAttribute('title') || '')).toLowerCase();
+            if (a.includes('.mtc') || a.includes('.filter') || a.includes('.sort') || a.includes('law') || a.includes('pw') || a.includes('ad')) return true;
+            if (t.includes('로만 검색') || t.includes('원문보기') || t.includes('이전 페이지') || t.includes('다음 페이지') || t.includes('현재') || t.includes('전체')) return true;
+            return false;
         }};
 
         const candidateSelectors = [
+            'a[data-nlog-area^="shp_"][data-nlog-area$=".none.more"][href*="shopping.naver.com"]:not([role="tab"])',
             'a[data-nlog-area^="shp_"][data-nlog-area$=".none.more"]:not([data-nlog-area*="pw"]):not([data-nlog-area*="ad"]):not([data-nlog-area*="more2"]):not([role="tab"])',
             'button[data-nlog-area^="shp_"][data-nlog-area$=".none.more"]:not([data-nlog-area*="pw"]):not([data-nlog-area*="ad"]):not([data-nlog-area*="more2"]):not([role="tab"])',
+            'a[data-nlog-area^="shp_"][data-nlog-area*="more"][href*="shopping.naver.com"]:not([role="tab"]):not([data-nlog-area*="pw"]):not([data-nlog-area*="ad"])',
             'a[data-nlog-area^="shp_"][data-nlog-area*="more"]:not([data-nlog-area*="pw"]):not([data-nlog-area*="ad"]):not([data-nlog-area*="more2"]):not([role="tab"])',
             'button[data-nlog-area^="shp_"][data-nlog-area*="more"]:not([data-nlog-area*="pw"]):not([data-nlog-area*="ad"]):not([data-nlog-area*="more2"]):not([role="tab"])',
-            'a[href*="msearch.shopping.naver.com"]:not([role="tab"]):not([class*="tab"]):not([href*="brand.naver.com"]):not([data-nlog-area*="ad"])',
-            'a[data-nlog-area^="shp_"][data-nlog-area*="more"]:not([data-nlog-area*="pw"]):not([data-nlog-area*="ad"]):not([role="tab"])'
+            'a[href*="msearch.shopping.naver.com"][data-nlog-area*="more"]:not([role="tab"]):not([class*="tab"]):not([href*="brand.naver.com"]):not([data-nlog-area*="ad"])'
         ];
 
         let moreEl = null;
         for (const sel of candidateSelectors) {{
             const list = Array.from(searchScope.querySelectorAll(sel));
             for (const found of list) {{
-                if (isAiLink(found)) continue;
+                if (isAiLink(found) || isNotMoreBtn(found)) continue;
                 const h = (found.href || found.getAttribute('href') || '').toLowerCase();
                 if (h.includes('brand.naver.com') || h.includes('ader.naver.com') || h.includes('adcr')) continue;
                 const r = found.getBoundingClientRect();
@@ -266,19 +308,50 @@ async def execute_shop_navigation(
     # 터치 직전 실시간 정밀 좌표 재측정 + AI 배너 완전 박멸 + 좌표 직하 실물 요소 100% 검증
     recalc_js = f"""
     (() => {{
-        // [AI 배너 재소멸]
+        // [AI 배너/AI탭 영구 무력화 CSS 쉴드 주입 및 DOM 즉시 파기]
         try {{
-            document.querySelectorAll('a[href*="aitabshop"], a[href*="m_ait"], a[href*="shopping_banner"], .cGTdiNgw, .hbhTlgi0, div[class*="ait"]').forEach(el => el.remove());
+            if (!document.getElementById('__nshop_ai_shield')) {{
+                const style = document.createElement('style');
+                style.id = '__nshop_ai_shield';
+                style.innerHTML = `
+                    .eA6w58S8, .cGTdiNgw, .hbhTlgi0,
+                    [data-nlog-area*="aitab"],
+                    [data-nlog-area*="ait"],
+                    [data-nlog-area*="cue"],
+                    [href*="aitabshop"],
+                    [href*="m_ait"],
+                    [href*="shopping_banner"],
+                    [class*="ai_tab_banner"],
+                    [class*="aitab"],
+                    [role="tab"][href*="m_ait"],
+                    [role="tab"][href*="tab.m_ait"] {{
+                        display: none !important;
+                        height: 0 !important;
+                        max-height: 0 !important;
+                        overflow: hidden !important;
+                        pointer-events: none !important;
+                        visibility: hidden !important;
+                        position: absolute !important;
+                        top: -9999px !important;
+                    }}
+                `;
+                (document.head || document.documentElement).appendChild(style);
+            }}
+            document.querySelectorAll('.eA6w58S8, .cGTdiNgw, .hbhTlgi0, [data-nlog-area*="aitab"], a[href*="aitabshop"], a[href*="m_ait"], a[href*="shopping_banner"], div[class*="ait"], [role="tab"][href*="m_ait"]').forEach(el => el.remove());
             document.querySelectorAll('div[class*="tooltip"], div[class*="coach"], div[class*="guide"], div[class*="balloon"]').forEach(el => el.remove());
         }} catch(e) {{}}
 
         const isAiLink = (el) => {{
             if (!el) return false;
-            const h = (el.href || el.getAttribute('href') || '').toLowerCase();
-            const a = (el.getAttribute('data-nlog-area') || '').toLowerCase();
-            const c = (el.className || '').toLowerCase();
-            return h.includes('ait') || h.includes('shopping_banner') || h.includes('m_ait') ||
-                   a.includes('ait') || a.includes('banner') || c.includes('ait') || c.includes('shopping_banner');
+            const aTag = el.closest('a') || el;
+            const h = (aTag.href || aTag.getAttribute('href') || el.href || el.getAttribute('href') || '').toLowerCase();
+            const a = (el.getAttribute('data-nlog-area') || aTag.getAttribute('data-nlog-area') || '').toLowerCase();
+            const c = ((el.className || '') + ' ' + (aTag.className || '')).toLowerCase();
+            const t = ((el.innerText || '') + ' ' + (aTag.innerText || '')).toLowerCase();
+            return h.includes('ait') || h.includes('shopping_banner') || h.includes('banner') || h.includes('cue') ||
+                   a.includes('ait') || a.includes('banner') || a.includes('cue') ||
+                   c.includes('ait') || c.includes('cgtdingw') || c.includes('hbhtlgi0') || c.includes('ea6w58s8') || c.includes('cue') ||
+                   t.includes('ai로') || t.includes('ai탭') || t.includes('ai 검색') || t.includes('ai 브리핑');
         }};
 
         // 1차에서 마킹한 정확한 버튼 요소 추적
@@ -295,7 +368,8 @@ async def execute_shop_navigation(
                 const txt = (el.innerText || '').trim();
                 const role = el.getAttribute('role') || '';
                 const area = (el.getAttribute('data-nlog-area') || '').toLowerCase();
-                const isShop = area.startsWith('shp_') || txt.includes('쇼핑') || txt.includes('상품');
+                const h = (el.href || el.getAttribute('href') || '').toLowerCase();
+                const isShop = area.startsWith('shp_') || h.includes('shopping.naver.com') || h.includes('msearch.shopping');
                 return !role.includes('tab') && !area.includes('more2') && !area.includes('law') && isShop && !isAiLink(el) && txt.includes('더보기');
             }});
         }}
@@ -306,11 +380,9 @@ async def execute_shop_navigation(
         const SAFE_TOP = 130;  // 상단 fixed 헤더 회피
         const SAFE_BOTTOM = winH - 90; // 하단 탭바 회피
 
+        // 1. 항상 버튼을 뷰포트 정중앙으로 스크롤하여 플로팅/헤더/푸터 간섭 원천 배제
+        btn.scrollIntoView({{ block: 'center', inline: 'center', behavior: 'instant' }});
         let r = btn.getBoundingClientRect();
-        if (r.top < SAFE_TOP || r.bottom > SAFE_BOTTOM) {{
-            btn.scrollIntoView({{ block: 'center', inline: 'center', behavior: 'instant' }});
-            r = btn.getBoundingClientRect();
-        }}
 
         if (r.width < 80 || r.height < 20 || r.height > 95) {{
             return {{ valid: false, error: 'INVALID_RECT_SIZE', width: r.width, height: r.height }};
@@ -324,15 +396,26 @@ async def execute_shop_navigation(
         if (!elAtPoint) return {{ valid: false, error: 'NO_ELEMENT_AT_POINT' }};
 
         // 좌표 상에 AI 관련 요소가 있으면 즉시 제거 후 에러 리턴
-        const aiHit = elAtPoint.closest('[href*="ait"], [class*="ait"], [data-nlog*="ait"], .cGTdiNgw, .hbhTlgi0');
-        if (aiHit) {{
-            try {{ aiHit.remove(); }} catch(ign) {{}}
+        const aiHit = elAtPoint.closest('[href*="ait"], [class*="ait"], [data-nlog*="ait"], .cGTdiNgw, .hbhTlgi0, .eA6w58S8');
+        if (aiHit || isAiLink(elAtPoint)) {{
+            try {{ (aiHit || elAtPoint).remove(); }} catch(ign) {{}}
             return {{ valid: false, error: 'AI_ELEMENT_INTERCEPTED_AND_REMOVED' }};
         }}
 
         // 좌표 상 요소가 진짜 더보기 버튼이거나 그 내부 텍스트인지 검증
-        const isTargetMatch = elAtPoint === btn || btn.contains(elAtPoint) || elAtPoint.closest('[data-macro-target="shop_more_btn"]') || (elAtPoint.innerText || '').includes('더보기');
+        const isTargetMatch = elAtPoint === btn || btn.contains(elAtPoint) || elAtPoint.contains(btn) || elAtPoint.closest('[data-macro-target="shop_more_btn"]') || (elAtPoint.innerText || '').includes('더보기');
         if (!isTargetMatch) {{
+            const elAtPointAdjusted = document.elementFromPoint(cx, cy + 8);
+            if (elAtPointAdjusted && (elAtPointAdjusted === btn || btn.contains(elAtPointAdjusted) || elAtPointAdjusted.contains(btn) || (elAtPointAdjusted.innerText || '').includes('더보기'))) {{
+                return {{
+                    valid: true,
+                    x: Math.round(cx * 10) / 10,
+                    y: Math.round((cy + 8) * 10) / 10,
+                    rect: {{ top: r.top, bottom: r.bottom, height: r.height, width: r.width }},
+                    text: (btn.innerText || '').trim(),
+                    href: btn.href || btn.getAttribute('href') || ''
+                }};
+            }}
             return {{
                 valid: false,
                 error: 'ELEMENT_MISMATCH_AT_POINT',
@@ -429,25 +512,59 @@ async def execute_shop_navigation(
         expected_pattern="shopping.naver.com",
         timeout=TIMINGS.SHOP_NAV_TRANSITION_TIMEOUT,
         device_id=device_id,
-        cdp_port=cdp_port
+        cdp_port=cdp_port,
+        abort_predicate=lambda: getattr(result, "login_detected", False)
     )
 
-    # [핵심 보강] 1차 터치 후 통검에 머무르는 경우(CLICK_MISSED/TIMEOUT) 2차 정밀 재터치
-    if not trans_res.success and trans_res.status in ("CLICK_MISSED", "TIMEOUT"):
+    # [핵심 보강] 1차 터치 후 통검에 머무르는 경우(CLICK_MISSED/TIMEOUT) 2차 정밀 재터치 (단, 로그인 챌린지 감지 시 제외)
+    if not trans_res.success and trans_res.status in ("CLICK_MISSED", "TIMEOUT") and not getattr(result, "login_detected", False):
         logger.warning(f"⚠️ [쇼핑 더보기 전환 미반응 감지 ({trans_res.status})] 통검 화면 잔류 확인 -> 2차 정밀 재터치 발송...")
         retry_touch_js = f"""
         (() => {{
+            // [AI 배너/AI탭 영구 무력화 CSS 쉴드 주입 및 DOM 즉시 파기]
             try {{
-                document.querySelectorAll('a[href*="aitabshop"], a[href*="m_ait"], a[href*="shopping_banner"], .cGTdiNgw, .hbhTlgi0, div[class*="ait"]').forEach(el => el.remove());
+                if (!document.getElementById('__nshop_ai_shield')) {{
+                    const style = document.createElement('style');
+                    style.id = '__nshop_ai_shield';
+                    style.innerHTML = `
+                        .eA6w58S8, .cGTdiNgw, .hbhTlgi0,
+                        [data-nlog-area*="aitab"],
+                        [data-nlog-area*="ait"],
+                        [data-nlog-area*="cue"],
+                        [href*="aitabshop"],
+                        [href*="m_ait"],
+                        [href*="shopping_banner"],
+                        [class*="ai_tab_banner"],
+                        [class*="aitab"],
+                        [role="tab"][href*="m_ait"],
+                        [role="tab"][href*="tab.m_ait"] {{
+                            display: none !important;
+                            height: 0 !important;
+                            max-height: 0 !important;
+                            overflow: hidden !important;
+                            pointer-events: none !important;
+                            visibility: hidden !important;
+                            position: absolute !important;
+                            top: -9999px !important;
+                        }}
+                    `;
+                    (document.head || document.documentElement).appendChild(style);
+                }}
+                document.querySelectorAll('.eA6w58S8, .cGTdiNgw, .hbhTlgi0, [data-nlog-area*="aitab"], a[href*="aitabshop"], a[href*="m_ait"], a[href*="shopping_banner"], div[class*="ait"], [role="tab"][href*="m_ait"]').forEach(el => el.remove());
                 document.querySelectorAll('div[class*="tooltip"], div[class*="coach"], div[class*="guide"], div[class*="balloon"]').forEach(el => el.remove());
             }} catch(e) {{}}
 
             const isAiLink = (el) => {{
                 if (!el) return false;
-                const h = (el.href || el.getAttribute('href') || '').toLowerCase();
-                const a = (el.getAttribute('data-nlog-area') || '').toLowerCase();
-                return h.includes('aitabshop') || h.includes('shopping_banner') || h.includes('m_ait') ||
-                       a.includes('banner') || a.includes('aitabshop');
+                const aTag = el.closest('a') || el;
+                const h = (aTag.href || aTag.getAttribute('href') || el.href || el.getAttribute('href') || '').toLowerCase();
+                const a = (el.getAttribute('data-nlog-area') || aTag.getAttribute('data-nlog-area') || '').toLowerCase();
+                const c = ((el.className || '') + ' ' + (aTag.className || '')).toLowerCase();
+                const t = ((el.innerText || '') + ' ' + (aTag.innerText || '')).toLowerCase();
+                return h.includes('ait') || h.includes('shopping_banner') || h.includes('banner') || h.includes('cue') ||
+                       a.includes('ait') || a.includes('banner') || a.includes('cue') ||
+                       c.includes('ait') || c.includes('cgtdingw') || c.includes('hbhtlgi0') || c.includes('ea6w58s8') || c.includes('cue') ||
+                       t.includes('ai로') || t.includes('ai탭') || t.includes('ai 검색') || t.includes('ai 브리핑');
             }};
 
             let el = document.querySelector('[data-macro-target="shop_more_btn"]');
@@ -461,8 +578,10 @@ async def execute_shop_navigation(
                 el = allLinks.find(e => {{
                     const txt = (e.innerText || '').trim();
                     const role = e.getAttribute('role') || '';
-                    const area = e.getAttribute('data-nlog-area') || '';
-                    return !role.includes('tab') && !area.includes('more2') && !area.includes('law') && !isAiLink(e) && txt.includes('더보기');
+                    const area = (e.getAttribute('data-nlog-area') || '').toLowerCase();
+                    const h = (e.href || e.getAttribute('href') || '').toLowerCase();
+                    const isShop = area.startsWith('shp_') || h.includes('shopping.naver.com') || h.includes('msearch.shopping');
+                    return !role.includes('tab') && !area.includes('more2') && !area.includes('law') && isShop && !isAiLink(e) && txt.includes('더보기');
                 }});
             }}
             if (!el || isAiLink(el)) return {{ found: false }};
@@ -473,7 +592,7 @@ async def execute_shop_navigation(
             const cy = r.top + r.height / 2;
 
             const elAtPoint = document.elementFromPoint(cx, cy);
-            if (elAtPoint && (isAiLink(elAtPoint) || elAtPoint.closest('[href*="ait"]') || elAtPoint.closest('.cGTdiNgw'))) {{
+            if (elAtPoint && (isAiLink(elAtPoint) || elAtPoint.closest('[href*="ait"], [class*="ait"], [data-nlog*="ait"], .cGTdiNgw, .hbhTlgi0, .eA6w58S8'))) {{
                 return {{ found: false, error: 'AI_BLOCKED' }};
             }}
 
@@ -515,14 +634,15 @@ async def execute_shop_navigation(
                     expected_pattern="shopping.naver.com",
                     timeout=TIMINGS.SHOP_NAV_RETRY_TIMEOUT,
                     device_id=device_id,
-                    cdp_port=cdp_port
+                    cdp_port=cdp_port,
+                    abort_predicate=lambda: getattr(result, "login_detected", False)
                 )
         except Exception as e:
             logger.warning(f"2차 더보기 재터치 시도 예외: {type(e).__name__} ({e})")
 
     if not trans_res.success:
         logger.error(f"❌ [쇼핑탭 진입 실패] 상태: {trans_res.status} | 사유: {trans_res.error_message}")
-        if trans_res.status in ("CAPTCHA_BLOCKED", "LOGIN_REQUIRED", "AI_SEARCH_REDIRECT"):
+        if trans_res.status in ("CAPTCHA_BLOCKED", "LOGIN_REQUIRED", "LOGIN_CHALLENGE_DETECTED", "AI_SEARCH_REDIRECT"):
             save_stage_screenshot(device_id, trans_res.status.lower(), task.task_id, output_dir)
             if traffic_logger:
                 traffic_logger.record_event(trans_res.status, trans_res.error_message or trans_res.status, {
