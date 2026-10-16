@@ -52,6 +52,24 @@ def build_login_tracer_hook(target_nnb: str = "") -> str:
               send("🚨 [FDS 로그인 인텐트 감지] " + source + " | Comp: " + compStr + " | URI: " + uriStr + " -> 인텐트 차단");
               return true;
             }
+
+            const isClip = compStr.indexOf("ClipActivity") !== -1 ||
+                           compStr.indexOf("clip.ui") !== -1 ||
+                           uriStr.indexOf("clip.naver.com") !== -1 ||
+                           uriStr.indexOf("m.clip.naver.com") !== -1 ||
+                           uriStr.indexOf("naversearchapp://clip") !== -1;
+
+            if (isClip) {
+              send({
+                type: "clip_intercept",
+                action: "CLIP_ACTIVITY_BLOCKED",
+                source: source,
+                component: compStr,
+                uri: uriStr
+              });
+              send("🛡️ [FRIDA ClipActivity 인텐트 차단] " + source + " | Comp: " + compStr + " | URI: " + uriStr);
+              return true;
+            }
           } catch(err) {
             send("[-] Intent inspect error: " + err);
           }
@@ -140,6 +158,17 @@ def build_login_tracer_hook(target_nnb: str = "") -> str:
                   });
                   send("🚨 [FDS 로그인 챌린지 감지] " + clientClassName + " -> " + uri);
                   return true; // 웹뷰가 로그인 화면으로 전환되어 프로세스가 먹통되는 현상 방지
+                }
+
+                if (uri && (uri.indexOf("clip.naver.com") !== -1 || uri.indexOf("m.clip.naver.com") !== -1 || uri.indexOf("naversearchapp://clip") !== -1)) {
+                  send({
+                    type: "clip_intercept",
+                    action: "CLIP_URL_BLOCKED",
+                    client: clientClassName,
+                    url: uri
+                  });
+                  send("🛡️ [FRIDA 클립/동영상 URL 차단] " + clientClassName + " -> " + uri);
+                  return true; // 웹뷰가 클립 화면으로 전환되는 것을 원천 차단
                 }
                 return o.apply(this, arguments);
               };
