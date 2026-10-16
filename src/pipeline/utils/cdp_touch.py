@@ -35,12 +35,6 @@ def save_stage_screenshot(device_id: str, stage_name: str, task_id: Any, output_
         cmd = f"adb -s {device_id} exec-out screencap -p > {shot_path}"
         subprocess.run(cmd, shell=True, check=True, timeout=TIMINGS.SCREENSHOT_EXEC_TIMEOUT)
         logger.info(f"📸 [{stage_name} 단계 캡처 완료] {filename}")
-        if cap_dir != CAPTURES_DIR:
-            try:
-                import shutil
-                shutil.copy2(str(shot_path), str(CAPTURES_DIR / filename))
-            except Exception:
-                pass
         return str(shot_path)
     except Exception as e:
         logger.warning(f"⚠️ [{stage_name} 단계 캡처 실패] {e}")
@@ -100,9 +94,6 @@ async def cdp_real_touch(
             try:
                 import shutil
                 shutil.copy2(str(shot_path), str(before_click_path))
-                if target_cap_dir != CAPTURES_DIR:
-                    shutil.copy2(str(shot_path), str(CAPTURES_DIR / shot_filename))
-                    shutil.copy2(str(shot_path), str(CAPTURES_DIR / before_click_filename))
             except Exception:
                 pass
 

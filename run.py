@@ -1213,6 +1213,13 @@ def main():
                 except Exception as e:
                     print(f"⚠️ [{args.eval_interval}회 종합 평가 리포트 생성 예외] {e}")
 
+                # 24시간 경과 미사용 임시 로그/캡처 자동 안전 정제 (디스크 폭주 방지)
+                try:
+                    from scripts.cleanup_unused_logs_24h import run_cleanup
+                    run_cleanup(dry_run=False, hours=24.0)
+                except Exception as clean_err:
+                    print(f"⚠️ [로그 자동 정제 예외] {clean_err}")
+
             # 다음 회차 진행 여부 검사
             next_needed = True
             if is_until_reached(args.until, start_time=t_bench_start):
