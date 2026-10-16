@@ -36,30 +36,7 @@ def build_network_hook(
     js_parts = []
 
     # -------------------------------------------------------------------------
-    # 1. [OS Root] android.net.NetworkCapabilities (Wi-Fi 차단 -> Cellular 활성)
-    # -------------------------------------------------------------------------
-    if spoof_network_type:
-        js_parts.append("""
-          // [핵심 뿌리 1] Android OS NetworkCapabilities (Wi-Fi 차단 -> Cellular 활성)
-          try {
-            const NetworkCapabilities = frida_java_bridge_default.use("android.net.NetworkCapabilities");
-            NetworkCapabilities.hasTransport.overload("int").implementation = function(transportType) {
-              if (transportType === 1) { // 1 = TRANSPORT_WIFI (사무실 Wi-Fi 차단 모의)
-                return false;
-              }
-              if (transportType === 0) { // 0 = TRANSPORT_CELLULAR (순수 이동통신 셀룰러망 활성)
-                return true;
-              }
-              return this.hasTransport(transportType);
-            };
-            console.log("[+] Core Root Hooked: NetworkCapabilities.hasTransport (Wi-Fi OFF, Cellular ON)");
-          } catch(e) {
-            console.log("[-] NetworkCapabilities hook error: " + e);
-          }
-        """)
-
-    # -------------------------------------------------------------------------
-    # 2. [OS Root] android.telephony.TelephonyManager (KT LTE 45008 개통 상태 주입)
+    # 1. [OS Root] android.telephony.TelephonyManager (KT LTE 45008 개통 상태 주입)
     # -------------------------------------------------------------------------
     if spoof_mcc_mnc:
         mcc_mnc_digits = spoof_mcc_mnc.replace("_", "") # "450_08" -> "45008"
@@ -93,9 +70,38 @@ def build_network_hook(
               }};
             }} catch(e) {{}}
 
+            // [FDS locationIdentifiers 대응] 로밍 여부 (false = 국내망)
+            try {{
+              TelephonyManager.isNetworkRoaming.overload().implementation = function() {{
+                return false;
+              }};
+            }} catch(e) {{}}
+
+            // [FDS locationIdentifiers 대응] 통신사 국가 코드 ("kr")
+            try {{
+              TelephonyManager.getNetworkCountryIso.overload().implementation = function() {{
+                return "kr";
+              }};
+              TelephonyManager.getSimCountryIso.overload().implementation = function() {{
+                return "kr";
+              }};
+            }} catch(e) {{}}
+
+            // [FDS 통신사명 대응] 통신사 명칭 ("KT")
+            try {{
+              TelephonyManager.getNetworkOperatorName.overload().implementation = function() {{
+                return "KT";
+              }};
+              TelephonyManager.getSimOperatorName.overload().implementation = function() {{
+                return "KT";
+              }};
+            }} catch(e) {{}}
+
             console.log("[+] Core Root Hooked: TelephonyManager (KT LTE {mcc_mnc_digits} READY)");
+            send({{ type: "hook_verification", hook: "TelephonyManager", status: "OK", value: "{mcc_mnc_digits}" }});
           }} catch(e) {{
             console.log("[-] TelephonyManager hook error: " + e);
+            send({{ type: "hook_verification", hook: "TelephonyManager", status: "ERROR", error: String(e) }});
           }}
         """)
 

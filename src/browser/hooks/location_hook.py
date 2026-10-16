@@ -183,8 +183,10 @@ def build_location_hook(
         }} catch(e) {{}}
 
         console.log("[+] Core Root Hooked: LocationManager (GPS Lat: {latitude}, Lng: {longitude}, Mock: false)");
+        send({{ type: "hook_verification", hook: "LocationManager", status: "OK", value: "{latitude},{longitude}" }});
       }} catch(e) {{
         console.log("[-] LocationManager hook error: " + e);
+        send({{ type: "hook_verification", hook: "LocationManager", status: "ERROR", error: String(e) }});
       }}
     """
 

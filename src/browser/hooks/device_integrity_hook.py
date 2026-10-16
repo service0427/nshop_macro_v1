@@ -106,22 +106,7 @@ def build_device_integrity_hook(
         }} catch(e) {{}}
 
         // -------------------------------------------------------------------------
-        // 3. [Java Root] java.net.Inet4Address.getHostAddress (사무실 로컬 Wi-Fi 사설 IP 유출 100% 원천 차단)
-        // -------------------------------------------------------------------------
-        try {{
-          const Inet4Address = frida_java_bridge_default.use("java.net.Inet4Address");
-          Inet4Address.getHostAddress.implementation = function() {{
-            const res = this.getHostAddress();
-            if (res.indexOf("192.168.") !== -1 || res.indexOf("172.16.") !== -1 || res.indexOf("172.30.") !== -1) {{
-              return fakeLteIp;
-            }}
-            return res;
-          }};
-          console.log("[+] Java Root Hooked: java.net.Inet4Address (masked 192.168. -> " + fakeLteIp + ")");
-        }} catch(e) {{}}
-
-        // -------------------------------------------------------------------------
-        // 4. [OS Root] android.net.wifi.WifiManager & WifiInfo (주변 Wi-Fi MAC BSSID 유출 완전 차단)
+        // 3. [OS Root] android.net.wifi.WifiManager & WifiInfo (주변 Wi-Fi MAC BSSID 유출 완전 차단)
         // -------------------------------------------------------------------------
         try {{
           const WifiManager = frida_java_bridge_default.use("android.net.wifi.WifiManager");

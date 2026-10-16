@@ -7,6 +7,7 @@ Device Selector Module:
 - Supports explicit device override
 """
 
+import time
 import subprocess
 import random
 import logging
@@ -14,10 +15,21 @@ from typing import List, Optional
 
 logger = logging.getLogger("DeviceSelector")
 
-def get_online_devices() -> List[str]:
+EXCLUDED_DEVICES = {"R3CW5084CEW"}  # 순정(Unrooted) 단말기 제외
+
+_ONLINE_DEVICES_CACHE = None
+_ONLINE_CACHE_TIME = 0.0
+
+def get_online_devices(force_refresh: bool = False) -> List[str]:
     """
     Returns list of connected and authorized ADB serial numbers that support root (su).
+    (15초 TTL 캐싱 적용으로 동시 20대 기동 시 폭주 방지)
     """
+    global _ONLINE_DEVICES_CACHE, _ONLINE_CACHE_TIME
+    now = time.time()
+    if not force_refresh and _ONLINE_DEVICES_CACHE is not None and (now - _ONLINE_CACHE_TIME < 15.0):
+        return list(_ONLINE_DEVICES_CACHE)
+
     try:
         res = subprocess.run(["adb", "devices"], capture_output=True, text=True, check=True)
         lines = res.stdout.strip().split("\n")[1:]
@@ -26,6 +38,9 @@ def get_online_devices() -> List[str]:
             parts = line.strip().split()
             if len(parts) >= 2 and parts[1] == "device":
                 serial = parts[0]
+                if serial in EXCLUDED_DEVICES:
+                    logger.debug(f"🚫 [순정 기기 제외] {serial}은(는) 비루팅 단말기로 자동 배제됩니다.")
+                    continue
                 # Check root capability
                 su_check = subprocess.run(
                     ["adb", "-s", serial, "shell", "which su"],
@@ -35,10 +50,43 @@ def get_online_devices() -> List[str]:
                     devices.append(serial)
                 else:
                     logger.warning(f"⚠️ 기기 {serial}은(는) root(su) 권한이 없어 매크로 구동 대상에서 제외됩니다.")
+        _ONLINE_DEVICES_CACHE = devices
+        _ONLINE_CACHE_TIME = now
         return devices
     except Exception as e:
         logger.error(f"❌ Failed to query ADB devices: {e}")
         return []
+
+def get_egress_ip(device_id: Optional[str] = None) -> Optional[str]:
+    """
+    LTE 모뎀 또는 대표 단말기 외부 공인 IP 확인.
+    1. device_id가 주어지면 해당 단말기 shell에서 ipify 조회 (LTE 단말기 등)
+    2. 실패하거나 device_id가 없으면 로컬 호스트 네트워크에서 조회
+    """
+    if device_id:
+        try:
+            res = subprocess.run(
+                ["adb", "-s", device_id, "shell", "curl -s --max-time 5 https://api.ipify.org"],
+                capture_output=True, text=True, timeout=6
+            )
+            ip = res.stdout.strip()
+            if ip and len(ip.split(".")) == 4:
+                return ip
+        except Exception:
+            pass
+
+    import urllib.request
+    try:
+        req = urllib.request.Request("https://api.ipify.org", headers={"User-Agent": "curl/7.68.0"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            ip = resp.read().decode("utf-8").strip()
+            if ip and len(ip.split(".")) == 4:
+                return ip
+    except Exception:
+        pass
+
+    return None
+
 
 def select_device(explicit_device: Optional[str] = None) -> str:
     """

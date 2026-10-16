@@ -248,6 +248,25 @@ def build_intent_url(keyword: str, ackey: Optional[str] = None, sm: Optional[str
     return f"https://m.search.naver.com/search.naver?sm={used_sm}&where=m&query={enc_query}&ackey={used_ackey}&acq={enc_acq}&acr={acr}&qdt=0"
 
 
+def build_shopping_intent_url(keyword: str, ackey: Optional[str] = None, sm: Optional[str] = None) -> str:
+    """
+    네이버 모바일 쇼핑 정식 인텐트 URL 생성 (단순 query= 절대 금지, ackey 필수)
+    - query: 타겟 키워드 인코딩
+    - acq: 자동완성 프리픽스 모의 (첫 1단어 또는 앞 4글자)
+    - ackey: 자동완성 세션 키 (8자리 헥사)
+    - sm: 쇼핑 진입 경로 파라미터 (shp_sug.top 등)
+    """
+    query_clean = keyword.strip()
+    words = query_clean.split()
+    acq = words[0] if len(words) > 1 and len(words[0]) >= 2 else query_clean[:min(4, len(query_clean))]
+    used_ackey = ackey or generate_random_ackey()
+    used_sm = sm or "shp_sug.top"
+    acr = 1
+    enc_query = urllib.parse.quote(query_clean)
+    enc_acq = urllib.parse.quote(acq)
+    return f"https://msearch.shopping.naver.com/search/all?query={enc_query}&ackey={used_ackey}&acq={enc_acq}&acr={acr}&sm={used_sm}&qdt=0"
+
+
 def generate_realistic_device_lifecycle() -> Tuple[int, int, int]:
     """
     현실적인 기기 설치/업데이트/부팅 타임스탬프 생성 (밀리초 단위)

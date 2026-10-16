@@ -211,3 +211,27 @@ class IdentityAuditor:
         }
 
         return (not has_collision), audit_summary, table_text
+
+    @staticmethod
+    def verify_ondevice_cookies_after_run(
+        device_id: str,
+        expected_ssaid: str,
+        expected_dadd: Optional[str] = None,
+        expected_dadv: Optional[str] = None,
+        expected_nnb: Optional[str] = None
+    ) -> Tuple[bool, str, Dict[str, Any]]:
+        """
+        [Post-flight Gate] CookieRollbackManager 전담 모듈로 위임
+        """
+        from src.device.cookie_rollback_manager import CookieRollbackManager
+        profile = {
+            "ssaid": expected_ssaid,
+            "dadd": expected_dadd,
+            "dadv": expected_dadv,
+            "nnb": expected_nnb
+        }
+        return CookieRollbackManager.post_flight_gate(
+            device_id=device_id,
+            profile=profile,
+            expected_nnb=expected_nnb
+        )

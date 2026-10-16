@@ -19,6 +19,41 @@
 
 ---
 
+## 🚫 [절대 철칙 3] 단순 `?query=` 임의 이동 절대 금지 및 `ackey` 기반 정식 Intent 방식 필수 원칙
+1. **단순 `query=` 임의 URL 조작 영구 금지**: 네이버 앱 내부에서 단순 `?query={keyword}`만을 조합하여 `window.location.href`를 바꾸거나 웹뷰를 강제 이동시키는 비표준 조작 행위를 일체 금지합니다.
+2. **`ackey` 필수 정식 Intent 체계 준수**: 모든 검색 진입(통합검색 및 쇼핑검색)은 실제 모바일 사용자의 자동완성 세션을 완벽히 모의하는 **`ackey`(8자리 헥사 세션키), `acq`(접두어), `acr`(랭킹), `sm`(진입코드) 파라미터가 완비된 정식 Intent URL 방식**만을 사용해야 합니다.
+3. **구형 레거시 파라미터 메모리 영구 제거**: 과거 `msearch.shopping.naver.com` 등 과거 네이버 앱 버전의 레거시 잔재를 시스템 메모리에서 완전히 배제하고, 신규 정식 Intent 규격만을 적용합니다.
+
+---
+
+## 🛒 [절대 철칙 4] SERP 쇼핑 슬롯 판정 & 쇼핑섹션 .more 더보기 실물 터치 원칙
+1. **쇼핑 키워드 1차 판정 (`shp_` 섹션 존재 여부)**:
+   - `window.naver.search.section.main`을 조회하여 `shp_`로 시작하는 섹션이 없으면 ➔ 쇼핑과 무관한 키워드로 판정하고 즉시 종료(`NOT_SHOPPING_KEYWORD`).
+2. **`pagedSlot` 기반 슬롯 탐색 & 쇼핑섹션 내 `.more` 실물 터치 이동**:
+   - `newshopping.shopping.pagedSlot`이 존재하는 일반 쇼핑 슬롯인 경우:
+     ➔ 슬롯 내에서 타겟 상품(MID/순위)을 우선 탐색.
+     ➔ 타겟 상품 발견 시: SERP에서 핀포인트 터치 스트라이크.
+     ➔ 타겟 상품 미발견 시:
+        - `total_pages <= 1` (단일 페이지): 추가 상품이 없으므로 더보기 이동 없이 즉시 `NOT_FOUND` 종료.
+        - `total_pages > 1` (2페이지 이상): **쇼핑 섹션(`shp_`) 내부의 `.more` / '상품 더보기' 버튼을 탐색하여 실물 터치(CDP Real Touch)로 쇼핑탭 이동**.
+   - `shp_` 섹션이 있으나 `pagedSlot`이 아닌 특화 슬롯의 경우:
+     ➔ **쇼핑 섹션(`shp_`) 내부의 `.more` / '상품 더보기' 버튼을 탐색하여 실물 터치(CDP Real Touch)로 쇼핑탭 이동**.
+3. **상단 카테고리 [쇼핑] 탭 사용 영구 금지**:
+   - 상단 카테고리 네비게이션 탭(`role="tab"`)은 가림막/코치마크 및 비로그인 네이티브 로그인 팝업을 유발하므로 절대 타겟팅하지 않음.
+   - 쇼핑 이동은 오직 쇼핑 섹션 내부의 정식 `.more` 버튼을 `scrollIntoView` 후 실제 터치(Real Touch)하는 방식으로만 수행함.
+
+---
+
+## 📁 [절대 원칙 5] 백업 폴더(backups/) 탐색 및 참조 영구 금지 (2026-10-13 확정)
+1. **백업 폴더 완전 격리**: `backups/` 디렉토리는 과거 레거시 코드, 파편화된 구형 러너 스크립트, 구형 APK 등이 격리된 아카이브 보관소입니다.
+2. **코드 검색 및 참조 영구 금지**: 파일 검색(grep, find, ripgrep), 코드 분석, 참조 로직 탐색 시 `backups/` 디렉토리를 절대 스캔하거나 참조하지 마십시오.
+3. **현재 활성 단일 진실 공급원(SSOT)**:
+   - 마스터 러너: [`run.py`](file:///home/tech/nshop_macro_v1/run.py)
+   - 핵심 파이프라인: [`src/pipeline/executor.py`](file:///home/tech/nshop_macro_v1/src/pipeline/executor.py) 및 `src/pipeline/steps/`
+   - 이 외의 과거 파편화된 스크립트나 레거시 모듈을 다시 꺼내어 시스템에 주입하는 행위를 일체 금지합니다.
+
+---
+
 ## ⏱️ [운영 정책] 버스트 유입 및 C클래스 IP 안전장치 정책 (2026-09-19 기준)
 1. **타겟 상품 압축**: 과거 통계에서 유효타로 인정받았던 검증된 3개 상품(`보관백`, `가리개`, `버킷햇`)만을 극단적으로 타겟팅하여 클릭을 수행합니다.
 2. **C클래스 IP 당일 1회 및 3시간 자정 완충 원칙**:
@@ -43,13 +78,91 @@
 
 ---
 
-## 🛡️ [프로필 & 식별자 1회용 완전 클린 원칙 (2026-09-19 지침)]
+## 🛡️ [프로필 & 식별자 1회용 캐시 보존 정밀 세정 원칙 (Surgical Clean)]
 1. **프로필 복원(RESTORE) 모드 임의 활성화 절대 금지**:
-   - 모든 타격은 항상 **1회용 완전 클린(FRESH / `pm clear` + Zygote 소프트 리셋)** 상태로 기동해야 합니다.
+   - 모든 타격은 항상 **캐시 보존형 정밀 세정(Surgical Clean: V8/HTTP 정적 에셋 캐시 100% 보존 + 쿠키/세션/비콘큐 핀셋 초기화)** 상태로 기동해야 합니다.
    - 단말기 내에 과거 숙성 프로필(`pf_1_100` 등)이 있더라도 이를 임의로 순환 복원(Round-Robin RESTORE)하는 행위를 일체 금지합니다.
 2. **세션 백업 정책 (DB 전송 금지 & 기기 로컬 단독 보관)**:
    - 작업 완료 후 생성된 쿠키 및 세션 데이터는 DB에 전송하지 않고, 기기 로컬 저장소(`/data/local/tmp/profile_storage/backup_history/pf_{YmdHis}.tar.gz`)에만 아카이빙 목적으로 저장합니다.
-   - 다음 타격 기동 시 이 백업 파일을 재사용/복원하지 않고 깨끗이 초기화(`pm clear`)합니다.
+   - 다음 타격 기동 시 이 백업 파일을 재사용/복원하지 않고 깨끗이 선별 정제(`perform_surgical_cycle`)합니다.
 3. **정기 모니터링 시 NNB(쿠키) 및 SSAID 독립성 필수 판독**:
    - 10분 정기 상태 점검 및 매 회차 보고 시, **직전 회차의 NNB 쿠키 및 SSAID, NAPP_DI, 공인 IP와 대조하여 100% 새로운 독립 식별자가 발급되었는지 필수 판독하고 보고서에 명시**하십시오.
    - 만약 직전 회차와 동일한 NNB 또는 SSAID가 연속 사용된 흔적이 발견되면, 즉시 치명적 경고(Critical Alert)를 발령하고 원인을 규명해야 합니다.
+
+---
+
+## 🔒 [절대 철칙 6] 필수 6대 핵심 식별자/통신사/위치(GPS) 훅 불변 유지 및 2중 감시(Pre/Post) 철칙 (2026-10-13 확정)
+1. **필수 6대 핵심 훅 100% 영구 상시 유지 (임의 누락/비활성화 절대 금지)**:
+   - ① **SSAID (`Settings.Secure`)**: `android_id` 실시간 가로채기 ➔ 네이버 앱 `NAPP_DI` MD5 쿠키 동기화 및 순정 OS 값 롤백 원천 차단.
+   - ② **구글 계정 (`AccountManager`)**: 1회용 신생 구글 계정(`xxx@gmail.com`) 상시 로그인 상태 모의.
+   - ③ **AppSetId (`GMS AppSetIdInfo`)**: 1회용 UUID + **`Scope 1 (SCOPE_DEVELOPER)` 최고 신뢰 등급 강제 승격** (`DA_DV`).
+   - ④ **ADID (`GMS AdvertisingIdClient`)**: 1회용 UUID + **광고 추적 허용(`LAT: false`)** (`DA_DD`).
+   - ⑤ **이동통신사 (`TelephonyManager`)**: **`KT LTE 450_08` 정상 개통, `SIM_STATE_READY(5)`, `NETWORK_TYPE_LTE(13)`** 주입.
+   - ⑥ **가상 GPS 위치 (`LocationManager` & `FusedLocation`)**: **대한민국 내륙 랜덤 좌표(위도/경도/오차/고도/방위각) 실시간 주입 + `Location.isMock(false)` 모의위치 차단 + `m_loc` AES 암호화 쿠키 및 `null.xml` 좌표 완전 동기화**.
+2. **소켓/OS 충돌 유발 위험 훅 영구 격리**:
+   - `Inet4Address` (192.168 -> 10.x Java 단독 변조 -> WTM POSIX 소켓 불일치 유발)
+   - `NetworkCapabilities.hasTransport` (tun0/VPN 명칭 억지 조작 -> C++ 소켓 충돌 유발)
+   - `Runtime.exec` (su/which)
+   - 위 항목들은 네이버 WTM과 충돌하므로 격리 유지하되, **1항의 6대 핵심 식별자/통신사/위치 훅은 어떤 리팩토링이나 디버깅 과정에서도 절대 누락되어서는 안 됨**.
+3. **2중 감시 게이트 (Pre-flight Gate & Post-flight Gate) Fail-Fast 원칙**:
+   - **[Pre-flight Gate (기동 감시)]**: Frida 스폰 직후 1.5초 내에 6대 훅의 활성화 확인 이벤트(`hook_verification`)가 100% 수신되지 않으면, 즉시 앱을 강제 종료하고 `HOOK_INTEGRITY_FAILED` 예외를 발생시켜 작업을 즉시 중단함.
+   - **[Post-flight Gate (종료 감시)]**: 타격 완료 및 마감 직전, 단말기 실제 SQLite Cookies DB를 쿼리하여 `NAPP_DI`가 순정 OS 값(`77d52e2a...`)으로 롤백되었거나 `DA_DD`, `DA_DV`, `m_loc`(GPS), `NNB`가 가상 프로필과 불일치할 경우 즉시 `IDENTITY_ROLLBACK_DETECTED` 에러로 실패 처리하고 경보를 발령함.
+
+---
+
+## 🚫 [절대 철칙 7] OCR 및 이미지 텍스트 인식 영구 사용 금지 (100% CDP DOM 엔진 단독 타겟팅)
+1. **CDP DOM 엔진 절대 우선 원칙**: 본 시스템은 Chromium Blink 렌더링 엔진의 CDP DOM 프로토콜(`getBoundingClientRect()`)을 통해 타겟 오가닉 상품의 서브픽셀 정밀 좌표, 엘리먼트 가로/세로 크기, 태그, 클래스명, 텍스트, `data-nlog-params`를 100% 직접 추출하여 화면 전면으로 스크롤하고 좌표를 확정합니다.
+2. **OCR 사용 및 제안 영구 절대 금지**: 스크린샷 이미지에 OCR(광학 문자 인식, Tesseract, EasyOCR 등)을 돌려 텍스트를 판별하는 것은 100% 불필요한 중복 낭비이자 오탐율만 유발하는 비효율입니다. 코드 작성, 스크립트 실행, 서브에이전트 구동 등 시스템 전 과정에서 OCR을 실행하거나 제안하는 행위를 일체 영구 금지합니다.
+
+---
+
+## 🚫 [절대 철칙 8] 쿠키 롤백/실패 시 복잡한 재시도 영구 금지 (즉시 Discard 및 API 실패 피드백 원칙)
+1. **쿠키 롤백 발생 시 즉시 포기(Discard)**: 쿠키 롤백(`IDENTITY_ROLLBACK_DETECTED`)이나 사전/사후 게이트 무결성 위반이 발생하면, 해당 회차를 억지로 처음부터 재시도하지 않고 **해당 사이클(타격)을 즉시 실패로 종결하고 앱을 강제 종료(`force-stop`)**합니다.
+2. **중앙 API 실패 즉시 피드백**: 중앙 서버 API(`/api/v1/report` 또는 `/api/v2/report`)에 `status="IDENTITY_ROLLBACK_DETECTED"`, `success=False`로 실패 피드백만을 정확히 보고합니다.
+3. **재할당은 중앙 서버 위임**: 복잡한 단말기 로컬 재시도 루프를 일체 돌리지 않으며, 해당 키워드의 재할당은 중앙 서버 스케줄러가 스토어 쿨타임과 격리 정책에 따라 추후 다른 단말기에 자동으로 재할당하도록 위임합니다.
+
+---
+
+## 🛠️ [개발/테스트 원칙] 개발 단계 --net-mode local 적극 활용 원칙 (2026-10-14 확정)
+1. **개발/디버깅 시 Local 모드 기본 적용**: 새 기능 개발, 버그 수정, 단위 검증, 스크린샷 판독 및 테스트 시에는 불필요한 LTE IP 토글 대기와 동글 대역폭 낭비를 방지하기 위해 **`--net-mode local`(`enp42s0` 메인 유선 이더넷, `--no-toggle` 기본 자동 적용)**을 적극 활용합니다.
+2. **단말기 1대~소수 검증 최우선**: 기능 단위 검증 시 `--net-mode local --device {Serial} --once`를 조합하여 즉각적인 피드백을 확보하고 검증 완료 후 전체 운영에 배포합니다.
+
+---
+
+## 🚫 [절대 철칙 9] 자바스크립트 el.click() 영구 절대 금지 및 100% CDP Real Touch(물리 터치) 원칙 (2026-10-15 확정)
+1. **좌표는 CDP로 추출하되 클릭은 무조건 100% CDP Real Touch 필수**:
+   - 화면 내 모든 인터랙션(타겟 오가닉 상품 클릭, 쇼핑 더보기 `.more` 버튼, 슬롯 탐색, 상세페이지 본문 펼쳐보기 등)은 CDP DOM 프로토콜(`getBoundingClientRect()`)을 통해 정밀 좌표(x, y)를 실측한 후, **오직 Chromium CDP 물리 터치(`Input.dispatchTouchEvent`: touchStart ➔ dwell ➔ touchEnd)만을 발송**해야 합니다.
+2. **자바스크립트 `el.click()`, `click()` 코드 일체 영구 절대 금지**:
+   - `el.click()`, `btn.click()`, `document.querySelector(...).click()` 등 자바스크립트 가상 DOM 클릭 호출을 시스템 전반에서 일체 영구 금지합니다.
+3. **핵심 이유 (네이버 FDS 탐지 원천 방지)**:
+   - JavaScript `click()`으로 클릭하게 되면 실제 사람이 스마트폰 화면을 누를 때 발생하는 **브라우저 네이티브 터치 이벤트 시퀀스(PointerEvent, TouchEvent, TouchForce/Radius)와 이에 수반되는 네이버 FDS 필수 텔레메트리/비콘 패킷(WTM, nlog, touch log)이 통째로 누락**됩니다.
+   - 필수 통신 패킷이 누락된 상태에서 URL만 이동되거나 페이지가 열리면 네이버 FDS에 비정상 매크로 조작 세션으로 100% 탐지되어 **로그인 강제 팝업 유발, 캡차 차단, 유효타(트래픽/순위 점수) 영구 무효화**가 발생합니다.
+
+---
+
+## 🚫 [절대 철칙 10] 인위적인 클라이언트 우회(loadUrl 강제주입, 팝업 억제 등) 영구 금지 및 원인 진단 응답 철칙 (2026-10-16 확정)
+1. **인위적인 가짜 복구/우회 영구 절대 금지**:
+   - 로그인 챌린지(`nidlogin.login`), 캡차, FDS 차단이 발생했을 때 `webView.loadUrl(target)`으로 강제 진입시키거나 다이얼로그를 억지로 닫고 계속 진행시키는 등의 땜질식 인위적 우회 코드를 시스템 전역에서 일체 영구 금지합니다.
+   - 사유: 서버단에서 이미 `sus_val`(의심 세션) 낙인이 찍힌 상태에서는 클라이언트단에서 URL만 열어봐야 **100% 무효타(점수 0점)**이며, 네이버 서버의 재차 리다이렉트로 인해 쇼핑 진입 실패(`SHOPPING_MORE_MISSED`)만을 양산합니다.
+2. **"뭐 때문에 안 된다"는 근본 원인 분석/진단 응답 원칙**:
+   - 향후 장애나 미작동 발생 시, 인위적인 가짜 성공 코드를 임의로 만들어내지 말고 **"쿠키, 안드로이드 OS 버전, 네이버 앱 버전별 탐지 요소 강화"** 관점에서 정확히 어떤 요소 때문에 막혔는지를 정밀 분석하고 진단하여 사용자에게 투명하게 보고해야 합니다.
+3. **FDS 발생 시 즉시 Fail-Fast 및 Discard**:
+   - 로그인 챌린지 감지 시 인위적으로 뚫으려 하지 않고, 즉시 `LOGIN_CHALLENGE_DETECTED`로 세션을 종료(Discard)하고 중앙 API에 실패 보고합니다.
+
+---
+
+## 🛡️ [핵심 아키텍처 원칙 11] FDS 관통 4대 핵심 축(랜덤 디바이스 · 정밀 지터 · 가상 구글계정 · KT LTE 유심) 불변 유지 원칙 (2026-10-16 확정)
+1. **① 랜덤 디바이스 (Random Device)**:
+   - SSAID (`Settings.Secure`) 1회용 무작위 생성 ➔ `NAPP_DI = MD5(SSAID)` 쿠키 DB 100% 동기화.
+   - `StatFs` 스토리지 용량 미세 바이트 지터(238GB 변위) 주입.
+   - `PackageManager` 설치 시점(15~45일 전) 및 부팅 시점(4~28시간 전) 성숙된 라이프사이클 유지.
+2. **② 정밀 지터 (Jitter)**:
+   - 물리 터치 마이크로 지터: `touchStart` ➔ 0.5~1.2px 미세 떨림(`touchMove`) ➔ `touchEnd`, 가압력(0.85~0.95), 75~110ms 가우시안 체류. (단, 더보기 버튼은 `use_jitter=False` 단일 탭).
+   - GPS 공간 지터: 대한민국 내륙 69개 거점 중심 `±0.0035`도 (도심 200~400m) 지터, 오차(3.5~9.5m), 고도, 방위각 동적 생성.
+   - 시간/행동 비선형 지터: 검색 시간과 체류 시간의 선형성을 해체하는 로그정규분포(Lognormal Distribution) 체류.
+3. **③ 가상의 구글 계정 (Virtual Google Account)**:
+   - 한국인 실제 성명/이니셜/단어 기반 1회용 구글 계정 생성 (`xxx@gmail.com`).
+   - OS `AccountManager.getAccountsByType("com.google")` 최심부 주입으로 단말기 신뢰 등급(Trust Score) 극대화.
+   - GMS `AppSetId` 최고 신뢰 등급인 `Scope 1 (SCOPE_DEVELOPER)` 강제 승격 및 `ADID` 광고 추적 허용 (`LAT: false`).
+4. **④ KT LTE 유심 (USIM / Telephony)**:
+   - `TelephonyManager`: `SIM_STATE_READY(5)`, 대한민국 KT LTE `450_08` 정상 개통, `NETWORK_TYPE_LTE(13)`, 국내망(`isNetworkRoaming: false`) 100% 유지.

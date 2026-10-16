@@ -55,9 +55,25 @@ def build_identity_hook(spoof_ssaid: Optional[str] = None) -> str:
           }};
         }} catch(e) {{}}
 
+        // 3. [FDS 단말 보안 대응] KeyguardManager 보안 수준 가로채기 (deviceLock='Y', deviceSecure='password')
+        try {{
+          const KeyguardManager = frida_java_bridge_default.use("android.app.KeyguardManager");
+          KeyguardManager.isKeyguardSecure.overload().implementation = function() {{
+            return true;
+          }};
+          KeyguardManager.isDeviceSecure.overload().implementation = function() {{
+            return true;
+          }};
+          KeyguardManager.isKeyguardLocked.overload().implementation = function() {{
+            return false;
+          }};
+        }} catch(e) {{}}
+
         console.log("[+] Core Root Hooked: Settings.Secure (android_id: {spoof_ssaid})");
+        send({{ type: "hook_verification", hook: "Settings.Secure", status: "OK", value: "{spoof_ssaid}" }});
       }} catch(e) {{
         console.log("[-] Settings.Secure hook error: " + e);
+        send({{ type: "hook_verification", hook: "Settings.Secure", status: "ERROR", error: String(e) }});
       }}
     """
 

@@ -140,12 +140,13 @@ def get_nnb_packet(
             }
 
     if not packet:
-        fallback_nnb = "WSQIOYAAZ3CGU"
-        logger.warning(f"⚠️ [NNB 신규 할당] 모든 NNB 풀 소진 -> 비상 NNB 사용: {fallback_nnb}")
+        import random, string
+        fallback_nnb = ''.join(random.choices(string.ascii_uppercase + string.digits, k=13))
+        logger.warning(f"⚠️ [NNB 신규 할당] NNB 풀 소진 -> 1회용 고유 신규 NNB 생성: {fallback_nnb}")
         packet = {
             "nnb": fallback_nnb,
             "buc": "",
-            "source": "emergency_static",
+            "source": "emergency_unique",
             "age_seconds": 0
         }
 

@@ -4,6 +4,8 @@ from config import API_PORT
 from routes.nnb import nnb_bp
 from routes.task import task_bp
 from routes.keyword import keyword_bp
+from routes.network import network_bp
+from routes.task_v2 import task_v2_bp, node_v2_bp, admin_v2_bp, product_v2_bp, quota_v2_bp, sim_v2_bp, device_v2_bp, group_v2_bp
 
 def create_app():
     app = Flask(__name__)
@@ -13,13 +15,32 @@ def create_app():
     app.register_blueprint(nnb_bp)
     app.register_blueprint(task_bp)
     app.register_blueprint(keyword_bp)
+    app.register_blueprint(network_bp)
+    app.register_blueprint(task_v2_bp)
+    app.register_blueprint(node_v2_bp)
+    app.register_blueprint(admin_v2_bp)
+    app.register_blueprint(product_v2_bp)
+    app.register_blueprint(quota_v2_bp)
+    app.register_blueprint(sim_v2_bp)
+    app.register_blueprint(device_v2_bp)
+    app.register_blueprint(group_v2_bp)
 
     @app.route("/", methods=["GET"])
     def index():
         return jsonify({
-            "service": "N-Shop Central API Server v1",
+            "service": "N-Shop Central API Server (v1 & v2 Unified)",
             "status": "ONLINE",
-            "version": "1.3.0",
+            "version": "2.0.0",
+            "endpoints_v2": {
+                "task_allocate": "POST /api/v2/task/allocate (5단계 지능형 쿨다운/쿼터 작업 할당)",
+                "task_report": "POST /api/v2/task/report (원격 정밀 진단 & 체크포인트 보고)",
+                "task_diagnostics": "GET /api/v2/task/diagnostics (원격 관제 요약)",
+                "products_unique": "GET /api/v2/products/unique (유니크 상품 목록 및 슬롯/쿼터 현황)",
+                "sync_external": "POST /api/v2/products/sync-external (5분 주기 10개 외부 사이트 슬롯 동기화)",
+                "quotas_daily": "GET /api/v2/quotas/daily?date=YYYY-MM-DD (일자별 슬롯 쿼터 및 달성 현황)",
+                "simulation_day": "POST /api/v2/simulation/run-day (일자별 다일 시뮬레이션 가동 엔진)",
+                "node_heartbeat": "POST /api/v2/node/heartbeat (분산 노드 상태 동기화)"
+            },
             "endpoints": {
                 "health": "GET /health",
                 "task_assign": "GET/POST /api/v1/task/assign (20분 초과 NNB/BUC + nshop_list 상품 매칭 작업 할당)",

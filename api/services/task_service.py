@@ -5,38 +5,36 @@ from config import MIN_AGING_SECONDS
 
 class TaskService:
     @staticmethod
-    def assign_task(
-        task_id: Optional[int] = None,
-        min_age_seconds: int = MIN_AGING_SECONDS,
-        device_id: Optional[str] = None,
+    def assign_tasks(
+        device_ids: list,
         ip: Optional[str] = None,
-        specific_nv_mid: Optional[str] = None
+        task_id: Optional[int] = None,
+        specific_nv_mid: Optional[str] = None,
+        min_age_seconds: int = MIN_AGING_SECONDS
     ) -> Dict[str, Any]:
         """
-        [작업 할당 및 기존 작업 조회 API]
-        - tasks 테이블의 PK인 task_id (숫자)만 단독 사용
-        1. task_id 파라미터가 주어진 경우:
-           - 새로운 NNB를 소모하지 않고, 기존에 할당되었던 tasks 레코드 정보를 그대로 반환
-        2. task_id 파라미터가 없는 경우 (신규 할당):
-           - 20분(1200초) 이상 숙성된 NNB+BUC 선점 (공용 풀에서 선점)
-           - nshop_list 에서 keyword(product_name), nv_mid(target_id), compare_id(mall_product_id), store_name(mall_name) 추출
-           - tasks 테이블에 신규 INSERT (task_id 자동 발급)
-           - 선점된 NNB use_count += 1
-           - 생성된 task_id와 핵심 정보 반환
+        [통합 작업 할당 API: 단일 및 1:N 배치 완전 일원화]
+        - device_ids: ['DEV1'] 또는 ['DEV1', 'DEV2', ...]
+        - ip: 외부 LTE 모뎀/공인 IP (단말기들이 공유하는 Egress IP)
+        - 20분(1200초) 이상 숙성된 NNB/BUC 선점
+        - nshop_list 에서 타겟 상품 랜덤 매칭
+        - tasks 테이블에 기록 후 일관된 JSON 반환
         """
+        if not device_ids:
+            device_ids = ["default"]
+
+        min_age_seconds = max(1200, int(min_age_seconds or 1200))
+        requested_n = len(device_ids)
+
         with get_db_cursor(commit=True) as (cur, conn):
-            # ---------------------------------------------------------
             # 0. 30분 이상 경과된 미완료(ASSIGNED) 작업 자동 타임아웃 처리
-            # ---------------------------------------------------------
             cur.execute("""
                 UPDATE tasks
                 SET status = 'TIMEOUT', completed_at = NOW(), result_memo = 'Auto-expired: client did not report back within 30m'
                 WHERE status = 'ASSIGNED' AND assigned_at < NOW() - INTERVAL 30 MINUTE
             """)
 
-            # ---------------------------------------------------------
             # CASE A: 기존 task_id 재조회 모드
-            # ---------------------------------------------------------
             if task_id is not None:
                 cur.execute("""
                     SELECT task_id, nnb, buc, keyword, nv_mid, compare_id, store_name, device_id, ip, status
@@ -46,30 +44,34 @@ class TaskService:
                 existing = cur.fetchone()
 
                 if existing:
-                    return {
-                        "success": True,
+                    t_obj = {
                         "task_id": int(existing["task_id"]),
-                        "nnb": existing["nnb"],
-                        "buc": existing["buc"],
+                        "device_id": existing["device_id"],
                         "keyword": existing["keyword"],
                         "nv_mid": existing["nv_mid"],
                         "compare_id": existing["compare_id"],
                         "store_name": existing.get("store_name") or "",
-                        "device_id": existing["device_id"],
+                        "nnb": existing["nnb"],
+                        "buc": existing["buc"],
                         "ip": existing["ip"]
                     }
+                    res = {
+                        "success": True,
+                        "ip": existing["ip"],
+                        "count": 1,
+                        "tasks": [t_obj]
+                    }
+                    # 단일 작업 하위 호환 평탄화
+                    for k, v in t_obj.items():
+                        res[k] = v
+                    return res
                 else:
                     return {
                         "success": False,
                         "message": f"task_id({task_id})에 해당하는 작업 정보를 찾을 수 없습니다."
                     }
 
-            # ---------------------------------------------------------
-            # CASE B: 신규 작업 할당 모드 (최소 1200초 = 20분 엄격 강제)
-            # ---------------------------------------------------------
-            min_age_seconds = max(1200, int(min_age_seconds or 1200))
-
-            # 1. 20분 초과된 NNB+BUC 선점 (공용 풀에서 선점)
+            # CASE B: 신규 할당 (최소 1200초 숙성 NNB N개 선점)
             query = """
                 SELECT id, nnb, buc, use_count, status, created_at,
                        TIMESTAMPDIFF(SECOND, created_at, NOW()) AS age_seconds
@@ -77,32 +79,22 @@ class TaskService:
                 WHERE status IN ('AGING', 'READY', 'ACTIVE')
                   AND created_at <= NOW() - INTERVAL %s SECOND
                 ORDER BY use_count ASC, created_at ASC, id ASC
-                LIMIT 1
+                LIMIT %s
                 FOR UPDATE
             """
-            cur.execute(query, (min_age_seconds,))
-            selected_nnb = cur.fetchone()
+            cur.execute(query, (min_age_seconds, requested_n))
+            selected_nnbs = cur.fetchall()
 
-            # 20분 초과 토큰이 없거나 1200초 미만인 경우 대기 안내 반환
-            if not selected_nnb or int(selected_nnb.get("age_seconds") or 0) < 1200:
-                cur.execute("""
-                    SELECT MAX(TIMESTAMPDIFF(SECOND, created_at, NOW())) AS oldest_age
-                    FROM nnbs
-                    WHERE status IN ('AGING', 'READY', 'ACTIVE')
-                """)
-                oldest_row = cur.fetchone()
-                oldest_age = int(oldest_row["oldest_age"] or 0) if oldest_row else 0
-                remaining = max(0, min_age_seconds - oldest_age)
-
+            if not selected_nnbs:
                 return {
                     "success": False,
-                    "message": f"20분({min_age_seconds}초) 이상 숙성된 NNB 토큰이 아직 없습니다. (남은 대기시간: 약 {remaining}초)",
-                    "retry_after_seconds": remaining,
-                    "oldest_age_seconds": oldest_age,
-                    "min_age_seconds": min_age_seconds
+                    "is_no_task": True,
+                    "message": f"20분({min_age_seconds}초) 이상 숙성된 NNB 토큰이 부족하여 대기 중입니다."
                 }
 
-            # 2. nshop_list 테이블에서 keyword, nv_mid, compare_id, store_name 추출
+            alloc_count = min(len(selected_nnbs), requested_n)
+
+            # nshop_list 테이블에서 상품 추출 (단말기별 100% 서로 다른 고유 상품 각각 1:1 할당)
             if specific_nv_mid:
                 cur.execute("""
                     SELECT target_id, product_name, mall_product_id, mall_name
@@ -110,63 +102,119 @@ class TaskService:
                     WHERE target_id = %s
                     LIMIT 1
                 """, (specific_nv_mid,))
-                product = cur.fetchone()
+                prod = cur.fetchone()
+                products = [prod] * alloc_count if prod else []
             else:
-                product = None
-
-            if not product:
+                # 활성화(is_active = 1)된 50개 풀 중 요청 수량(alloc_count=20)만큼 고유 상품 무작위 추출 -> 20대 기기 모두 다른 상품 배정!
                 cur.execute("""
                     SELECT target_id, product_name, mall_product_id, mall_name
                     FROM nshop_list
-                    WHERE product_name IS NOT NULL AND product_name != ''
+                    WHERE is_active = 1 AND product_name IS NOT NULL AND product_name != ''
                     ORDER BY RAND()
-                    LIMIT 1
-                """)
-                product = cur.fetchone()
+                    LIMIT %s
+                """, (alloc_count,))
+                products = cur.fetchall()
 
-            if not product:
+                if len(products) < alloc_count:
+                    cur.execute("""
+                        SELECT target_id, product_name, mall_product_id, mall_name
+                        FROM nshop_list
+                        WHERE product_name IS NOT NULL AND product_name != ''
+                        ORDER BY RAND()
+                        LIMIT %s
+                    """, (alloc_count,))
+                    products = cur.fetchall()
+
+            if not products:
                 return {
                     "success": False,
+                    "is_no_task": True,
                     "message": "nshop_list 테이블에 작업 대상 상품 데이터가 없습니다."
                 }
 
-            keyword = product["product_name"]
-            nv_mid = product["target_id"]
-            compare_id = product["mall_product_id"] if product["mall_product_id"] else None
-            store_name = product.get("mall_name") or ""
-            nnb_val = selected_nnb["nnb"]
-            buc_val = selected_nnb["buc"]
+            actual_alloc = min(alloc_count, len(products))
+            allocated_tasks = []
 
-            # 3. tasks 테이블에 신규 INSERT (task_id PK 자동 생성)
-            cur.execute("""
-                INSERT INTO tasks (nnb, buc, keyword, nv_mid, compare_id, store_name, device_id, ip, status, assigned_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'ASSIGNED', NOW())
-            """, (nnb_val, buc_val, keyword, nv_mid, compare_id, store_name, device_id, ip))
-            new_task_id = cur.lastrowid
+            for i in range(actual_alloc):
+                dev_id = str(device_ids[i]).strip()
+                nnb_row = selected_nnbs[i]
+                prod = products[i]
 
-            # 4. NNB use_count 1 증가 및 작업 대상 기록
-            cur.execute("""
-                UPDATE nnbs
-                SET use_count = use_count + 1,
-                    last_used_at = NOW(),
-                    used_target = %s,
-                    device_id = COALESCE(%s, device_id)
-                WHERE id = %s
-            """, (nv_mid, device_id, selected_nnb["id"]))
+                keyword = prod["product_name"]
+                nv_mid = prod["target_id"]
+                compare_id = prod["mall_product_id"] if prod["mall_product_id"] else None
+                store_name = prod.get("mall_name") or ""
+                nnb_val = nnb_row["nnb"]
+                buc_val = nnb_row["buc"]
 
-            # 5. 핵심 데이터 반환 (store_name 포함)
-            return {
+                cur.execute("""
+                    INSERT INTO tasks (nnb, buc, keyword, nv_mid, compare_id, store_name, device_id, ip, status, assigned_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'ASSIGNED', NOW())
+                """, (nnb_val, buc_val, keyword, nv_mid, compare_id, store_name, dev_id, ip))
+                new_task_id = cur.lastrowid
+
+                cur.execute("""
+                    UPDATE nnbs
+                    SET use_count = use_count + 1,
+                        last_used_at = NOW(),
+                        used_target = %s,
+                        device_id = COALESCE(%s, device_id)
+                    WHERE id = %s
+                """, (nv_mid, dev_id, nnb_row["id"]))
+
+                allocated_tasks.append({
+                    "task_id": int(new_task_id),
+                    "device_id": dev_id,
+                    "keyword": keyword,
+                    "nv_mid": nv_mid,
+                    "compare_id": compare_id,
+                    "store_name": store_name,
+                    "nnb": nnb_val,
+                    "buc": buc_val,
+                    "ip": ip
+                })
+
+            res = {
                 "success": True,
-                "task_id": int(new_task_id),
-                "nnb": nnb_val,
-                "buc": buc_val,
-                "keyword": keyword,
-                "nv_mid": nv_mid,
-                "compare_id": compare_id,
-                "store_name": store_name,
-                "device_id": device_id,
-                "ip": ip
+                "ip": ip,
+                "count": len(allocated_tasks),
+                "tasks": allocated_tasks
             }
+            # 단일 작업 하위 호환 평탄화
+            if len(allocated_tasks) == 1:
+                for k, v in allocated_tasks[0].items():
+                    res[k] = v
+            return res
+
+    @staticmethod
+    def assign_task(
+        task_id: Optional[int] = None,
+        min_age_seconds: int = MIN_AGING_SECONDS,
+        device_id: Optional[str] = None,
+        ip: Optional[str] = None,
+        specific_nv_mid: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """단일 단말기 할당 래퍼 (assign_tasks로 위임)"""
+        return TaskService.assign_tasks(
+            device_ids=[device_id] if device_id else ["default"],
+            ip=ip,
+            task_id=task_id,
+            specific_nv_mid=specific_nv_mid,
+            min_age_seconds=min_age_seconds
+        )
+
+    @staticmethod
+    def assign_batch(
+        device_ids: list,
+        ip: Optional[str] = None,
+        min_age_seconds: int = MIN_AGING_SECONDS
+    ) -> Dict[str, Any]:
+        """다중 단말기 할당 래퍼 (assign_tasks로 위임)"""
+        return TaskService.assign_tasks(
+            device_ids=device_ids,
+            ip=ip,
+            min_age_seconds=min_age_seconds
+        )
 
     @staticmethod
     def complete_task(task_id: int, payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -182,6 +230,11 @@ class TaskService:
 
         result_memo = payload.get("memo") or payload.get("error_reason") or payload.get("message") or ""
 
+        # error_code 정밀 추출 (중간실패 상세 코드 보존)
+        error_code = payload.get("error_code")
+        if not error_code and raw_status not in VALID_STATUSES:
+            error_code = raw_status
+
         # status가 허용된 ENUM이 아닌 경우 (예: TARGET_NOT_FOUND 등) memo에 보존하고 FAILED 매핑
         if raw_status in VALID_STATUSES:
             status_val = raw_status
@@ -189,7 +242,7 @@ class TaskService:
             prefix = f"[{raw_status}]"
             if prefix not in result_memo:
                 result_memo = f"{prefix} {result_memo}".strip()
-            status_val = "FAILED" if any(w in raw_status for w in ("FAIL", "ERR", "NOT_FOUND", "BLOCK", "DENIED", "REJECT")) else "SUCCESS"
+            status_val = "FAILED" if any(w in raw_status for w in ("FAIL", "ERR", "NOT_FOUND", "BLOCK", "DENIED", "REJECT", "NO_SHOPPING", "LOGIN")) else "SUCCESS"
 
         if len(result_memo) > 250:
             result_memo = result_memo[:247] + "..."
@@ -197,21 +250,23 @@ class TaskService:
             result_memo = None
 
         search_type = payload.get("search_type")
-        serp_rank = payload.get("serp_rank")
+        rank_info = payload.get("rank_info") or {}
+
+        serp_rank = payload.get("serp_rank") if payload.get("serp_rank") is not None else rank_info.get("serp_rank")
         if serp_rank is not None:
             try:
                 serp_rank = int(serp_rank)
             except (ValueError, TypeError):
                 serp_rank = None
 
-        shopping_rank = payload.get("shopping_rank")
+        shopping_rank = payload.get("shopping_rank") if payload.get("shopping_rank") is not None else rank_info.get("shopping_rank")
         if shopping_rank is not None:
             try:
                 shopping_rank = int(shopping_rank)
             except (ValueError, TypeError):
                 shopping_rank = None
 
-        shopping_page = payload.get("shopping_page")
+        shopping_page = payload.get("shopping_page") if payload.get("shopping_page") is not None else rank_info.get("shopping_page")
         if shopping_page is not None:
             try:
                 shopping_page = int(shopping_page)
@@ -240,6 +295,7 @@ class TaskService:
                 cur.execute("""
                     UPDATE tasks
                     SET status = %s,
+                        error_code = %s,
                         search_type = %s,
                         serp_rank = %s,
                         shopping_rank = %s,
@@ -255,6 +311,7 @@ class TaskService:
                     WHERE task_id = %s
                 """, (
                     status_val,
+                    error_code,
                     search_type,
                     serp_rank,
                     shopping_rank,
@@ -272,11 +329,11 @@ class TaskService:
                 # 할당 이력이 없는 경우에도 결과 보고를 보존하기 위해 신규 INSERT
                 cur.execute("""
                     INSERT INTO tasks (
-                        task_id, nnb, keyword, nv_mid, store_name, status, search_type, serp_rank,
+                        task_id, nnb, keyword, nv_mid, store_name, status, error_code, search_type, serp_rank,
                         shopping_rank, shopping_page, match_type, login_detected,
                         duration_seconds, device_id, result_memo, raw_report, assigned_at, completed_at
                     ) VALUES (
-                        %s, 'DIRECT_REPORT', 'DIRECT_REPORT', '0', %s, %s, %s, %s,
+                        %s, 'DIRECT_REPORT', 'DIRECT_REPORT', '0', %s, %s, %s, %s, %s,
                         %s, %s, %s, %s,
                         %s, %s, %s, %s, NOW(), NOW()
                     )
@@ -284,6 +341,7 @@ class TaskService:
                     int(task_id),
                     store_name,
                     status_val,
+                    error_code,
                     search_type,
                     serp_rank,
                     shopping_rank,
@@ -298,7 +356,7 @@ class TaskService:
 
             # 저장된 데이터 다시 조회
             cur.execute("""
-                SELECT task_id, status, store_name, search_type, serp_rank, shopping_rank, shopping_page,
+                SELECT task_id, status, error_code, store_name, search_type, serp_rank, shopping_rank, shopping_page,
                        match_type, login_detected, duration_seconds, device_id, result_memo,
                        DATE_FORMAT(assigned_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS assigned_at,
                        DATE_FORMAT(completed_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS completed_at
@@ -314,6 +372,7 @@ class TaskService:
                 "data": {
                     "task_id": int(saved["task_id"]),
                     "status": saved["status"],
+                    "error_code": saved.get("error_code"),
                     "store_name": saved.get("store_name") or "",
                     "search_type": saved["search_type"],
                     "serp_rank": saved["serp_rank"],
@@ -333,7 +392,7 @@ class TaskService:
         with get_db_cursor(commit=False) as (cur, _):
             cur.execute("""
                 SELECT task_id, nnb, buc, keyword, nv_mid, compare_id, store_name, device_id, ip,
-                       status, search_type, serp_rank, shopping_rank, shopping_page,
+                       status, error_code, search_type, serp_rank, shopping_rank, shopping_page,
                        match_type, login_detected, duration_seconds, result_memo,
                        DATE_FORMAT(assigned_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS assigned_at,
                        DATE_FORMAT(completed_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS completed_at
@@ -351,7 +410,7 @@ class TaskService:
         with get_db_cursor(commit=False) as (cur, _):
             cur.execute("""
                 SELECT task_id, nnb, buc, keyword, nv_mid, compare_id, store_name, device_id, ip,
-                       status, search_type, serp_rank, shopping_rank, shopping_page,
+                       status, error_code, search_type, serp_rank, shopping_rank, shopping_page,
                        match_type, login_detected, duration_seconds, result_memo,
                        DATE_FORMAT(assigned_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS assigned_at,
                        DATE_FORMAT(completed_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS completed_at

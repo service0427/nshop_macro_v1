@@ -17,7 +17,7 @@ def get_random_keyword():
     count = min(max(int(request.args.get("count", 1)), 1), 50)
     with_compare = request.args.get("with_compare", "false").lower() in ("true", "1")
 
-    where_clauses = ["product_name IS NOT NULL", "product_name != ''"]
+    where_clauses = ["is_active = 1", "product_name IS NOT NULL", "product_name != ''"]
     if with_compare:
         where_clauses.append("mall_product_id IS NOT NULL AND mall_product_id != ''")
 
@@ -65,5 +65,59 @@ def get_random_keyword():
                     "items": formatted
                 }), 200
 
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@keyword_bp.route("/active-list", methods=["GET"])
+def get_active_list():
+    """현재 활성화(is_active = 1)된 타겟 상품 목록 반환"""
+    try:
+        with get_db_cursor(commit=False) as (cur, _):
+            cur.execute("""
+                SELECT id, target_id, product_name, product_title, is_active, updated_at
+                FROM nshop_list
+                WHERE is_active = 1
+                ORDER BY id ASC
+            """)
+            rows = cur.fetchall()
+            return jsonify({
+                "success": True,
+                "count": len(rows),
+                "data": rows
+            }), 200
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@keyword_bp.route("/toggle", methods=["POST"])
+def toggle_keyword():
+    """타겟 상품 개별 ON/OFF 토글 API"""
+    data = request.get_json(silent=True) or {}
+    target_id = str(data.get("target_id") or data.get("nv_mid") or "").strip()
+    is_active = data.get("is_active")
+
+    if not target_id:
+        return jsonify({"success": False, "error": "target_id (또는 nv_mid)는 필수입니다."}), 400
+
+    try:
+        with get_db_cursor(commit=True) as (cur, _):
+            if is_active is None:
+                # 상태 반전
+                cur.execute("UPDATE nshop_list SET is_active = IF(is_active = 1, 0, 1) WHERE target_id = %s", (target_id,))
+            else:
+                new_state = 1 if bool(is_active) else 0
+                cur.execute("UPDATE nshop_list SET is_active = %s WHERE target_id = %s", (new_state, target_id))
+
+            if cur.rowcount == 0:
+                return jsonify({"success": False, "error": f"일치하는 target_id '{target_id}'를 찾을 수 없습니다."}), 404
+
+            cur.execute("SELECT id, target_id, product_name, is_active FROM nshop_list WHERE target_id = %s", (target_id,))
+            row = cur.fetchone()
+            return jsonify({
+                "success": True,
+                "message": f"상품 {target_id}의 활성 상태가 {'ON' if row['is_active'] else 'OFF'}로 변경되었습니다.",
+                "data": row
+            }), 200
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500

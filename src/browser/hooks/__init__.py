@@ -26,7 +26,6 @@ from src.browser.hooks.ad_id_hook import build_ad_id_hook
 from src.browser.hooks.network_hook import build_network_hook
 from src.browser.hooks.location_hook import build_location_hook
 from src.browser.hooks.device_integrity_hook import build_device_integrity_hook
-from src.browser.hooks.login_tracer_hook import build_login_tracer_hook
 
 
 def build_hook_bundle(
@@ -134,6 +133,7 @@ def build_hook_bundle(
             altitude=spoof_alt or 35.0,
             bearing=spoof_bearing or 0.0
         ))
+    
     # Pure macro mode: No artificial URL interceptor or request modification
 
     return "\n".join(hook_blocks)

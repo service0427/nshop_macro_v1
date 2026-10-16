@@ -7,11 +7,17 @@ task_bp = Blueprint("task", __name__, url_prefix="/api/v1/task")
 @task_bp.route("/assign", methods=["GET", "POST"])
 def assign_task():
     """
-    [작업 할당 API]
-    - 20분(1200초) 이상 숙성된 nnb, buc 선점
-    - nshop_list 에서 keyword(product_name), nv_mid(target_id), compare_id(mall_product_id) 랜덤 매칭
-    - DB tasks 테이블에 task_id와 함께 자동 기록
-    - 심플한 핵심 데이터 반환
+    [통합 작업 할당 API]
+    - 단일 및 1:N 복수 단말기 일괄 할당 지원
+    - 파라미터:
+      * device_ids (또는 devices_ids, device_id): 단말기 시리얼 (콤마 구분 문자열 또는 리스트)
+      * ip: 단말기 공인 IP (선택, 생략 시 요청 IP)
+      * task_id (또는 id): 특정 기존 작업 재할당
+      * nv_mid (또는 target_id): 특정 상품 지정
+      * min_age_seconds: NNB 숙성 최소 시간 (기본 1200초)
+    - 응답:
+      * {"success": true, "ip": "...", "count": N, "tasks": [...]}
+      * count == 1일 경우 하위 호환을 위해 top-level에도 작업 필드 평탄화 제공
     """
     if request.method == "POST":
         data = request.get_json(silent=True) or {}
@@ -36,24 +42,35 @@ def assign_task():
     else:
         min_age_seconds = 1200
 
-    device_id = data.get("device_id")
+    dev_param = data.get("device_ids") or data.get("devices_ids") or data.get("device_id")
+    if isinstance(dev_param, str):
+        device_ids = [d.strip() for d in dev_param.split(",") if d.strip()]
+    elif isinstance(dev_param, list):
+        device_ids = [str(d).strip() for d in dev_param if str(d).strip()]
+    else:
+        device_ids = ["default"]
+
+    if not device_ids:
+        device_ids = ["default"]
+
     ip = data.get("ip") or request.headers.get("X-Forwarded-For", request.remote_addr)
     if ip and "," in ip:
         ip = ip.split(",")[0].strip()
     nv_mid = data.get("nv_mid") or data.get("target_id")
 
     try:
-        result = TaskService.assign_task(
-            task_id=task_id,
-            min_age_seconds=min_age_seconds,
-            device_id=device_id,
+        result = TaskService.assign_tasks(
+            device_ids=device_ids,
             ip=ip,
-            specific_nv_mid=nv_mid
+            task_id=task_id,
+            specific_nv_mid=nv_mid,
+            min_age_seconds=min_age_seconds
         )
         status_code = 200 if result.get("success") else 404
         return jsonify(result), status_code
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
 
 @task_bp.route("/complete", methods=["POST"])
 @task_bp.route("/report", methods=["POST"])

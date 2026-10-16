@@ -43,7 +43,10 @@ from src.device.adb_controller import (
     start_intent,
     get_top_resumed_activity
 )
-from src.device.cookie_manager import extract_newborn_and_inject_aged
+try:
+    from src.device.cookie_manager import extract_newborn_and_inject_aged
+except ImportError:
+    from src.device.surgical_cleaner import perform_surgical_cycle as extract_newborn_and_inject_aged
 from src.browser.frida_runner import spawn_app_with_cdp
 
 class NetworkProtocolTracker:

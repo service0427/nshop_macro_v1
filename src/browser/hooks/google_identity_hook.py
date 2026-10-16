@@ -82,8 +82,10 @@ def build_google_identity_hook(
               return orig;
             }};
             console.log("[+] Core Root Hooked: AccountManager (Google Account: {spoof_google_account})");
+            send({{ type: "hook_verification", hook: "AccountManager", status: "OK", value: "{spoof_google_account}" }});
           }} catch(e) {{
             console.log("[-] AccountManager hook error: " + e);
+            send({{ type: "hook_verification", hook: "AccountManager", status: "ERROR", error: String(e) }});
           }}
         """)
 
@@ -106,8 +108,10 @@ def build_google_identity_hook(
               return 1;
             }};
             console.log("[+] Core Root Hooked: GMS AppSetIdInfo (AppSetId: {spoof_dadv}, Scope: 1 SCOPE_DEVELOPER)");
+            send({{ type: "hook_verification", hook: "AppSetIdInfo", status: "OK", value: "{spoof_dadv}" }});
           }} catch(e) {{
             console.log("[-] AppSetIdInfo hook error: " + e);
+            send({{ type: "hook_verification", hook: "AppSetIdInfo", status: "ERROR", error: String(e) }});
           }}
         """)
 
@@ -130,8 +134,10 @@ def build_google_identity_hook(
               return false;
             }};
             console.log("[+] Core Root Hooked: GMS AdvertisingIdClient (ADID: {spoof_dadd}, LAT: false)");
+            send({{ type: "hook_verification", hook: "AdvertisingIdClient", status: "OK", value: "{spoof_dadd}" }});
           }} catch(e) {{
             console.log("[-] AdvertisingIdClient hook error: " + e);
+            send({{ type: "hook_verification", hook: "AdvertisingIdClient", status: "ERROR", error: String(e) }});
           }}
         """)
 

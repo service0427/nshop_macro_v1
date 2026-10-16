@@ -174,6 +174,14 @@ init_single_device() {
     # [핵심] USB 디버깅 7일 자동 인증 해제 방지 (구글 로그인 기기 타임아웃 만료 차단)
     adb -s "$serial" shell "settings put global adb_authorization_timeout 0" 2>/dev/null
 
+    # [핵심] 구글 플레이 프로텍트(Google Play Protect) 검증/차단 팝업 원천 무력화
+    adb -s "$serial" shell "settings put global package_verifier_enable 0" 2>/dev/null
+    adb -s "$serial" shell "settings put global package_verifier_user_consent -1" 2>/dev/null
+    adb -s "$serial" shell "settings put global upload_apk_enable 0" 2>/dev/null
+
+    # [핵심] 상태바 VPN 열쇠 아이콘 영구 은닉 (순정 화면 유지)
+    adb -s "$serial" shell "settings put secure icon_blacklist rotate,headset,vpn" 2>/dev/null
+
     # Host PC 공개키를 단말기 영구 adb_keys 저장소에 동기화 (Root 가용 시)
     local HOST_PUBKEY_FILE="$HOME/.android/adbkey.pub"
     if [ -f "$HOST_PUBKEY_FILE" ] && [ -n "$HAS_SU" ]; then
@@ -272,6 +280,10 @@ init_single_device() {
     adb -s "$serial" shell "settings put system nearby_scanning_permission_allowed 0" 2>/dev/null
     adb -s "$serial" shell "settings put secure location_mode 3" 2>/dev/null                # 고정밀 위치 모드 3
 
+    # [핵심] Wi-Fi 및 모바일 데이터 비활성화 (USB 역테더링 L3 직결 전용)
+    adb -s "$serial" shell "cmd wifi set-wifi-enabled disabled" 2>/dev/null
+    adb -s "$serial" shell "svc data disable" 2>/dev/null
+
     if [ -n "$HAS_SU" ]; then
         adb -s "$serial" shell "su -c 'chmod 600 /proc/net/arp 2>/dev/null; chmod 700 /efs/FactoryApp/serial_no 2>/dev/null; chattr +i /efs/FactoryApp/serial_no 2>/dev/null || true'" 2>/dev/null
     fi
@@ -330,6 +342,26 @@ init_single_device() {
     else
         echo -e "      ↳ [✓] WireGuard 이미 설치됨"
     fi
+
+    # C-2. Gnirehtet (USB 역테더링 L3 직결 클라이언트)
+    local gn_pkg=$(adb -s "$serial" shell "pm list packages" 2>/dev/null | grep -w "package:com.genymobile.gnirehtet")
+    if [ -z "$gn_pkg" ]; then
+        local GN_APK="$APKS_DIR/gnirehtet.apk"
+        if [ -f "$GN_APK" ]; then
+            echo -e "      ↳ Gnirehtet USB 테더링 클라이언트 설치 중..."
+            adb -s "$serial" push "$GN_APK" /data/local/tmp/gnirehtet.apk >/dev/null 2>&1
+            if [ -n "$HAS_SU" ]; then
+                adb -s "$serial" shell "su -c 'pm install -r /data/local/tmp/gnirehtet.apk'" >/dev/null 2>&1
+            else
+                adb -s "$serial" install -r "$GN_APK" >/dev/null 2>&1
+            fi
+            echo -e "      ↳ [✓] Gnirehtet 설치 완료"
+        fi
+    else
+        echo -e "      ↳ [✓] Gnirehtet 이미 설치됨"
+    fi
+    adb -s "$serial" shell "appops set com.genymobile.gnirehtet ACTIVATE_VPN allow" 2>/dev/null
+    echo -e "      ↳ [✓] Gnirehtet VPN 자동 권한(ACTIVATE_VPN) 허용 완료"
 
     # D. 네이버 앱 (방금 기준: 버전별 디렉토리 naver_app_12.23.81 또는 naver_app_12.22.50)
     local NAVER_TARGET_DIR=""
@@ -418,19 +450,56 @@ init_single_device() {
     fi
     adb -s "$serial" shell "pm grant com.sec.android.app.sbrowser android.permission.POST_NOTIFICATIONS 2>/dev/null || true"
 
-    # 7. 권한 정제 & 배터리 최적화 제외 (안티 디텍션 지문 방어)
-    echo -e "  [*] [7/8] 런타임 권한 정제 및 BSSID 유출 차단..."
+    # 7. 네이버 앱 런타임 권한 승인, 배터리 최적화 제외, null.xml 온보딩 주입
+    echo -e "  [*] [7/8] 네이버 앱 런타임 권한 승인, KT 통신사 속성 및 null.xml 온보딩 주입..."
     adb -s "$serial" shell "pm grant com.nhn.android.search android.permission.POST_NOTIFICATIONS 2>/dev/null || true"
+    adb -s "$serial" shell "pm grant com.nhn.android.search android.permission.ACCESS_FINE_LOCATION 2>/dev/null || true"
+    adb -s "$serial" shell "pm grant com.nhn.android.search android.permission.ACCESS_COARSE_LOCATION 2>/dev/null || true"
+    adb -s "$serial" shell "cmd appops set com.nhn.android.search POST_NOTIFICATION allow 2>/dev/null || true"
+    adb -s "$serial" shell "cmd appops set com.nhn.android.search SYSTEM_ALERT_WINDOW allow 2>/dev/null || true"
+    adb -s "$serial" shell "cmd appops set com.nhn.android.search FINE_LOCATION allow 2>/dev/null || true"
+    adb -s "$serial" shell "cmd appops set com.nhn.android.search COARSE_LOCATION allow 2>/dev/null || true"
     adb -s "$serial" shell "dumpsys deviceidle whitelist +com.nhn.android.search" 2>/dev/null
     adb -s "$serial" shell "dumpsys deviceidle whitelist +com.wireguard.android" 2>/dev/null
 
-    # [핵심] 위치 권한 영구 박탈 & AppOps 차단 (WifiManager BSSID 작업실 누출 방어)
-    adb -s "$serial" shell "pm revoke com.nhn.android.search android.permission.ACCESS_FINE_LOCATION 2>/dev/null || true"
-    adb -s "$serial" shell "pm revoke com.nhn.android.search android.permission.ACCESS_COARSE_LOCATION 2>/dev/null || true"
-    adb -s "$serial" shell "cmd appops set com.nhn.android.search FINE_LOCATION ignore 2>/dev/null || true"
-    adb -s "$serial" shell "cmd appops set com.nhn.android.search COARSE_LOCATION ignore 2>/dev/null || true"
-    adb -s "$serial" shell "cmd appops set com.nhn.android.search MOCK_LOCATION ignore 2>/dev/null || true"
-    echo -e "      ↳ [✓] 네이버 앱 위치 권한 박탈 및 AppOps ignore 완료"
+    # 통신사 속성 및 타임존 고정
+    adb -s "$serial" shell "su -c '
+        setprop gsm.sim.state LOADED,LOADED;
+        setprop gsm.operator.numeric 45008;
+        setprop gsm.network.type LTE,LTE;
+        setprop gsm.sim.operator.numeric 45008;
+        setprop gsm.sim.operator.alpha KT;
+        setprop gsm.operator.alpha KT;
+        setprop gsm.operator.isroaming false;
+        setprop gsm.operator.iso-country kr;
+        setprop gsm.sim.operator.iso-country kr;
+        setprop gsm.current.phone-type 1;
+        setprop persist.sys.timezone Asia/Seoul;
+    '" 2>/dev/null || true
+
+    # null.xml 온보딩 튜토리얼 억제 및 위치 동의 영구 주입
+    adb -s "$serial" shell "su -c '
+        mkdir -p /data/data/com.nhn.android.search/shared_prefs;
+        cat << \"EOF\" > /data/data/com.nhn.android.search/shared_prefs/null.xml
+<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\" ?>
+<map>
+    <boolean name=\"keyUniverseTutorialComplete\" value=\"true\" />
+    <boolean name=\"keyNextTutorialComplete\" value=\"true\" />
+    <boolean name=\"keyShowNewMainTutorial\" value=\"false\" />
+    <boolean name=\"keyDarkTutorialComplete\" value=\"true\" />
+    <boolean name=\"keyNewmainTutorialComplete\" value=\"true\" />
+    <boolean name=\"keyFirstRun\" value=\"false\" />
+    <boolean name=\"keyTutorialLocProcessed\" value=\"true\" />
+    <boolean name=\"keyLocationAgree\" value=\"true\" />
+    <boolean name=\"keyLocationUserAgreementAccepted\" value=\"true\" />
+</map>
+EOF
+        APP_UID=\$(stat -c %u /data/data/com.nhn.android.search 2>/dev/null || echo 10000);
+        chown -R \$APP_UID:\$APP_UID /data/data/com.nhn.android.search/shared_prefs 2>/dev/null || true;
+        chmod 771 /data/data/com.nhn.android.search/shared_prefs 2>/dev/null || true;
+        chmod 660 /data/data/com.nhn.android.search/shared_prefs/null.xml 2>/dev/null || true;
+    '" 2>/dev/null || true
+    echo -e "      ↳ [✓] 네이버 앱 권한 승인, KT 통신사 속성 및 null.xml 온보딩 주입 완료"
 
     # [핵심] 신규 설치된 네이버 앱 및 브라우저 프로세스를 Magisk DenyList에 최종 등록
     if [ -n "$HAS_SU" ]; then

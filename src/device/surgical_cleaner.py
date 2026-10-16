@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Tuple, Optional, Dict, Any
 
 from config.settings import NAVER_APP_PACKAGE, DEFAULT_DEVICE_ID
-from src.device.adb_controller import run_adb_shell, force_stop_app, update_gms_adid, reset_pm_clear
+from src.device.adb_controller import run_adb_shell, force_stop_app, force_stop_gms, update_gms_adid, reset_pm_clear
 
 def is_device_initialized(device_id: str = DEFAULT_DEVICE_ID) -> bool:
     """단말기에 Cookies DB 및 기본 캐시 구조가 존재하는지 확인"""
@@ -66,6 +66,7 @@ def clean_session_residues(device_id: str = DEFAULT_DEVICE_ID):
         f"rm -rf /data/data/{pkg}/app_xwhale/Default/Shared\\ Dictionary/*; "
         f"rm -f /data/data/{pkg}/app_xwhale/Default/Preferences; "
         f"rm -f /data/data/{pkg}/app_xwhale/Default/Web\\ Data*; "
+        f"rm -f /data/data/{pkg}/app_xwhale/Default/Cookies-journal /data/data/{pkg}/app_xwhale/Default/Cookies-wal /data/data/{pkg}/app_xwhale/Default/Cookies-shm; "
         f"rm -rf /data/data/{pkg}/app_webview/Default/Local\\ Storage/*; "
         f"rm -rf /data/data/{pkg}/app_webview/Default/Session\\ Storage/*; "
         f"rm -rf /data/data/{pkg}/app_webview/Default/Service\\ Worker/*; "
@@ -73,6 +74,7 @@ def clean_session_residues(device_id: str = DEFAULT_DEVICE_ID):
         f"rm -rf /data/data/{pkg}/app_webview/Default/shared_proto_db/*; "
         f"rm -rf /data/data/{pkg}/app_webview/Default/blob_storage/*; "
         f"rm -f /data/data/{pkg}/app_webview/Default/Network\\ Persistent\\ State; "
+        f"rm -f /data/data/{pkg}/app_webview/Default/Cookies-journal /data/data/{pkg}/app_webview/Default/Cookies-wal /data/data/{pkg}/app_webview/Default/Cookies-shm; "
         # 2. 로컬 검색 히스토리 및 오프라인 비콘 큐 삭제 (이전 검색어 누출 방지)
         f"rm -f /data/data/{pkg}/databases/search.db*; "
         f"rm -f /data/data/{pkg}/databases/ntracker_log_v2_*.db*; "
@@ -253,6 +255,7 @@ def inject_clean_cookies_and_identity(
     push_cmd = (
         f"su -c '"
         f"cp {tmp_device_cookie} {cookie_db}; "
+        f"rm -f {cookie_db}-journal {cookie_db}-wal {cookie_db}-shm; "
         f"APP_UID=$(stat -c %u /data/data/{pkg}); "
         f"chown $APP_UID:$APP_UID {cookie_db}; "
         f"chmod 600 {cookie_db}; "
@@ -276,9 +279,10 @@ def inject_clean_cookies_and_identity(
         run_adb_shell(device_id, f"su -c 'grep -q lastLocationLongtitude {null_xml_path} && sed -i \"s/lastLocationLongtitude\\\">.*<\\/string>/lastLocationLongtitude\\\">{fresh_lng}<\\/string>/\" {null_xml_path} || sed -i \"s/<\\/map>/    <string name=\\\"lastLocationLongtitude\\\">{fresh_lng}<\\/string>\\n<\\/map>/\" {null_xml_path}'")
         run_adb_shell(device_id, f"su -c 'grep -q lastLocationLongitude {null_xml_path} && sed -i \"s/lastLocationLongitude\\\">.*<\\/string>/lastLocationLongitude\\\">{fresh_lng}<\\/string>/\" {null_xml_path} || sed -i \"s/<\\/map>/    <string name=\\\"lastLocationLongitude\\\">{fresh_lng}<\\/string>\\n<\\/map>/\" {null_xml_path}'")
 
-    # 6. GMS ADID 동기화
+    # 6. GMS ADID 동기화 (GMS 프로세스 메모리 캐시 역덮어쓰기 원천 차단)
     if fresh_dadd:
         update_gms_adid(device_id, fresh_dadd)
+        force_stop_gms(device_id, max_wait=2.0)
 
     if local_tmp_cookie.exists():
         local_tmp_cookie.unlink()
@@ -316,7 +320,9 @@ def perform_surgical_cycle(
     if not is_device_initialized(device_id):
         initialize_baseline(device_id, cdp_port=cdp_port)
 
-    force_stop_app(device_id)
+    force_stop_app(device_id, max_wait=3.0)
+    force_stop_gms(device_id, max_wait=2.0)
+    time.sleep(0.2)  # 커널 프로세스 언마운트 및 파일 디스크립터 해제 대기 (CookieMonster 역덮어쓰기 원천 방지)
     clean_session_residues(device_id)
 
     # 유심 부재 단말기(Wi-Fi/공기계) FDS 탐지 방지: OS 레벨 통신사/유심 정상 개통 모의
@@ -344,5 +350,30 @@ def perform_surgical_cycle(
         fresh_lat=fresh_lat,
         fresh_lng=fresh_lng
     )
+
+    # [초반 1단계: Pre-launch Gate] 앱 구동 전 디스크 DB 실측 사전 검증 & 1회 자가치유 (Self-Healing)
+    from src.device.cookie_rollback_manager import CookieRollbackManager
+    def _re_inject():
+        return inject_clean_cookies_and_identity(
+            device_id=device_id,
+            aged_nnb=aged_nnb,
+            aged_buc=aged_buc,
+            fresh_ssaid=fresh_ssaid,
+            fresh_dadd=fresh_dadd,
+            fresh_dadv=fresh_dadv,
+            fresh_lat=fresh_lat,
+            fresh_lng=fresh_lng
+        )
+
+    profile_dict = {
+        "ssaid": fresh_ssaid or "",
+        "dadd": fresh_dadd,
+        "dadv": fresh_dadv,
+        "nnb": aged_nnb
+    }
+    gate_ok, gate_reason, _ = CookieRollbackManager.pre_launch_gate(device_id, profile_dict, re_inject_callback=_re_inject)
+    if not gate_ok:
+        raise RuntimeError(f"PRE_LAUNCH_GATE_FAILED: {gate_reason}")
+
     injected["elapsed_sec"] = round(time.time() - t0, 3)
     return injected

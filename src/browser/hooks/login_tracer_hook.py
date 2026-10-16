@@ -34,14 +34,22 @@ def build_login_tracer_hook(target_nnb: str = "") -> str:
             const comp = intent.getComponent();
             const compStr = comp ? comp.flattenToString() : "";
             
-            const isLogin = compStr.indexOf("NidLoginActivity") !== -1 ||
-                            compStr.indexOf("com.navercorp.nid.login") !== -1 ||
+            const isLogin = compStr.indexOf("navercorp.nid") !== -1 ||
+                            compStr.toLowerCase().indexOf("login") !== -1 ||
                             compStr.indexOf("nhn.android.search/.login") !== -1 ||
-                            uriStr.indexOf("nidlogin.login") !== -1;
+                            uriStr.indexOf("nidlogin.login") !== -1 ||
+                            uriStr.indexOf("nid.naver.com") !== -1;
             
             if (isLogin) {
               const stack = Log.getStackTraceString(Exception.$new());
-              send("🛡️ [FRIDA 로그인 원천 차단] " + source + " | Comp: " + compStr + " | URI: " + uriStr + " -> 실행 취소(Blocked)");
+              send({
+                type: "login_intercept",
+                action: "LOGIN_CHALLENGE_DETECTED",
+                source: source,
+                component: compStr,
+                uri: uriStr
+              });
+              send("🚨 [FDS 로그인 인텐트 감지] " + source + " | Comp: " + compStr + " | URI: " + uriStr + " -> 인텐트 차단");
               return true;
             }
           } catch(err) {
@@ -93,21 +101,25 @@ def build_login_tracer_hook(target_nnb: str = "") -> str:
         // 4. LoginManager.loginWithDialog 직접 억제
         try {
           const LoginManager = frida_java_bridge_default.use("com.nhn.android.login.LoginManager");
-          LoginManager.loginWithDialog.overloads.forEach(function(o) {
-            o.implementation = function() {
-              send("🛡️ [FRIDA 로그인 차단] LoginManager.loginWithDialog 호출 억제 완료");
-              return;
-            };
-          });
+            LoginManager.loginWithDialog.overloads.forEach(function(o) {
+              o.implementation = function() {
+                send({
+                  type: "login_intercept",
+                  action: "LOGIN_CHALLENGE_DETECTED",
+                  source: "LoginManager.loginWithDialog"
+                });
+                send("🚨 [FDS 로그인 다이얼로그 감지] LoginManager.loginWithDialog 호출됨");
+                return;
+              };
+            });
         } catch(e) {}
 
-        // 5. 웹뷰 shouldOverrideUrlLoading 가로채기 및 타겟 목적지 자동 로드
-        var redirectHistory = {};
+        // 5. 웹뷰 shouldOverrideUrlLoading FDS 로그인 챌린지 감지
         function installWebViewClientInterceptor(clientClassName) {
           try {
             const ClientClass = frida_java_bridge_default.use(clientClassName);
             
-            // shouldOverrideUrlLoading 후킹
+            // shouldOverrideUrlLoading 후킹: 인위적 loadUrl 억지 우회 영구 배제 및 FDS 챌린지 텔레메트리 즉시 발송
             ClientClass.shouldOverrideUrlLoading.overloads.forEach(function(o) {
               o.implementation = function() {
                 var webView = arguments[0];
@@ -120,33 +132,14 @@ def build_login_tracer_hook(target_nnb: str = "") -> str:
                 }
                 
                 if (uri && (uri.indexOf("nidlogin.login") !== -1 || uri.indexOf("nid.naver.com") !== -1)) {
-                  var stack = Log.getStackTraceString(Exception.$new());
-                  send("🛡️ [FRIDA shouldOverrideUrlLoading STACK] " + clientClassName + " -> " + uri + "\nStack:\n" + stack);
-                  try {
-                    var parsed = Uri.parse(uri);
-                    var target = parsed.getQueryParameter("url");
-                    if (target && target.length > 0 && target.indexOf("nidlogin") === -1) {
-                      var count = redirectHistory[target] || 0;
-                      if (count < 2) {
-                        redirectHistory[target] = count + 1;
-                        send("🚀 [FRIDA 자동 복구] 타겟 상세 URL로 웹뷰 직접 진입 (시도 " + (count + 1) + "/2): " + target);
-                        if (webView) {
-                          try {
-                            webView.loadUrl(target);
-                            send("✅ [FRIDA 자동 복구] webView.loadUrl 실행 성공!");
-                          } catch(directErr) {
-                            send("[-] webView.loadUrl error: " + directErr);
-                          }
-                        }
-                      } else {
-                        send("⚠️ [FRIDA 복구 중단] 동일 타겟 리다이렉트 한도(2회) 도달 -> 무한루프 방지를 위해 추가 loadUrl 생략: " + target);
-                      }
-                      return true; // 웹뷰가 nidlogin 페이지를 열지 않도록 차단
-                    }
-                  } catch(parseErr) {
-                    send("[-] Target parse error: " + parseErr);
-                  }
-                  return true;
+                  send({
+                    type: "login_intercept",
+                    action: "LOGIN_CHALLENGE_DETECTED",
+                    client: clientClassName,
+                    url: uri
+                  });
+                  send("🚨 [FDS 로그인 챌린지 감지] " + clientClassName + " -> " + uri);
+                  return true; // 웹뷰가 로그인 화면으로 전환되어 프로세스가 먹통되는 현상 방지
                 }
                 return o.apply(this, arguments);
               };
@@ -157,6 +150,12 @@ def build_login_tracer_hook(target_nnb: str = "") -> str:
               ClientClass.processNaverLoginUrl.overloads.forEach(function(o) {
                 o.implementation = function(str, z2, z3) {
                   if (str && (str.indexOf("nidlogin.login") !== -1 || str.indexOf("nid.naver.com") !== -1)) {
+                    send({
+                      type: "login_intercept",
+                      action: "PROCESS_LOGIN_CONSUMED",
+                      client: clientClassName,
+                      url: str
+                    });
                     send("🛡️ [FRIDA processNaverLoginUrl] " + clientClassName + " -> nidlogin 소비 (url: " + str + ")");
                     return true;
                   }
@@ -171,8 +170,10 @@ def build_login_tracer_hook(target_nnb: str = "") -> str:
           }
         }
 
-        installWebViewClientInterceptor("com.nhn.android.xwalkview.XWalkWebViewClient");
+        installWebViewClientInterceptor("com.naver.xwhale.WebViewClient");
         installWebViewClientInterceptor("com.nhn.android.inappwebview.InAppBaseWebViewClient");
+        installWebViewClientInterceptor("android.webkit.WebViewClient");
+        installWebViewClientInterceptor("com.nhn.android.xwalkview.XWalkWebViewClient");
 
         send("[+] Core Hooked: 4-Layer Anti-Login Shield & Auto Target Restorer Active");
       } catch(e) {
