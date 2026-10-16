@@ -304,7 +304,7 @@ async def wait_for_transition(
                     const hasShoppingContent = !!(
                         window.__NEXT_DATA__?.props?.pageProps ||
                         window.naver?.search?.ext?.newshopping?.shopping ||
-                        document.querySelector('a[href*="products/"], a[href*="smartstore.naver.com"]') ||
+                        document.querySelector('a[href*="products/"], a[href*="smartstore.naver.com"], a[href*="brand.naver.com"]') ||
                         document.querySelector('[class*="compositeCard"], [class*="basicProductCard"], [data-shp-contents-id]')
                     );
 
