@@ -131,6 +131,28 @@ def load_recent_failure_history(logs_dir: Path, net_mode: str, lookback_cycles: 
     return failure_counts, quarantined
 
 
+def load_today_product_success_counts(logs_dir: Path) -> Dict[str, int]:
+    """오늘(당일) execution_history_{today}.jsonl 로부터 MID별 누적 유효타(SUCCESS) 성공 횟수 집계"""
+    today = time.strftime("%Y%m%d")
+    hist_file = logs_dir / f"execution_history_{today}.jsonl"
+    counts: Dict[str, int] = defaultdict(int)
+    if not hist_file.exists():
+        return counts
+    try:
+        with open(hist_file, "r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    d = json.loads(line)
+                    mid = str(d.get("nv_mid") or "")
+                    if mid and mid != "None" and (d.get("status") == "SUCCESS" or d.get("success")):
+                        counts[mid] += 1
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    return counts
+
+
 class ProcessTeeStream:
     """단말기 독립 워커의 콘솔 출력(stdout/stderr)을 터미널 화면과 단말기 전용 process.log 파일로 동시 분기 기록"""
     def __init__(self, filepath: Path, orig_stream):
@@ -648,6 +670,8 @@ def main():
     override_group.add_argument("--timeout", type=float, default=TIMINGS.DEVICE_HARD_TIMEOUT, help="개별 단말기 하드 타임아웃 (초, QoS 대역폭 저하 및 체류 90초 동기화 보장)")
     override_group.add_argument("--api-v2", action="store_true", default=True,
                                 help="차세대 v2 지능형 스케줄러(유니크 상품, 슬롯 100타 상한 캡, 1~5순위 키워드 풀) 사용 (기본: True)")
+    override_group.add_argument("--max-hits-per-item", type=int, default=100,
+                                help="당일 상품(MID)당 최대 유효타 상한 캡 (기본: 100회, 도달 시 오늘 타격 제외 및 전원 완료 시 종료)")
     override_group.add_argument("--api-v1", action="store_true", default=False,
                                 help="과거 v1 레거시 스케줄러(nshop_list 직접 매칭) 강제 사용")
     override_group.add_argument("--no-wake", action="store_true", help="화면 언락 및 깨우기 절차 생략")
@@ -826,6 +850,14 @@ def main():
     if yesterday_baselines:
         print(f"📊 [어제 순위 베이스라인 로드] 총 {len(yesterday_baselines)}개 상품의 어제 순위 데이터 매칭 준비 완료")
 
+    daily_success_counts = load_today_product_success_counts(LOGS_DIR)
+    max_hits_cap = getattr(args, "max_hits_per_item", 100)
+    capped_today_mids = {mid for mid, count in daily_success_counts.items() if count >= max_hits_cap}
+    if daily_success_counts:
+        print(f"📊 [당일 누적 유효타 현황] 총 {len(daily_success_counts)}개 상품 활성 타격 중 (상품당 일일 {max_hits_cap}타 상한 캡 적용)")
+        if capped_today_mids:
+            print(f"🎯 [일일 {max_hits_cap}타 상한 달성 상품] 총 {len(capped_today_mids)}개 상품 오늘 목표 완료 -> 타격 제외 목록 등록")
+
     try:
         while True:
             # 종료 조건 1: --until 시각 도달 검사
@@ -940,6 +972,11 @@ def main():
                 sorted_by_recent = sorted(active_quarantined_mids, key=lambda m: quarantined_mids.get(m, 0), reverse=True)
                 active_quarantined_mids = set(sorted_by_recent[:10])
 
+            # [당일 100타 상한 캡 적용 - 100타 완료 상품은 오늘 타격 영구 제외 (오버플로 방지)]
+            capped_today_mids = {mid for mid, count in daily_success_counts.items() if count >= max_hits_cap}
+            if capped_today_mids:
+                active_quarantined_mids.update(capped_today_mids)
+
             # 5. 회차별 작업 생성 (API 수신 or CLI 오버라이딩, 4시간 쿨다운 중인 상품 배제)
             prepared_tasks = build_cycle_tasks(
                 target_devices, current_ip, cycle, args, client,
@@ -964,6 +1001,12 @@ def main():
                 if getattr(args, "harvest_major", False):
                     print("🏁 [50대 대표 키워드 전수 수집 완료] 사이클을 종료하고 추출 단계로 전환합니다.")
                     break
+                # 당일 100타 상한 달성으로 모든 등록 상품이 완료되었는지 판정
+                if capped_today_mids and len(daily_success_counts) >= 10:
+                    remaining_pool = [m for m, cnt in daily_success_counts.items() if cnt < max_hits_cap]
+                    if not remaining_pool:
+                        print(f"\n🎉 [당일 전 상품 {max_hits_cap}타 완료] 오늘 목표 작업량(각 100회)이 모두 소화되어 안전하게 작업을 마감합니다.")
+                        break
             else:
                 print(f"⚡ [3단계: {len(prepared_tasks)}대 완전 병렬 타격 기동 (PID {len(prepared_tasks)}개 분리)]...")
                 stagger_gap = 0.5 if args.net_mode == "local" else 1.2
@@ -1000,6 +1043,10 @@ def main():
                     failure_counts[nv_mid] = 0
                     if nv_mid in quarantined_mids:
                         quarantined_mids.pop(nv_mid, None)
+                    daily_success_counts[nv_mid] += 1
+                    cur_hits = daily_success_counts[nv_mid]
+                    if cur_hits >= max_hits_cap:
+                        print(f"🎯 [일일 {max_hits_cap}타 상한 달성] '{kw}' (MID: {nv_mid}) 오늘 누적 {cur_hits}회 유효타 완료 -> 오늘 타격 제외 (오버플로 방지)")
                 elif st in ("NOT_FOUND", "NOT_SHOPPING_KEYWORD") or (str(st).startswith("NOT_FOUND")):
                     # [오직 순수 40위 밖 미노출만 상품 쿨다운] CLICK_MISSED, TIMEOUT 등 단말기 오류로 멀쩡한 상품을 격리하지 않음
                     if is_cat:
