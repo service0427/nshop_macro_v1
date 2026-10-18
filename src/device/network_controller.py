@@ -169,7 +169,7 @@ class BaseNetworkController(ABC):
         """정리 작업 (기본은 no-op)"""
         pass
 
-    def verify_naver_connectivity(self, sample_device: Optional[str] = None, max_retries: int = 10, timeout_per_try: float = 3.0) -> Dict[str, Any]:
+    def verify_naver_connectivity(self, sample_device: Optional[str] = None, max_retries: int = 10, timeout_per_try: float = 4.0) -> Dict[str, Any]:
         """
         네이버 서버(lcs.naver.com/m)와 실시간 통신 및 정품 NNB 쿠키 정상 발급 여부 검증
         - 1단계: 지정 인터페이스(--interface {self.interface_name}) 호스트 개통 검증
@@ -221,7 +221,7 @@ class BaseNetworkController(ABC):
                             subprocess.run(f"{self.gnirehtet_bin} tunnel {sample_device} -p {self.relay_port}", shell=True, capture_output=True, timeout=5)
                             dns_servers = "192.168.11.1,168.126.63.1,8.8.8.8" if self.mode == "lte" else "168.126.63.1,8.8.8.8"
                             subprocess.run(f"{self.gnirehtet_bin} start {sample_device} -d {dns_servers} -p {self.relay_port}", shell=True, capture_output=True, timeout=5)
-                            time.sleep(1.0)
+                            time.sleep(2.5)
                             continue
 
                     logger.info(f"✅ [네이버 통신 검증 성공] HTTP {status_code} | NNB={nnb} 발급 완료 (인터페이스: {self.interface_name}, 단말기: {sample_device or 'N/A'}(NNB:{dev_nnb}), 소요: {dur}s, 시도: {attempt}/{max_retries})")
@@ -252,14 +252,28 @@ class LteDongleNetworkController(BaseNetworkController):
         super().__init__(mode="lte", relay_port=relay_port, interface_name=interface_name)
         self.dongle = HuaweiDongleController()
 
+    def _ensure_routing_table(self):
+        """테이블 11 기본 라우팅 및 정책 라우팅 규칙 자동 보장"""
+        try:
+            subprocess.run(f"sudo ip route replace default via 192.168.11.1 dev {self.interface_name} table 11", shell=True, capture_output=True, timeout=5)
+            rules = subprocess.run("ip rule show", shell=True, capture_output=True, text=True).stdout or ""
+            if f"oif {self.interface_name} lookup 11" not in rules:
+                subprocess.run(f"sudo ip rule add oif {self.interface_name} table 11", shell=True, capture_output=True, timeout=5)
+            if "from 192.168.11.100 lookup 11" not in rules:
+                subprocess.run("sudo ip rule add from 192.168.11.100 lookup 11", shell=True, capture_output=True, timeout=5)
+        except Exception as e:
+            logger.warning(f"⚠️ [LTE Dongle] 라우팅 테이블 11 설정 예외: {e}")
+
     def setup(self) -> bool:
         logger.info(f"📡 [LTE Dongle] 환경 점검: 인터페이스 {self.interface_name}")
+        self._ensure_routing_table()
         self.ensure_relay_daemon()
         return True
 
     def toggle_ip(self, cycle: int = 0, max_wait: int = 25) -> Dict[str, Any]:
         logger.info("📶 [LTE Dongle] 모바일 네트워크 모드 고속 토글 시작...")
         res = self.dongle.fast_toggle_ip(max_wait=max_wait)
+        self._ensure_routing_table()
 
         # Central API 기록용 페이로드 구성
         log_payload = {
