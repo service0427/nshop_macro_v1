@@ -55,16 +55,20 @@ class HuaweiDongleController:
 
     def _get_authenticated_client(self) -> Client:
         """Huawei API 인증 클라이언트 획득 (Already login 자동 복구)"""
-        conn = Connection(f"http://{self.gateway_ip}/", username=self.username, password=self.password, timeout=self.timeout)
         try:
+            conn = Connection(f"http://{self.gateway_ip}/", username=self.username, password=self.password, timeout=self.timeout)
             return Client(conn)
         except Exception as e:
-            if "Already login" in str(e):
+            if "Already login" in str(e) or "108003" in str(e):
                 logger.info(f"[{self.gateway_ip}] 기존 세션 감지 -> 강제 로그아웃 후 재인증 시도...")
                 self.logout_modem()
                 time.sleep(1.0)
-                conn = Connection(f"http://{self.gateway_ip}/", username=self.username, password=self.password, timeout=self.timeout)
-                return Client(conn)
+                try:
+                    conn = Connection(f"http://{self.gateway_ip}/", username=self.username, password=self.password, timeout=self.timeout)
+                    return Client(conn)
+                except Exception:
+                    conn = Connection(f"http://{self.gateway_ip}/", timeout=self.timeout)
+                    return Client(conn)
             raise
 
     def get_public_ip(self, max_retries: int = 5) -> str:
@@ -174,6 +178,15 @@ class HuaweiDongleController:
                             break
                 except Exception:
                     pass
+
+            # APN 프로필 KT(1) 보장 (미설정 시 KT 망에서 인터넷 통신 불가 및 DoD IP 할당 방지)
+            try:
+                prof = client.dial_up.profiles()
+                if prof.get("CurrentProfile") != "1":
+                    logger.info(f"⚙️ [{self.gateway_ip}] APN 프로필 KT(1, lte.ktfwing.com) 재지정...")
+                    client.dial_up.set_default_profile(1)
+            except Exception as apn_err:
+                logger.debug(f"APN 프로필 점검 예외: {apn_err}")
 
             time.sleep(2.0)
             new_pub_ip = self.get_public_ip(max_retries=6)
