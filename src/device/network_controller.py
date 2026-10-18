@@ -120,14 +120,15 @@ class BaseNetworkController(ABC):
             dev_to_port[dev] = port
 
         # 1. USB 버스 경합 및 ADB 소켓 락 방지를 위한 120ms 순차 스태거 기동
+        dns_servers = "192.168.11.1,168.126.63.1,8.8.8.8" if self.mode == "lte" else "168.126.63.1,8.8.8.8"
         for dev in device_ids:
             port = dev_to_port[dev]
             # 커널 IPv6 비활성화 보장 (IPv6 드랍으로 인한 5초 DNS 타임아웃 및 '사이트에 연결할 수 없습니다' 원천 방지)
             subprocess.run(f"adb -s {dev} shell su -c 'sysctl -w net.ipv6.conf.all.disable_ipv6=1 net.ipv6.conf.default.disable_ipv6=1 >/dev/null'", shell=True, capture_output=True, timeout=5)
-            # Gnirehtet 초기화 및 릴레이 소켓 바인딩 (KT DNS + Google DNS 2중 지정)
+            # Gnirehtet 초기화 및 릴레이 소켓 바인딩 (KT/동글 DNS + Google DNS 2중 지정)
             subprocess.run(f"adb -s {dev} shell am force-stop com.genymobile.gnirehtet", shell=True, capture_output=True, timeout=5)
             subprocess.run(f"{self.gnirehtet_bin} tunnel {dev} -p {port}", shell=True, capture_output=True, timeout=5)
-            subprocess.run(f"{self.gnirehtet_bin} start {dev} -d 168.126.63.1,8.8.8.8 -p {port}", shell=True, capture_output=True, timeout=5)
+            subprocess.run(f"{self.gnirehtet_bin} start {dev} -d {dns_servers} -p {port}", shell=True, capture_output=True, timeout=5)
             time.sleep(0.12)
 
         # 2. VPN 라우팅 테이블 및 DNS 소켓 안정화 대기
@@ -149,7 +150,7 @@ class BaseNetworkController(ABC):
             try:
                 subprocess.run(f"adb -s {dev} shell am force-stop com.genymobile.gnirehtet", shell=True, capture_output=True, timeout=5)
                 subprocess.run(f"{self.gnirehtet_bin} tunnel {dev} -p {port}", shell=True, capture_output=True, timeout=5)
-                subprocess.run(f"{self.gnirehtet_bin} start {dev} -d 168.126.63.1,8.8.8.8 -p {port}", shell=True, capture_output=True, timeout=5)
+                subprocess.run(f"{self.gnirehtet_bin} start {dev} -d {dns_servers} -p {port}", shell=True, capture_output=True, timeout=5)
                 time.sleep(1.5)
                 res2 = subprocess.run(check_cmd, shell=True, capture_output=True, text=True, timeout=6)
                 return dev, "200" in (res2.stdout or "")
@@ -218,7 +219,8 @@ class BaseNetworkController(ABC):
                             subprocess.run(f"adb -s {sample_device} shell am force-stop com.genymobile.gnirehtet", shell=True, capture_output=True, timeout=5)
                             subprocess.run(f"{self.gnirehtet_bin} stop {sample_device}", shell=True, capture_output=True, timeout=5)
                             subprocess.run(f"{self.gnirehtet_bin} tunnel {sample_device} -p {self.relay_port}", shell=True, capture_output=True, timeout=5)
-                            subprocess.run(f"{self.gnirehtet_bin} start {sample_device} -p {self.relay_port}", shell=True, capture_output=True, timeout=5)
+                            dns_servers = "192.168.11.1,168.126.63.1,8.8.8.8" if self.mode == "lte" else "168.126.63.1,8.8.8.8"
+                            subprocess.run(f"{self.gnirehtet_bin} start {sample_device} -d {dns_servers} -p {self.relay_port}", shell=True, capture_output=True, timeout=5)
                             time.sleep(1.0)
                             continue
 
