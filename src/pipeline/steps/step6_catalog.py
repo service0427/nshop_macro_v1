@@ -29,6 +29,7 @@ from src.browser.cdp_client import AsyncCDPClient
 from src.device.adb_controller import fast_check_native_login_or_captcha
 from src.pipeline.models import TaskInput, TaskResult
 from src.pipeline.utils.cdp_touch import cdp_real_touch, save_stage_screenshot
+from src.pipeline.utils.dom_stabilizer import wait_for_element_settled
 
 logger = logging.getLogger("ConveyorExecutor")
 
@@ -348,11 +349,6 @@ async def execute_catalog_stage(
             return {{ ok: false, reason: "TARGET_NOT_FOUND_IN_PAGE1_OR_FLOATING" }};
         }}
 
-        // [코치마크/툴팁 가림막 원천 제거]
-        try {{
-            document.querySelectorAll('div[class*="tooltip"], div[class*="coach"], div[class*="guide"], div[class*="balloon"]').forEach(el => {{ try {{ el.remove(); }} catch(ign) {{}} }});
-        }} catch(e) {{}}
-
         // 뷰포트 배치 (하단 고정 플로팅 버튼이 아닌 경우에만 scrollIntoView)
         if (!isFloatingTarget) {{
             targetRow.scrollIntoView({{ block: 'center', inline: 'center', behavior: 'instant' }});
@@ -363,6 +359,7 @@ async def execute_catalog_stage(
         const clickEl = targetRow.querySelector('a[class*="buy"], a[class*="link_mall"], a[class*="link"], a[href*="cr.shopping"], a[href*="smartstore"], a[href*="/products/"]') ||
                         targetRow.querySelector('a') ||
                         targetRow;
+        clickEl.setAttribute('data-macro-target', 'catalog_target_seller');
         let finalRect = clickEl.getBoundingClientRect();
 
         const winH = window.innerHeight || 800;
@@ -435,6 +432,25 @@ async def execute_catalog_stage(
     if matched_product:
         result.store_name = matched_product.get("mallName")
     result.target_type = "CATALOG_SELLER"
+
+    # 📌 [DOM 레이아웃 안정화] 카탈로그 판매처 위치/크기 1.0초 간격 최대 3회 정착 검증
+    stabilize_res = await wait_for_element_settled(
+        cdp=catalog_cdp,
+        target_selector_expr='[data-macro-target="catalog_target_seller"]',
+        max_retries=3,
+        interval_sec=1.0,
+        tolerance_px=2.0,
+        action_label="CATALOG_SELLER"
+    )
+    if not stabilize_res.get("success"):
+        logger.error(f"❌ [카탈로그 판매처 정착 실패] 사유: {stabilize_res.get('error')}")
+        return {
+            "status": "CATALOG_ALIGN_FAILED",
+            "success": False,
+            "error_message": f"카탈로그 판매처 위치 불안정 또는 조준 불일치 ({stabilize_res.get('error')})"
+        }
+    click_x = stabilize_res["x"]
+    click_y = stabilize_res["y"]
 
     # 7. [절대 철칙 9] 100% Chromium CDP Real Touch (Input.dispatchTouchEvent) 발송!
     touch_res = await cdp_real_touch(

@@ -633,10 +633,6 @@ async def execute_shopping_stage(
         const SAFE_TOP = 110;
         const SAFE_BOTTOM = winH - 85;
 
-        // [코치마크/가림막 툴팁 원천 제거] "버튼을 눌러서 상품사진·동영상을 확인하세요!" 등 가림막 팝업 제거
-        try {{
-            document.querySelectorAll('div[class*="tooltip"], div[class*="coach"], div[class*="guide"], div[class*="balloon"]').forEach(el => {{ try {{ el.remove(); }} catch(ign) {{}} }});
-        }} catch(e) {{}}
 
         // 3. 타겟 상품 뷰포트 위치 검사 (이미 안전 영역에 완벽히 들어와 있으면 불필요한 scrollIntoView 생략)
         let offsetPx = 0;
@@ -746,13 +742,10 @@ async def execute_shopping_stage(
 
     card_res = await cdp.evaluate(pinpoint_target_js)
 
-    # [핵심 보강] 타겟 미발견 시 1회 지연 로딩 흔들기(Last-Gasp Retry)로 누락 방지
+    # [지연 렌더링 완충] 타겟 미발견 시 DOM 렌더링 완료 대기 후 1회 재조준
     if not card_res or not card_res.get("found"):
-        logger.info("🔄 [쇼핑탭 DOM 재확인 (Last-Gasp Settle)] 레이아웃 흔들기 후 1회 추가 조준 시도...")
-        await cdp.evaluate("window.scrollBy({ top: -350, behavior: 'instant' });")
-        await asyncio.sleep(0.3)
-        await cdp.evaluate("window.scrollBy({ top: 700, behavior: 'instant' });")
-        await asyncio.sleep(0.4)
+        logger.info("🔄 [쇼핑탭 DOM 재확인] 지연 렌더링 대기 후 1회 추가 조준 시도...")
+        await asyncio.sleep(0.6)
         card_res = await cdp.evaluate(pinpoint_target_js)
 
     if card_res and card_res.get("isAdBlocked"):
@@ -866,9 +859,15 @@ async def execute_shopping_stage(
         tolerance_px=2.0,
         action_label="PRODUCT_CARD"
     )
-    if stabilize_card.get("success"):
-        click_x = stabilize_card["x"]
-        click_y = stabilize_card["y"]
+    if not stabilize_card.get("success"):
+        logger.error(f"❌ [쇼핑탭 타겟 정착 실패] 사유: {stabilize_card.get('error')}")
+        return {
+            "success": False,
+            "status": "SHOPPING_CARD_ALIGN_FAILED",
+            "error_message": f"쇼핑탭 상품 카드 위치 불안정 또는 조준 불일치 ({stabilize_card.get('error')})"
+        }
+    click_x = stabilize_card["x"]
+    click_y = stabilize_card["y"]
 
     # 4. 조준 완료 및 증빙 캡처
     result.touch_coordinates = {"x": click_x, "y": click_y}

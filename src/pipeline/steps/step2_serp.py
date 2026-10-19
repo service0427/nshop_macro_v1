@@ -357,10 +357,6 @@ async def execute_serp_stage(
             const SAFE_TOP = 110;
             const SAFE_BOTTOM = winH - 85;
 
-            // [코치마크/가림막 툴팁 원천 제거]
-            try {{
-                document.querySelectorAll('div[class*="tooltip"], div[class*="coach"], div[class*="guide"], div[class*="balloon"]').forEach(el => {{ try {{ el.remove(); }} catch(ign) {{}} }});
-            }} catch(e) {{}}
 
             // 4. 타겟 카드 뷰포트 위치 검사 (이미 안전 영역에 완벽히 들어와 있으면 불필요한 scrollIntoView 생략)
             let offsetPx = 0;
@@ -535,9 +531,16 @@ async def execute_serp_stage(
         tolerance_px=2.0,
         action_label="SERP_TARGET_CARD"
     )
-    if stabilize_card.get("success"):
-        click_x = stabilize_card["x"]
-        click_y = stabilize_card["y"]
+    if not stabilize_card.get("success"):
+        logger.error(f"❌ [SERP 타겟 정착 실패] 사유: {stabilize_card.get('error')}")
+        return {
+            "status": "SERP_ALIGN_FAILED",
+            "hit_on_serp": False,
+            "is_catalog": is_catalog,
+            "error_message": f"SERP 타겟 카드 위치 불안정 또는 조준 불일치 ({stabilize_card.get('error')})"
+        }
+    click_x = stabilize_card["x"]
+    click_y = stabilize_card["y"]
 
     result.touch_coordinates = {"x": click_x, "y": click_y}
     result.serp_rank = target_rank

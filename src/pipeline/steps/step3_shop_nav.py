@@ -65,12 +65,6 @@ async def execute_shop_navigation(
             return lower.includes('_ad') || lower.includes('ad_') || lower.includes('pwl') || lower.includes('power');
         }};
 
-        // [AI 검색 배너 및 코치마크/툴팁 원천 제거 - 레이아웃 시프트 및 오클릭 100% 방지]
-        try {{
-            document.querySelectorAll('a[href*="aitabshop"], a[href*="m_ait"], a[href*="shopping_banner"], .cGTdiNgw, .hbhTlgi0, [class*="ai_tab_banner"], [class*="ait_agent"]').forEach(el => el.remove());
-            document.querySelectorAll('div[class*="tooltip"], div[class*="coach"], div[class*="guide"], div[class*="balloon"]').forEach(el => el.remove());
-        }} catch(e) {{}}
-
         // 1. 오가닉 쇼핑 섹션 컨테이너 특정
         const secMain = window.naver?.search?.section?.main;
         let shpSecName = "{sec_name or ''}";
@@ -110,54 +104,6 @@ async def execute_shop_navigation(
         const searchScope = shpContainer || document;
 
         // 2. [Chromium Blink DOM querySelector 단독 정밀 타겟팅]
-        // [AI 배너/AI탭 영구 무력화 CSS 쉴드 주입 및 DOM 즉시 파기]
-        try {{
-            if (!document.getElementById('__nshop_ai_shield')) {{
-                const style = document.createElement('style');
-                style.id = '__nshop_ai_shield';
-                style.innerHTML = `
-                    .eA6w58S8, .cGTdiNgw, .hbhTlgi0,
-                    [data-nlog-area*="aitab"],
-                    [data-nlog-area*="ait"],
-                    [data-nlog-area*="cue"],
-                    [href*="aitabshop"],
-                    [href*="m_ait"],
-                    [href*="shopping_banner"],
-                    [class*="ai_tab_banner"],
-                    [class*="ait_agent"],
-                    [role="tab"][href*="m_ait"],
-                    [role="tab"][href*="tab.m_ait"] {{
-                        display: none !important;
-                        height: 0 !important;
-                        max-height: 0 !important;
-                        overflow: hidden !important;
-                        pointer-events: none !important;
-                        visibility: hidden !important;
-                        position: absolute !important;
-                        top: -9999px !important;
-                    }}
-
-                    /* [절대 원칙] 네이버 클립 및 동영상 섹션 상호작용 완전 무력화 (오클릭/재생 원천 차단) */
-                    [data-nlog-area^="clp_"],
-                    [data-nlog-area*="clip"],
-                    [data-nlog-area*="video"],
-                    [class*="clip_wrap"],
-                    [class*="clip_card"],
-                    [class*="clip_area"],
-                    [class*="video_wrap"],
-                    a[href*="clip.naver.com"],
-                    a[href*="m.clip.naver.com"],
-                    a[href*="naversearchapp://clip"],
-                    div#_clip_root,
-                    section[id*="clip"] {{
-                        pointer-events: none !important;
-                    }}
-                `;
-                (document.head || document.documentElement).appendChild(style);
-            }}
-            document.querySelectorAll('.eA6w58S8, .cGTdiNgw, .hbhTlgi0, [data-nlog-area*="aitab"], a[href*="aitabshop"], a[href*="m_ait"], a[href*="shopping_banner"], [class*="ai_tab_banner"], [class*="ait_agent"], [role="tab"][href*="m_ait"]').forEach(el => el.remove());
-        }} catch(e) {{}}
-
         const isAiLink = (el) => {{
             if (!el) return false;
             const aTag = el.closest('a') || el;
@@ -167,7 +113,7 @@ async def execute_shop_navigation(
             const t = ((el.innerText || '') + ' ' + (aTag.innerText || '')).toLowerCase();
             return h.includes('ait') || h.includes('shopping_banner') || h.includes('banner') || h.includes('cue') ||
                    a.includes('ait') || a.includes('banner') || a.includes('cue') ||
-                   c.includes('ait') || c.includes('cgtdingw') || c.includes('hbhtlgi0') || c.includes('ea6w58s8') || c.includes('cue') ||
+                   c.includes('ait') || c.includes('cue') ||
                    t.includes('ai로') || t.includes('ai탭') || t.includes('ai 검색') || t.includes('ai 브리핑');
         }};
 
@@ -393,130 +339,18 @@ async def execute_shop_navigation(
     # [핵심 보강] 1차 터치 후 통검에 머무르는 경우(CLICK_MISSED/TIMEOUT) 2차 정밀 재터치 (단, 로그인 챌린지 감지 시 제외)
     if not trans_res.success and trans_res.status in ("CLICK_MISSED", "TIMEOUT") and not getattr(result, "login_detected", False):
         logger.warning(f"⚠️ [쇼핑 더보기 전환 미반응 감지 ({trans_res.status})] 통검 화면 잔류 확인 -> 2차 정밀 재터치 발송...")
-        retry_touch_js = f"""
-        (() => {{
-            // [AI 배너/AI탭 영구 무력화 CSS 쉴드 주입 및 DOM 즉시 파기]
-            try {{
-                if (!document.getElementById('__nshop_ai_shield')) {{
-                    const style = document.createElement('style');
-                    style.id = '__nshop_ai_shield';
-                    style.innerHTML = `
-                        .eA6w58S8, .cGTdiNgw, .hbhTlgi0,
-                        [data-nlog-area*="aitab"],
-                        [data-nlog-area*="ait"],
-                        [data-nlog-area*="cue"],
-                        [href*="aitabshop"],
-                        [href*="m_ait"],
-                        [href*="shopping_banner"],
-                        [class*="ai_tab_banner"],
-                        [class*="ait_agent"],
-                        [role="tab"][href*="m_ait"],
-                        [role="tab"][href*="tab.m_ait"] {{
-                            display: none !important;
-                            height: 0 !important;
-                            max-height: 0 !important;
-                            overflow: hidden !important;
-                            pointer-events: none !important;
-                            visibility: hidden !important;
-                            position: absolute !important;
-                            top: -9999px !important;
-                        }}
-
-                        /* [절대 원칙] 네이버 클립 및 동영상 섹션 상호작용 완전 무력화 (오클릭/재생 원천 차단) */
-                        [data-nlog-area^="clp_"],
-                        [data-nlog-area*="clip"],
-                        [data-nlog-area*="video"],
-                        [class*="clip_wrap"],
-                        [class*="clip_card"],
-                        [class*="clip_area"],
-                        [class*="video_wrap"],
-                        a[href*="clip.naver.com"],
-                        a[href*="m.clip.naver.com"],
-                        a[href*="naversearchapp://clip"],
-                        div#_clip_root,
-                        section[id*="clip"] {{
-                            pointer-events: none !important;
-                        }}
-                    `;
-                    (document.head || document.documentElement).appendChild(style);
-                }}
-                document.querySelectorAll('.eA6w58S8, .cGTdiNgw, .hbhTlgi0, [data-nlog-area*="aitab"], a[href*="aitabshop"], a[href*="m_ait"], a[href*="shopping_banner"], [class*="ai_tab_banner"], [class*="ait_agent"], [role="tab"][href*="m_ait"]').forEach(el => el.remove());
-                document.querySelectorAll('div[class*="tooltip"], div[class*="coach"], div[class*="guide"], div[class*="balloon"]').forEach(el => el.remove());
-            }} catch(e) {{}}
-
-            const isAiLink = (el) => {{
-                if (!el) return false;
-                const aTag = el.closest('a') || el;
-                const h = (aTag.href || aTag.getAttribute('href') || el.href || el.getAttribute('href') || '').toLowerCase();
-                const a = (el.getAttribute('data-nlog-area') || aTag.getAttribute('data-nlog-area') || '').toLowerCase();
-                const c = ((el.className || '') + ' ' + (aTag.className || '')).toLowerCase();
-                const t = ((el.innerText || '') + ' ' + (aTag.innerText || '')).toLowerCase();
-                return h.includes('ait') || h.includes('shopping_banner') || h.includes('banner') || h.includes('cue') ||
-                       a.includes('ait') || a.includes('banner') || a.includes('cue') ||
-                       c.includes('ait') || c.includes('cgtdingw') || c.includes('hbhtlgi0') || c.includes('ea6w58s8') || c.includes('cue') ||
-                       t.includes('ai로') || t.includes('ai탭') || t.includes('ai 검색') || t.includes('ai 브리핑');
-            }};
-
-            const isClipElement = (el) => {{
-                if (!el) return false;
-                const aTag = el.closest('a') || el;
-                const h = (aTag.href || aTag.getAttribute('href') || el.href || el.getAttribute('href') || '').toLowerCase();
-                const a = (el.getAttribute('data-nlog-area') || aTag.getAttribute('data-nlog-area') || '').toLowerCase();
-                const c = ((el.className || '') + ' ' + (aTag.className || '')).toLowerCase();
-                return h.includes('clip.naver.com') || h.includes('naversearchapp://clip') ||
-                       a.startsWith('clp_') || a.includes('clip') ||
-                       c.includes('clip_') || c.includes('_clip');
-            }};
-
-            const isNotMoreBtn = (el) => {{
-                if (!el) return true;
-                const a = (el.getAttribute('data-nlog-area') || '').toLowerCase();
-                const t = ((el.innerText || '') + ' ' + (el.getAttribute('title') || '')).toLowerCase();
-                const h = (el.href || el.getAttribute('href') || '').toLowerCase();
-                if (a.includes('.mtc') || a.includes('.filter') || a.includes('.sort') || a.includes('law') || a.includes('pw') || a.includes('ad')) return true;
-                if (a.startsWith('clp') || a.includes('clip') || a.includes('video')) return true;
-                if (h.includes('clip.naver.com') || h.includes('naversearchapp://clip')) return true;
-                if (t.includes('로만 검색') || t.includes('원문보기') || t.includes('이전 페이지') || t.includes('다음 페이지') || t.includes('현재') || t.includes('전체')) return true;
-                return false;
-            }};
-
-            let el = document.querySelector('[data-macro-target="shop_more_btn"]');
-            if (el && (isAiLink(el) || isClipElement(el) || isNotMoreBtn(el))) el = null;
-            if (!el) {{
-                const list = Array.from(document.querySelectorAll('a[data-nlog-area$=".none.more"]:not([data-nlog-area*="more2"]):not([role="tab"])'));
-                el = list.find(e => !isAiLink(e) && !isClipElement(e) && !isNotMoreBtn(e));
-            }}
-            if (!el) {{
-                const allLinks = Array.from(document.querySelectorAll('a, button'));
-                el = allLinks.find(e => {{
-                    const txt = (e.innerText || '').trim();
-                    const role = e.getAttribute('role') || '';
-                    const area = (e.getAttribute('data-nlog-area') || '').toLowerCase();
-                    const h = (e.href || e.getAttribute('href') || '').toLowerCase();
-                    const isShop = area.startsWith('shp_') || h.includes('shopping.naver.com') || h.includes('msearch.shopping');
-                    return !role.includes('tab') && !area.includes('more2') && !area.includes('law') && isShop && !isAiLink(e) && !isClipElement(e) && !isNotMoreBtn(e) && txt.includes('더보기');
-                }});
-            }}
-            if (!el || isAiLink(el) || isClipElement(el) || isNotMoreBtn(el)) return {{ found: false }};
-
-            el.scrollIntoView({{ block: 'center', inline: 'center', behavior: 'instant' }});
-            const r = el.getBoundingClientRect();
-            const cx = r.left + r.width / 2;
-            const cy = r.top + r.height / 2;
-
-            const elAtPoint = document.elementFromPoint(cx, cy);
-            if (elAtPoint && (isAiLink(elAtPoint) || isClipElement(elAtPoint) || elAtPoint.closest('[href*="ait"], [class*="ai_tab"], [class*="ait_agent"], [data-nlog*="ait"], .cGTdiNgw, .hbhTlgi0, .eA6w58S8'))) {{
-                return {{ found: false, error: 'AI_OR_CLIP_BLOCKED' }};
-            }}
-
-            return {{ found: true, x: cx, y: cy, href: el.href || '' }};
-        }})()
-        """
         try:
-            retry_info = await cdp.evaluate(retry_touch_js)
-            if retry_info and retry_info.get("found"):
-                rx = retry_info.get("x", btn_x)
-                ry = retry_info.get("y", btn_y)
+            retry_settle = await wait_for_element_settled(
+                cdp=cdp,
+                target_selector_expr='[data-macro-target="shop_more_btn"]',
+                max_retries=2,
+                interval_sec=1.0,
+                tolerance_px=2.0,
+                action_label="SHOPPING_MORE_RETRY"
+            )
+            if retry_settle.get("success"):
+                rx = retry_settle["x"]
+                ry = retry_settle["y"]
                 retry_touch_res = await cdp_real_touch(
                     cdp=cdp,
                     device_id=device_id,
@@ -550,6 +384,8 @@ async def execute_shop_navigation(
                     cdp_port=cdp_port,
                     abort_predicate=lambda: getattr(result, "login_detected", False)
                 )
+            else:
+                logger.warning(f"⚠️ 2차 더보기 재터치 불가: 더보기 버튼 위치 불안정 ({retry_settle.get('error')})")
         except Exception as e:
             logger.warning(f"2차 더보기 재터치 시도 예외: {type(e).__name__} ({e})")
 
