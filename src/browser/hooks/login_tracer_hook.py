@@ -5,9 +5,9 @@ macro_v1/src/browser/hooks/login_tracer_hook.py
 
 네이티브 로그인(NidLoginActivity) 원천 차단 및 인앱 브라우저 로그인 무력화 훅 (Anti-Login Interceptor)
 - HTTP Request Headers 및 웹뷰 내비게이션 인위적 변조 일체 배제 (순정 브라우징 보존)
-- 4단계 차단 및 자동 타겟 복구 쉴드:
-  1) XWalkWebViewClient / InAppBaseWebViewClient: shouldOverrideUrlLoading 에서 nidlogin.login 감지 시
-     URL 파라미터(`url=`)에서 원본 타겟 상품 상세페이지 URL을 추출하여 웹뷰로 직접 로드 (`webView.loadUrl(target)`)
+- [절대 철칙 10] 인위적인 loadUrl 우회 완전 배제 및 즉각적인 FDS 챌린지 텔레메트리(LOGIN_CHALLENGE_DETECTED) 전송
+- 4단계 감지 및 안전 차단:
+  1) XWalkWebViewClient / InAppBaseWebViewClient: shouldOverrideUrlLoading 에서 nidlogin.login 감지 시 즉시 FDS 이벤트 통지
   2) processNaverLoginUrl 가로채기 (웹뷰가 nidlogin.login 웹페이지로 튀지 않도록 제어)
   3) LoginManager.loginWithDialog 억제 (네이티브 다이얼로그 호출 무력화)
   4) Activity / ContextWrapper.startActivity: NidLoginActivity 인텐트 발송 차단

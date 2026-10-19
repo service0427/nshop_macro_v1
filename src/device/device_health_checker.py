@@ -43,6 +43,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from config.settings import NAVER_APP_PACKAGE, DEFAULT_DEVICE_ID
 from src.device.adb_controller import run_adb_shell, force_stop_app
+from src.device.surgical_cleaner import write_pristine_null_xml
 
 
 REQUIRED_PERMISSIONS = [
@@ -163,46 +164,9 @@ def check_and_update_device(device_id: str, pkg: str = NAVER_APP_PACKAGE) -> Dic
         results["timezone_updated"] = True
         results["details"].append("타임존 Asia/Seoul 설정")
 
-    # 9. null.xml 점검 및 위치 동의/온보딩 억제 주입
-    null_xml_path = f"/data/data/{pkg}/shared_prefs/null.xml"
+    # 9. null.xml 점검 및 위치 동의/온보딩 억제 무결 템플릿 주입
     force_stop_app(device_id)
-
-    # null.xml 생성 또는 갱신 스크립트 실행
-    xml_sync_cmd = (
-        f"su -c '"
-        f"mkdir -p /data/data/{pkg}/shared_prefs; "
-        f"if [ ! -f {null_xml_path} ]; then "
-        f"cat << \"EOF\" > {null_xml_path}\n"
-        f"<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\" ?>\n"
-        f"<map>\n"
-        f"    <boolean name=\"keyUniverseTutorialComplete\" value=\"true\" />\n"
-        f"    <boolean name=\"keyNextTutorialComplete\" value=\"true\" />\n"
-        f"    <boolean name=\"keyShowNewMainTutorial\" value=\"false\" />\n"
-        f"    <boolean name=\"keyDarkTutorialComplete\" value=\"true\" />\n"
-        f"    <boolean name=\"keyNewmainTutorialComplete\" value=\"true\" />\n"
-        f"    <boolean name=\"keyFirstRun\" value=\"false\" />\n"
-        f"    <boolean name=\"keyTutorialLocProcessed\" value=\"true\" />\n"
-        f"    <boolean name=\"keyLocationAgree\" value=\"true\" />\n"
-        f"    <boolean name=\"keyLocationUserAgreementAccepted\" value=\"true\" />\n"
-        f"</map>\n"
-        f"EOF\n"
-        f"else "
-        f"sed -i \"s/keyLocationAgree\\\" value=\\\"false\\\"/keyLocationAgree\\\" value=\\\"true\\\"/\" {null_xml_path}; "
-        f"grep -q keyLocationAgree {null_xml_path} || sed -i \"s/<\\/map>/    <boolean name=\\\"keyLocationAgree\\\" value=\\\"true\\\" \\/>\\n<\\/map>/\" {null_xml_path}; "
-        f"grep -q keyLocationUserAgreementAccepted {null_xml_path} || sed -i \"s/<\\/map>/    <boolean name=\\\"keyLocationUserAgreementAccepted\\\" value=\\\"true\\\" \\/>\\n<\\/map>/\" {null_xml_path}; "
-        f"grep -q keyTutorialLocProcessed {null_xml_path} || sed -i \"s/<\\/map>/    <boolean name=\\\"keyTutorialLocProcessed\\\" value=\\\"true\\\" \\/>\\n<\\/map>/\" {null_xml_path}; "
-        f"grep -q keyShowNewMainTutorial {null_xml_path} && sed -i \"s/keyShowNewMainTutorial\\\" value=\\\"[^\"]*\\\"/keyShowNewMainTutorial\\\" value=\\\"false\\\"/\" {null_xml_path} || sed -i \"s/<\\/map>/    <boolean name=\\\"keyShowNewMainTutorial\\\" value=\\\"false\\\" \\/>\\n<\\/map>/\" {null_xml_path}; "
-        f"grep -q keyNewmainTutorialComplete {null_xml_path} && sed -i \"s/keyNewmainTutorialComplete\\\" value=\\\"[^\"]*\\\"/keyNewmainTutorialComplete\\\" value=\\\"true\\\"/\" {null_xml_path} || sed -i \"s/<\\/map>/    <boolean name=\\\"keyNewmainTutorialComplete\\\" value=\\\"true\\\" \\/>\\n<\\/map>/\" {null_xml_path}; "
-        f"grep -q keyNextTutorialComplete {null_xml_path} && sed -i \"s/keyNextTutorialComplete\\\" value=\\\"[^\"]*\\\"/keyNextTutorialComplete\\\" value=\\\"true\\\"/\" {null_xml_path} || sed -i \"s/<\\/map>/    <boolean name=\\\"keyNextTutorialComplete\\\" value=\\\"true\\\" \\/>\\n<\\/map>/\" {null_xml_path}; "
-        f"grep -q keyDarkTutorialComplete {null_xml_path} && sed -i \"s/keyDarkTutorialComplete\\\" value=\\\"[^\"]*\\\"/keyDarkTutorialComplete\\\" value=\\\"true\\\"/\" {null_xml_path} || sed -i \"s/<\\/map>/    <boolean name=\\\"keyDarkTutorialComplete\\\" value=\\\"true\\\" \\/>\\n<\\/map>/\" {null_xml_path}; "
-        f"fi; "
-        f"APP_UID=$(stat -c %u /data/data/{pkg}); "
-        f"chown -R $APP_UID:$APP_UID /data/data/{pkg}/shared_prefs; "
-        f"chmod 771 /data/data/{pkg}/shared_prefs; "
-        f"chmod 660 {null_xml_path}; "
-        f"'"
-    )
-    run_adb_shell(device_id, xml_sync_cmd)
+    write_pristine_null_xml(device_id)
     results["null_xml_updated"] = True
 
     results["elapsed_sec"] = round(time.time() - t0, 2)
