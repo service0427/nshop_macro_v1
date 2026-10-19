@@ -20,6 +20,7 @@ from src.pipeline.models import TaskInput, TaskResult
 from src.core.profile_generator import build_shopping_intent_url
 from src.device.adb_controller import start_intent
 from src.pipeline.utils.cdp_touch import cdp_real_touch, save_stage_screenshot
+from src.pipeline.utils.dom_stabilizer import wait_for_element_settled
 from src.pipeline.utils.transition_waiter import wait_for_transition, TransitionType
 
 logger = logging.getLogger("ConveyorExecutor")
@@ -320,217 +321,27 @@ async def execute_shop_navigation(
     btn_href = more_info.get("href", "")
     logger.info(f"🎯 [쇼핑섹션 .more 버튼 포착] 섹션='{sec_name}' | nlog-area='{btn_area}' | 텍스트='{btn_text}' | 1차좌표=({btn_x:.1f}, {btn_y:.1f})")
 
-    # 1. 뷰포트 스크롤 후 레이아웃 시프트 완결 및 DOM 정착 대기
-    await asyncio.sleep(0.35)
+    # 📌 [DOM 레이아웃 안정화] 더보기 버튼 위치/크기 1.0초 간격 최대 3회 정착 검증
+    # 1:N 네트워크 지연으로 인한 늦은 렌더링/위치 흔들림 멈춤 확인 (블랙리스트 배제, 순수 타겟 일치 및 변위 정착)
+    stabilize_res = await wait_for_element_settled(
+        cdp=cdp,
+        target_selector_expr='[data-macro-target="shop_more_btn"]',
+        max_retries=3,
+        interval_sec=1.0,
+        tolerance_px=2.0,
+        action_label="SHOPPING_MORE_BTN"
+    )
 
-    # 2. [Zero-Stale Coordinate & AI Eradication & elementFromPoint Interlock Gate]
-    # 터치 직전 실시간 정밀 좌표 재측정 + AI 배너 완전 박멸 + 좌표 직하 실물 요소 100% 검증
-    recalc_js = f"""
-    (() => {{
-        // [AI 배너/AI탭 영구 무력화 CSS 쉴드 주입 및 DOM 즉시 파기]
-        try {{
-            if (!document.getElementById('__nshop_ai_shield')) {{
-                const style = document.createElement('style');
-                style.id = '__nshop_ai_shield';
-                style.innerHTML = `
-                    .eA6w58S8, .cGTdiNgw, .hbhTlgi0,
-                    [data-nlog-area*="aitab"],
-                    [data-nlog-area*="ait"],
-                    [data-nlog-area*="cue"],
-                    [href*="aitabshop"],
-                    [href*="m_ait"],
-                    [href*="shopping_banner"],
-                    [class*="ai_tab_banner"],
-                    [class*="ait_agent"],
-                    [role="tab"][href*="m_ait"],
-                    [role="tab"][href*="tab.m_ait"] {{
-                        display: none !important;
-                        height: 0 !important;
-                        max-height: 0 !important;
-                        overflow: hidden !important;
-                        pointer-events: none !important;
-                        visibility: hidden !important;
-                        position: absolute !important;
-                        top: -9999px !important;
-                    }}
-
-                    /* [절대 원칙] 네이버 클립 및 동영상 섹션 상호작용 완전 무력화 (오클릭/재생 원천 차단) */
-                    [data-nlog-area^="clp_"],
-                    [data-nlog-area*="clip"],
-                    [data-nlog-area*="video"],
-                    [class*="clip_wrap"],
-                    [class*="clip_card"],
-                    [class*="clip_area"],
-                    [class*="video_wrap"],
-                    a[href*="clip.naver.com"],
-                    a[href*="m.clip.naver.com"],
-                    a[href*="naversearchapp://clip"],
-                    div#_clip_root,
-                    section[id*="clip"] {{
-                        pointer-events: none !important;
-                    }}
-                `;
-                (document.head || document.documentElement).appendChild(style);
-            }}
-            document.querySelectorAll('.eA6w58S8, .cGTdiNgw, .hbhTlgi0, [data-nlog-area*="aitab"], a[href*="aitabshop"], a[href*="m_ait"], a[href*="shopping_banner"], [class*="ai_tab_banner"], [class*="ait_agent"], [role="tab"][href*="m_ait"]').forEach(el => el.remove());
-            document.querySelectorAll('div[class*="tooltip"], div[class*="coach"], div[class*="guide"], div[class*="balloon"]').forEach(el => el.remove());
-        }} catch(e) {{}}
-
-        const isAiLink = (el) => {{
-            if (!el) return false;
-            const aTag = el.closest('a') || el;
-            const h = (aTag.href || aTag.getAttribute('href') || el.href || el.getAttribute('href') || '').toLowerCase();
-            const a = (el.getAttribute('data-nlog-area') || aTag.getAttribute('data-nlog-area') || '').toLowerCase();
-            const c = ((el.className || '') + ' ' + (aTag.className || '')).toLowerCase();
-            const t = ((el.innerText || '') + ' ' + (aTag.innerText || '')).toLowerCase();
-            return h.includes('ait') || h.includes('shopping_banner') || h.includes('banner') || h.includes('cue') ||
-                   a.includes('ait') || a.includes('banner') || a.includes('cue') ||
-                   c.includes('ait') || c.includes('cgtdingw') || c.includes('hbhtlgi0') || c.includes('ea6w58s8') || c.includes('cue') ||
-                   t.includes('ai로') || t.includes('ai탭') || t.includes('ai 검색') || t.includes('ai 브리핑');
-        }};
-
-        const isClipElement = (el) => {{
-            if (!el) return false;
-            const aTag = el.closest('a') || el;
-            const h = (aTag.href || aTag.getAttribute('href') || el.href || el.getAttribute('href') || '').toLowerCase();
-            const a = (el.getAttribute('data-nlog-area') || aTag.getAttribute('data-nlog-area') || '').toLowerCase();
-            const c = ((el.className || '') + ' ' + (aTag.className || '')).toLowerCase();
-            return h.includes('clip.naver.com') || h.includes('naversearchapp://clip') ||
-                   a.startsWith('clp_') || a.includes('clip') ||
-                   c.includes('clip_') || c.includes('_clip');
-        }};
-
-        const isNotMoreBtn = (el) => {{
-            if (!el) return true;
-            const a = (el.getAttribute('data-nlog-area') || '').toLowerCase();
-            const t = ((el.innerText || '') + ' ' + (el.getAttribute('title') || '')).toLowerCase();
-            const h = (el.href || el.getAttribute('href') || '').toLowerCase();
-            if (a.includes('.mtc') || a.includes('.filter') || a.includes('.sort') || a.includes('law') || a.includes('pw') || a.includes('ad')) return true;
-            if (a.startsWith('clp') || a.includes('clip') || a.includes('video')) return true;
-            if (h.includes('clip.naver.com') || h.includes('naversearchapp://clip')) return true;
-            if (t.includes('로만 검색') || t.includes('원문보기') || t.includes('이전 페이지') || t.includes('다음 페이지') || t.includes('현재') || t.includes('전체')) return true;
-            return false;
-        }};
-
-        // 1차에서 마킹한 정확한 버튼 요소 추적
-        let btn = document.querySelector('[data-macro-target="shop_more_btn"]');
-        if (btn && (isAiLink(btn) || isClipElement(btn) || isNotMoreBtn(btn))) btn = null;
-
-        if (!btn) {{
-            const list = Array.from(document.querySelectorAll('a[data-nlog-area^="shp_"][data-nlog-area*="more"]:not([data-nlog-area*="more2"]):not([role="tab"])'));
-            btn = list.find(el => !isAiLink(el) && !isClipElement(el) && !isNotMoreBtn(el));
-        }}
-        if (!btn) {{
-            const allLinks = Array.from(document.querySelectorAll('a, button'));
-            btn = allLinks.find(el => {{
-                const txt = (el.innerText || '').trim();
-                const role = el.getAttribute('role') || '';
-                const area = (el.getAttribute('data-nlog-area') || '').toLowerCase();
-                const h = (el.href || el.getAttribute('href') || '').toLowerCase();
-                const isShop = area.startsWith('shp_') || h.includes('shopping.naver.com') || h.includes('msearch.shopping');
-                return !role.includes('tab') && !area.includes('more2') && !area.includes('law') && isShop && !isAiLink(el) && !isClipElement(el) && !isNotMoreBtn(el) && txt.includes('더보기');
-            }});
-        }}
-        if (!btn) return {{ valid: false, error: 'BTN_LOST_OR_AI_FILTERED' }};
-
-        const winH = window.innerHeight || 800;
-        const winW = window.innerWidth || 360;
-        const SAFE_TOP = 130;  // 상단 fixed 헤더 회피
-        const SAFE_BOTTOM = winH - 90; // 하단 탭바 회피
-
-        // 1. 항상 버튼을 뷰포트 정중앙으로 스크롤하여 플로팅/헤더/푸터 간섭 원천 배제
-        btn.scrollIntoView({{ block: 'center', inline: 'center', behavior: 'instant' }});
-        let r = btn.getBoundingClientRect();
-
-        if (r.width < 80 || r.height < 20 || r.height > 95) {{
-            return {{ valid: false, error: 'INVALID_RECT_SIZE', width: r.width, height: r.height }};
-        }}
-
-        const cx = Math.max(30.0, Math.min(r.left + r.width / 2, winW - 30.0));
-        const cy = Math.max(SAFE_TOP + 10.0, Math.min(r.top + r.height / 2, SAFE_BOTTOM - 10.0));
-
-        // [프리터치 elementFromPoint 100% 실측 인터락]
-        const elAtPoint = document.elementFromPoint(cx, cy);
-        if (!elAtPoint) return {{ valid: false, error: 'NO_ELEMENT_AT_POINT' }};
-
-        // 좌표 상에 AI 관련 요소가 있으면 즉시 제거 후 에러 리턴
-        const aiHit = elAtPoint.closest('[href*="ait"], [class*="ai_tab"], [class*="ait_agent"], [data-nlog*="ait"], .cGTdiNgw, .hbhTlgi0, .eA6w58S8');
-        if (aiHit || isAiLink(elAtPoint)) {{
-            try {{ (aiHit || elAtPoint).remove(); }} catch(ign) {{}}
-            return {{ valid: false, error: 'AI_ELEMENT_INTERCEPTED_AND_REMOVED' }};
-        }}
-
-        // 좌표 상에 클립/동영상 요소가 감지되면 즉시 에러 리턴 (오클릭 방지)
-        if (isClipElement(elAtPoint)) {{
-            return {{ valid: false, error: 'CLIP_ELEMENT_INTERCEPTED' }};
-        }}
-
-        // 좌표 상 요소가 진짜 더보기 버튼이거나 그 내부 텍스트인지 검증
-        const isTargetMatch = elAtPoint === btn || btn.contains(elAtPoint) || elAtPoint.contains(btn) || elAtPoint.closest('[data-macro-target="shop_more_btn"]') || (elAtPoint.innerText || '').includes('더보기');
-        if (!isTargetMatch) {{
-            const elAtPointAdjusted = document.elementFromPoint(cx, cy + 8);
-            if (elAtPointAdjusted && (elAtPointAdjusted === btn || btn.contains(elAtPointAdjusted) || elAtPointAdjusted.contains(btn) || (elAtPointAdjusted.innerText || '').includes('더보기'))) {{
-                return {{
-                    valid: true,
-                    x: Math.round(cx * 10) / 10,
-                    y: Math.round((cy + 8) * 10) / 10,
-                    rect: {{ top: r.top, bottom: r.bottom, height: r.height, width: r.width }},
-                    text: (btn.innerText || '').trim(),
-                    href: btn.href || btn.getAttribute('href') || ''
-                }};
-            }}
-            return {{
-                valid: false,
-                error: 'ELEMENT_MISMATCH_AT_POINT',
-                hitTag: elAtPoint.tagName,
-                hitClass: elAtPoint.className,
-                hitText: (elAtPoint.innerText || '').slice(0, 30)
-            }};
-        }}
-
-        return {{
-            valid: true,
-            x: Math.round(cx * 10) / 10,
-            y: Math.round(cy * 10) / 10,
-            rect: {{ top: r.top, bottom: r.bottom, height: r.height, width: r.width }},
-            text: (btn.innerText || '').trim(),
-            href: btn.href || btn.getAttribute('href') || ''
-        }};
-    }})()
-    """
-
-    recalc_info = await cdp.evaluate(recalc_js)
-    if isinstance(recalc_info, dict) and recalc_info.get("valid"):
-        orig_y = btn_y
-        btn_x = recalc_info.get("x", btn_x)
-        btn_y = recalc_info.get("y", btn_y)
-        btn_h = recalc_info.get("rect", {}).get("height", 0)
-        logger.info(f"✨ [터치 직전 실시간 좌표 확정] 1차({orig_y:.1f}) -> 2차 실측({btn_y:.1f}) | 변위: {btn_y - orig_y:+.1f}px | 버튼높이: {btn_h:.1f}px")
-    else:
-        logger.warning(f"⚠️ [1차 재측정 실패] {recalc_info} -> 0.3초 대기 후 2차 재측정 시도...")
-        await asyncio.sleep(0.3)
-        recalc_info = await cdp.evaluate(recalc_js)
-        if isinstance(recalc_info, dict) and recalc_info.get("valid"):
-            btn_x = recalc_info.get("x", btn_x)
-            btn_y = recalc_info.get("y", btn_y)
-            logger.info(f"✨ [2차 재측정 성공] 좌표 확정: ({btn_x:.1f}, {btn_y:.1f})")
-        else:
-            logger.error(f"❌ [쇼핑 더보기 버튼 정밀 조준 최종 실패] 좌표 무결성 검증 탈락: {recalc_info}")
-            return {
-                "success": False,
-                "status": "SHOPPING_MORE_ALIGN_FAILED",
-                "error_message": f"더보기 버튼 조준 실패 ({recalc_info.get('error') if isinstance(recalc_info, dict) else 'UNKNOWN'})"
-            }
-
-    # 📌 [절대 철칙 4/AI 배너 영구 배제] 터치 대상 URL이 AI 검색/배너로 연결되는지 최종 검증
-    target_href = str((recalc_info.get("href") if isinstance(recalc_info, dict) else "") or more_info.get("href", "")).lower()
-    if any(k in target_href for k in ("aitabshop", "m_ait", "shopping_banner", "ait_agent_type", "tab.m_ait")):
-        logger.error(f"❌ [AI 검색 배너 클릭 시도 원천 차단] 버튼 URL이 AI 탭을 향하고 있습니다: {target_href}")
+    if not stabilize_res.get("success"):
+        logger.error(f"❌ [쇼핑 더보기 정착 실패] 사유: {stabilize_res.get('error')}")
         return {
             "success": False,
-            "status": "NOT_SHOPPING_KEYWORD",
-            "error_message": f"쇼핑 더보기 버튼이 AI 배너로 연결됨 ({target_href})"
+            "status": "SHOPPING_MORE_ALIGN_FAILED",
+            "error_message": f"더보기 버튼 위치 불안정 또는 조준 불일치 ({stabilize_res.get('error')})"
         }
+
+    btn_x = stabilize_res["x"]
+    btn_y = stabilize_res["y"]
 
     # 3. 실물 터치 (CDP Real Touch) 타격
     # 📌 [절대 철칙 9] el.click() 절대 금지! 100% 순수 물리 터치(CDP Real Touch: Input.dispatchTouchEvent) 단독 발송

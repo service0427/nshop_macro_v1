@@ -28,6 +28,7 @@ from src.browser.cdp_client import AsyncCDPClient
 from src.pipeline.models import TaskInput, TaskResult
 from src.pipeline.utils.serp_parser import check_serp_paged_slot
 from src.pipeline.utils.cdp_touch import cdp_real_touch, save_stage_screenshot
+from src.pipeline.utils.dom_stabilizer import wait_for_element_settled
 from src.device.adb_controller import fast_check_native_login_or_captcha
 
 logger = logging.getLogger("ConveyorExecutor")
@@ -380,6 +381,7 @@ async def execute_serp_stage(
                             matchedLink ||
                             matchedCard.querySelector('a') ||
                             matchedCard;
+            clickEl.setAttribute('data-macro-target', 'serp_target_card');
 
             // [광고 4차 차단] clickEl 자체 검증
             if (isAdCard(clickEl)) {{
@@ -524,8 +526,18 @@ async def execute_serp_stage(
             "error_message": f"프리터치 인터락에 의해 광고 터치 원천 차단: {interlock_res}"
         }
 
-    # 6. target_found 증빙 캡처
-    result.target_found_screenshot = save_stage_screenshot(device_id, "target_found", task.task_id, output_dir)
+    # 📌 [DOM 레이아웃 안정화] 상품 카드 위치/크기 1.0초 간격 최대 3회 정착 검증
+    stabilize_card = await wait_for_element_settled(
+        cdp=cdp,
+        target_selector_expr='[data-macro-target="serp_target_card"]',
+        max_retries=3,
+        interval_sec=1.0,
+        tolerance_px=2.0,
+        action_label="SERP_TARGET_CARD"
+    )
+    if stabilize_card.get("success"):
+        click_x = stabilize_card["x"]
+        click_y = stabilize_card["y"]
 
     result.touch_coordinates = {"x": click_x, "y": click_y}
     result.serp_rank = target_rank

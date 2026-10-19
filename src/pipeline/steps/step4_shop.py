@@ -26,6 +26,7 @@ from config.settings import TIMINGS
 from src.browser.cdp_client import AsyncCDPClient
 from src.pipeline.models import TaskInput, TaskResult
 from src.pipeline.utils.cdp_touch import cdp_real_touch, save_stage_screenshot
+from src.pipeline.utils.dom_stabilizer import wait_for_element_settled
 from src.device.adb_controller import fast_check_native_login_or_captcha
 
 logger = logging.getLogger("ConveyorExecutor")
@@ -660,6 +661,7 @@ async def execute_shopping_stage(
                         targetCard.querySelector('a');
 
         const clickEl = titleEl || targetCard;
+        clickEl.setAttribute('data-macro-target', 'shopping_target_card');
         if (isAdCard(clickEl)) {{
             return {{ found: false, isAdBlocked: true, reason: "CLICK_EL_IS_AD" }};
         }}
@@ -853,6 +855,20 @@ async def execute_shopping_stage(
             "status": "AD_CLICK_PREVENTED",
             "error_message": f"프리터치 인터락에 의해 광고 터치 원천 차단: {interlock_res}"
         }
+
+    # 📌 [DOM 레이아웃 안정화] 상품 카드 위치/크기 1.0초 간격 최대 3회 정착 검증
+    # 1:N 네트워크 지연으로 인한 늦은 이미지 로딩/위치 흔들림 멈춤 확인
+    stabilize_card = await wait_for_element_settled(
+        cdp=cdp,
+        target_selector_expr='[data-macro-target="shopping_target_card"]',
+        max_retries=3,
+        interval_sec=1.0,
+        tolerance_px=2.0,
+        action_label="PRODUCT_CARD"
+    )
+    if stabilize_card.get("success"):
+        click_x = stabilize_card["x"]
+        click_y = stabilize_card["y"]
 
     # 4. 조준 완료 및 증빙 캡처
     result.touch_coordinates = {"x": click_x, "y": click_y}
