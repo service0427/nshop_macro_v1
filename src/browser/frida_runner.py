@@ -76,6 +76,7 @@ def spawn_app_with_cdp(
         from src.browser.hooks.google_identity_hook import build_google_identity_hook
         from src.browser.hooks.network_hook import build_network_hook
         from src.browser.hooks.location_hook import build_location_hook
+        from src.browser.hooks.device_integrity_hook import build_device_integrity_hook
         from src.browser.hooks.login_tracer_hook import build_login_tracer_hook
 
         if not spoof_google_account and (spoof_dadd or spoof_dadv):
@@ -102,6 +103,12 @@ def spawn_app_with_cdp(
                 altitude=spoof_alt or 35.0,
                 bearing=spoof_bearing or 0.0
             ))
+        # [하드웨어 무결성 & 라이프사이클 훅] 스토리지 바이트 지터(238GB), 앱 설치/부팅 타임스탬프, Wi-Fi BSSID 차단
+        hooks.append(build_device_integrity_hook(
+            fake_install_time=fake_install_time,
+            fake_update_time=fake_update_time,
+            fake_boot_time=fake_boot_time
+        ))
         # [안티-로그인 쉴드] 네이티브 NidLoginActivity 팝업 원천 차단 및 타겟 자동 복구
         hooks.append(build_login_tracer_hook(target_nnb=target_nnb or ""))
 
@@ -151,7 +158,8 @@ def spawn_app_with_cdp(
         "AppSetIdInfo",         # 3. GMS AppSetId UUID 및 Scope 1 (SCOPE_DEVELOPER) 승격
         "AdvertisingIdClient",  # 4. GMS ADID UUID 및 광고 추적 허용 (LAT: false)
         "TelephonyManager",     # 5. KT LTE 450_08 정상 개통 및 SIM READY
-        "LocationManager"       # 6. 하드웨어 GPS 최심부 좌표 주입 및 모의위치 차단 (isMock=false)
+        "LocationManager",      # 6. 하드웨어 GPS 최심부 좌표 주입 및 모의위치 차단 (isMock=false)
+        "DeviceIntegrity"       # 7. 하드웨어 스토리지 바이트 지터 및 앱 설치/부팅 라이프사이클 위조
     }
     verified_hooks = set()
     hook_errors = {}

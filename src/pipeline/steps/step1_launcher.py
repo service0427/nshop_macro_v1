@@ -94,6 +94,12 @@ async def launch_app_and_connect_cdp(
             spoof_dadv=profile["dadv"],
             spoof_lat=profile["lat"],
             spoof_lng=profile["lng"],
+            spoof_acc=profile.get("accuracy"),
+            spoof_alt=profile.get("altitude"),
+            spoof_bearing=profile.get("bearing"),
+            fake_install_time=profile.get("fake_install_time"),
+            fake_update_time=profile.get("fake_update_time"),
+            fake_boot_time=profile.get("fake_boot_time"),
             target_nnb=nnb,
             on_message_callback=_on_frida_msg,
             clean_mode=True

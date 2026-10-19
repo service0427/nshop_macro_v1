@@ -977,6 +977,13 @@ def main():
             if capped_today_mids:
                 active_quarantined_mids.update(capped_today_mids)
 
+            # [사용자 지침 2026-10-19] 통합검색 상위 노출 상품 영구 제외 (업체 유료광고/외부트래픽 간섭 방지)
+            SERP_TOP_EXCLUDED_MIDS = {
+                "90881889708",  # 해바라기 샤워기 (대림바스 온라인 스토어) - SERP 15위 노출
+                "89392774174",  # 메모리폼매트리스 (밤이오면) - SERP 14위 노출
+            }
+            active_quarantined_mids.update(SERP_TOP_EXCLUDED_MIDS)
+
             # 5. 회차별 작업 생성 (API 수신 or CLI 오버라이딩, 4시간 쿨다운 중인 상품 배제)
             prepared_tasks = build_cycle_tasks(
                 target_devices, current_ip, cycle, args, client,
