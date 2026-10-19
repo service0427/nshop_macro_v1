@@ -93,6 +93,8 @@ def clean_session_residues(device_id: str = DEFAULT_DEVICE_ID):
         f"rm -rf /data/data/{pkg}/files/AFRequestCache/*; "
         f"rm -rf /data/data/{pkg}/files/datastore/*; "
         f"rm -f /data/data/{pkg}/files/rList; "
+        f"rm -f /data/data/{pkg}/no_backup/PersistedInstallation.*.json; "
+        f"rm -f /data/data/{pkg}/no_backup/com.google.android.gms.appid-no-backup; "
         # 4. Nelo / NTracker / GFP 로컬 캐시 및 잔여 식별자 파일 핀셋 삭제 (NeloInstallID, init_ts 고정 누출 방지)
         f"rm -rf /data/data/{pkg}/files/nelo_proj_data; "
         f"rm -f /data/data/{pkg}/files/nelo2_install.id; "
