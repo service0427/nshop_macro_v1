@@ -56,6 +56,27 @@ async def check_serp_paged_slot(cdp: AsyncCDPClient, target_mid: str = "", targe
                 }};
             }}
 
+            // 0-1. Check for access restriction (FDS rate-limiting / IP block)
+            const isBlocked = bodyTxt.includes('접속이 일시적으로 제한되었습니다') ||
+                              bodyTxt.includes('쇼핑 서비스 접속이 일시적으로 제한') ||
+                              bodyTxt.includes('서비스 접속이 제한되었습니다') ||
+                              bodyTxt.includes('비정상적인 접근이 감지되었습니다') ||
+                              bodyTxt.includes('비정상적인 트래픽으로 인해') ||
+                              bodyTxt.includes('쇼핑 서비스 이용이 일시적으로 제한');
+            if (isBlocked) {{
+                return {{
+                    has_shp_section: false,
+                    has_paged_slot: false,
+                    has_shopping: false,
+                    is_access_blocked: true,
+                    reason: "ACCESS_BLOCKED_PAGE",
+                    error_message: "통합검색/쇼핑 접속 제한 (접속이 일시적으로 제한되었습니다)",
+                    found: false,
+                    target: null,
+                    section_name: null
+                }};
+            }}
+
             // 1. Extract organic shp_ section name from naver.search.section.main FIRST
             const isAdSectionStr = (s) => {{
                 const lower = (s || '').toLowerCase();

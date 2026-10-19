@@ -73,6 +73,16 @@ class CDPResponse:
             return True
         return "nidlogin.login" in self.url.lower()
 
+    @property
+    def is_access_blocked(self) -> bool:
+        """네이버 FDS 쇼핑/검색 서비스 일시 접속 제한 패킷 여부"""
+        u_lower = self.url.lower()
+        if self.status in (403, 429) and any(k in u_lower for k in ("shopping", "search", "msearch")):
+            return True
+        if "sus_val" in u_lower:
+            return True
+        return False
+
     def __repr__(self) -> str:
         return f"<CDPResponse status={self.status} url='{self.url[:70]}'>"
 
@@ -80,6 +90,14 @@ class CDPResponse:
 class CaptchaBlockedException(Exception):
     """네이버 FDS 캡차/보안확인 차단 패킷 감지 예외"""
     def __init__(self, url: str, status: int, message: str = "네이버 보안 확인(CAPTCHA) 감지"):
+        super().__init__(f"{message} (status: {status}, url: {url[:80]})")
+        self.url = url
+        self.status = status
+
+
+class AccessBlockedException(Exception):
+    """네이버 FDS 서비스 접속 일시 제한 패킷 감지 예외"""
+    def __init__(self, url: str, status: int = 0, message: str = "쇼핑 서비스 접속이 일시적으로 제한되었습니다 (FDS IP 차단)"):
         super().__init__(f"{message} (status: {status}, url: {url[:80]})")
         self.url = url
         self.status = status
@@ -202,6 +220,9 @@ class AsyncCDPClient:
                         try:
                             # 1. 전역 에러/차단 패킷 즉시 감지 (Fast-Fail)
                             if check_errors:
+                                if cdp_resp.is_access_blocked:
+                                    fut.set_exception(AccessBlockedException(u, status))
+                                    continue
                                 if cdp_resp.is_captcha:
                                     fut.set_exception(CaptchaBlockedException(u, status))
                                     continue
@@ -248,6 +269,8 @@ class AsyncCDPClient:
                 continue
             if now - r.timestamp < 1.5:
                 if check_errors:
+                    if r.is_access_blocked:
+                        raise AccessBlockedException(r.url, r.status)
                     if r.is_captcha:
                         raise CaptchaBlockedException(r.url, r.status)
                     if r.is_login_redirect:

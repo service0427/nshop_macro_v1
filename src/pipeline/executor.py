@@ -35,6 +35,7 @@ from src.pipeline.steps.step4_shop import execute_shopping_stage
 from src.pipeline.steps.step5_landing import execute_landing_and_dwell
 from src.pipeline.steps.step6_catalog import execute_catalog_stage
 from src.monitor.fleet_state import FleetStateManager
+from src.monitor.search_block_auditor import record_ip_access
 
 logger = logging.getLogger("ConveyorExecutor")
 
@@ -130,6 +131,9 @@ async def execute_task_pipeline(task: TaskInput) -> Dict[str, Any]:
         ssaid=profile["ssaid"],
         store_name=getattr(task, "store_name", "")
     )
+
+    # [공인 IP 접근 이력 감사 기록]
+    record_ip_access(public_ip=result.ip, device_id=device_id, keyword=task.keyword, action="TASK_START")
 
     serp_cdp = None
     serp_ws = None
@@ -291,8 +295,8 @@ async def execute_task_pipeline(task: TaskInput) -> Dict[str, Any]:
                 serp_cdp = None
                 continue
 
-            if serp_res.get("status") in ("LOGIN_REQUIRED", "CAPTCHA_DETECTED"):
-                logger.warning(f"🚨 [Hop #{hop_idx+1} 차단 감지] {serp_res.get('status')} -> 즉시 중단")
+            if serp_res.get("status") in ("LOGIN_REQUIRED", "CAPTCHA_DETECTED", "LOGIN_CHALLENGE_DETECTED", "SERP_ACCESS_BLOCKED", "SHOPPING_ACCESS_BLOCKED"):
+                logger.warning(f"🚨 [Hop #{hop_idx+1} 차단 감지] {serp_res.get('status')} -> 즉시 중단 및 Discard")
                 result.status = serp_res.get("status")
                 force_stop_app(device_id)
                 break
@@ -434,7 +438,7 @@ async def execute_task_pipeline(task: TaskInput) -> Dict[str, Any]:
                         pass
                     serp_ws = None
                 serp_cdp = None
-                if st in ("LOGIN_REQUIRED", "CAPTCHA_BLOCKED", "CAPTCHA_DETECTED", "LOGIN_CHALLENGE_DETECTED"):
+                if st in ("LOGIN_REQUIRED", "CAPTCHA_BLOCKED", "CAPTCHA_DETECTED", "LOGIN_CHALLENGE_DETECTED", "SHOPPING_ACCESS_BLOCKED", "SERP_ACCESS_BLOCKED"):
                     logger.warning(f"🚨 [Hop #{hop_idx+1} 로그인/차단 감지 ({st})] FDS 챌린지 즉시 종료 및 Discard")
                     break
                 continue
@@ -478,8 +482,8 @@ async def execute_task_pipeline(task: TaskInput) -> Dict[str, Any]:
                         pass
                     serp_ws = None
                 serp_cdp = None
-                if st in ("LOGIN_REQUIRED", "CAPTCHA_BLOCKED", "CAPTCHA_DETECTED"):
-                    logger.warning(f"🚨 [Hop #{hop_idx+1} 로그인/차단 감지] 화면 고착 방지 및 즉시 종료")
+                if st in ("LOGIN_REQUIRED", "CAPTCHA_BLOCKED", "CAPTCHA_DETECTED", "LOGIN_CHALLENGE_DETECTED", "SHOPPING_ACCESS_BLOCKED", "SERP_ACCESS_BLOCKED"):
+                    logger.warning(f"🚨 [Hop #{hop_idx+1} 로그인/차단 감지 ({st})] 화면 고착 방지 및 즉시 종료")
                     break
                 continue
 

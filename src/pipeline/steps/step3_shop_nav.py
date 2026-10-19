@@ -22,6 +22,7 @@ from src.device.adb_controller import start_intent
 from src.pipeline.utils.cdp_touch import cdp_real_touch, save_stage_screenshot
 from src.pipeline.utils.dom_stabilizer import wait_for_element_settled
 from src.pipeline.utils.transition_waiter import wait_for_transition, TransitionType
+from src.monitor.search_block_auditor import record_search_block
 
 logger = logging.getLogger("ConveyorExecutor")
 
@@ -391,13 +392,27 @@ async def execute_shop_navigation(
 
     if not trans_res.success:
         logger.error(f"❌ [쇼핑탭 진입 실패] 상태: {trans_res.status} | 사유: {trans_res.error_message}")
-        if trans_res.status in ("CAPTCHA_BLOCKED", "LOGIN_REQUIRED", "LOGIN_CHALLENGE_DETECTED", "AI_SEARCH_REDIRECT"):
-            save_stage_screenshot(device_id, trans_res.status.lower(), task.task_id, output_dir)
+        if trans_res.status in ("CAPTCHA_BLOCKED", "LOGIN_REQUIRED", "LOGIN_CHALLENGE_DETECTED", "SHOPPING_ACCESS_BLOCKED", "AI_SEARCH_REDIRECT"):
+            ss_path = save_stage_screenshot(device_id, trans_res.status.lower(), task.task_id, output_dir)
             if traffic_logger:
                 traffic_logger.record_event(trans_res.status, trans_res.error_message or trans_res.status, {
                     "url": trans_res.final_url,
                     "error": trans_res.error_message
                 })
+            # [차단 통계 전용 감사 기록]
+            record_search_block(
+                stage="SHOP_NAV_MORE",
+                block_type=trans_res.status,
+                block_message=trans_res.error_message or trans_res.status,
+                device_id=device_id,
+                task_id=task.task_id,
+                keyword=task.keyword,
+                nv_mid=task.nv_mid,
+                store_name=task.store_name,
+                public_ip=getattr(task, "ip", "") or getattr(result, "ip", ""),
+                url=trans_res.final_url,
+                screenshot_path=ss_path
+            )
         return {
             "success": False,
             "status": trans_res.status,

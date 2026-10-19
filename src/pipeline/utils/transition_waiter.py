@@ -20,6 +20,7 @@ from src.browser.cdp_client import (
     AsyncCDPClient,
     CDPResponse,
     CaptchaBlockedException,
+    AccessBlockedException,
     LoginRedirectException
 )
 from src.device.adb_controller import fast_check_native_login_or_captcha
@@ -192,6 +193,16 @@ async def wait_for_transition(
                         final_url=cur_url,
                         response=matched_resp
                     )
+            except AccessBlockedException as ae:
+                dur = time.time() - t0
+                logger.critical(f"🛑 [패킷 레벨 쇼핑 접속 제한 즉시 감지 ({dur:.2f}s)] {ae}")
+                return TransitionResult(
+                    success=False,
+                    status="SHOPPING_ACCESS_BLOCKED",
+                    error_message=str(ae),
+                    duration_sec=dur,
+                    final_url=ae.url
+                )
             except CaptchaBlockedException as ce:
                 dur = time.time() - t0
                 logger.critical(f"🚨 [패킷 레벨 캡차 즉시 감지 ({dur:.2f}s)] {ce}")
@@ -324,6 +335,22 @@ async def wait_for_transition(
                         document.querySelector('[class*="compositeCard"], [class*="basicProductCard"], [data-shp-contents-id]')
                     );
 
+                    // 1-1. [FDS 핵심 감지] 쇼핑 서비스 일시 접속 제한 문구 감지
+                    let isAccessBlocked = false;
+                    let blockMessage = "";
+                    const bodyText = document.body ? (document.body.innerText || '') : '';
+                    if (bodyText.includes('접속이 일시적으로 제한되었습니다') ||
+                        bodyText.includes('쇼핑 서비스 접속이 일시적으로 제한') ||
+                        bodyText.includes('서비스 접속이 제한되었습니다') ||
+                        bodyText.includes('비정상적인 접근이 감지되었습니다') ||
+                        bodyText.includes('비정상적인 트래픽으로 인해') ||
+                        bodyText.includes('쇼핑 서비스 이용이 일시적으로 제한')) {
+                        if (!hasShoppingContent || document.querySelector('.error_content, [class*="error_"], [class*="block_"]')) {
+                            isAccessBlocked = true;
+                            blockMessage = "쇼핑 서비스 접속이 일시적으로 제한되었습니다 (FDS IP 차단)";
+                        }
+                    }
+
                     // 2. 실제 화면에 노출된 가시적 캡차 화면 여부 (히든 DOM 요소 오탐 배제)
                     let isCaptcha = false;
                     const isCaptchaUrl = (u.includes('/captcha') || u.includes('/challenge') || u.includes('security/challenge')) &&
@@ -338,7 +365,6 @@ async def wait_for_transition(
                             isCaptcha = true;
                         } else {
                             // 보안 확인 안내문과 함께 실제 입력 필드가 가시적으로 렌더링되어 있는지 정밀 판정
-                            const bodyText = document.body ? (document.body.innerText || '') : '';
                             const hasCaptchaText = (bodyText.includes('보안 확인') || bodyText.includes('비정상적인 접근') || bodyText.includes('자동입력 방지')) &&
                                                    (bodyText.includes('문자를 입력') || bodyText.includes('영수증'));
                             const hasCaptchaInput = isVisible(document.querySelector('input#captcha_key, input[name*="captcha"], #captcha_img'));
@@ -370,6 +396,8 @@ async def wait_for_transition(
 
                     return {
                         url: u,
+                        isAccessBlocked,
+                        blockMessage,
                         isCaptcha,
                         isLogin,
                         isError,
@@ -381,6 +409,20 @@ async def wait_for_transition(
                 dom_stat = await cdp.evaluate(dom_check_js, timeout=0.8)
                 if dom_stat and isinstance(dom_stat, dict):
                     cur_url = dom_stat.get("url", cur_url)
+
+                    # [Fast-Fail 0] 쇼핑 서비스 접속 일시 제한(FDS IP 차단) 감지 -> 즉시 Discard (재시도/새로고침 절대 금지)
+                    if dom_stat.get("isAccessBlocked"):
+                        dur = time.time() - t0
+                        await _safe_cancel_packet_task()
+                        b_msg = dom_stat.get("blockMessage") or "쇼핑 서비스 접속이 일시적으로 제한되었습니다"
+                        logger.critical(f"🛑 [DOM 레벨 쇼핑 접속 제한 포착 ({dur:.2f}s)] {b_msg} -> 즉시 Discard")
+                        return TransitionResult(
+                            success=False,
+                            status="SHOPPING_ACCESS_BLOCKED",
+                            error_message=b_msg,
+                            duration_sec=dur,
+                            final_url=cur_url
+                        )
 
                     # [Fast-Fail 1] 실제 렌더링된 가시적 캡차 감지
                     if dom_stat.get("isCaptcha"):

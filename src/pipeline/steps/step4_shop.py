@@ -28,6 +28,7 @@ from src.pipeline.models import TaskInput, TaskResult
 from src.pipeline.utils.cdp_touch import cdp_real_touch, save_stage_screenshot
 from src.pipeline.utils.dom_stabilizer import wait_for_element_settled
 from src.device.adb_controller import fast_check_native_login_or_captcha
+from src.monitor.search_block_auditor import record_search_block
 
 logger = logging.getLogger("ConveyorExecutor")
 
@@ -154,6 +155,19 @@ async def execute_shopping_stage(
         pp = pp || {{}};
         const comp = pp.compositeProducts || pp.initialData?.products || {{}};
         const list = comp.list || pp.products || [];
+
+        // 1-1. 쇼핑 서비스 일시 접속 제한 문구 감지 (FDS 차단)
+        if (!list || list.length === 0) {{
+            const bodyTxt = document.body ? (document.body.innerText || '') : '';
+            if (bodyTxt.includes('접속이 일시적으로 제한되었습니다') ||
+                bodyTxt.includes('쇼핑 서비스 접속이 일시적으로 제한') ||
+                bodyTxt.includes('서비스 접속이 제한되었습니다') ||
+                bodyTxt.includes('비정상적인 접근이 감지되었습니다') ||
+                bodyTxt.includes('비정상적인 트래픽으로 인해') ||
+                bodyTxt.includes('쇼핑 서비스 이용이 일시적으로 제한')) {{
+                return {{ isAccessBlocked: true, blockMessage: "쇼핑 서비스 접속이 일시적으로 제한되었습니다 (FDS IP 차단)" }};
+            }}
+        }}
 
         // 2. DOM 캡차 검사 (쇼핑 데이터가 없을 때만 가시적 캡차 폼 정밀 검사)
         if (!list || list.length === 0) {{
@@ -289,9 +303,22 @@ async def execute_shopping_stage(
             is_blocked, blk_type, reason = fast_check_native_login_or_captcha(device_id)
             if is_blocked:
                 logger.warning(f"🚨 [쇼핑탭 대기 중 네이티브 {blk_type} 감지] {reason}")
-                save_stage_screenshot(device_id, blk_type.lower(), task.task_id, output_dir)
+                ss_path = save_stage_screenshot(device_id, blk_type.lower(), task.task_id, output_dir)
                 if traffic_logger:
                     traffic_logger.record_event(blk_type, reason, {"url": "SHOPPING_TAB", "error": reason})
+                record_search_block(
+                    stage="SHOP_NATIVE",
+                    block_type=blk_type,
+                    block_message=reason or blk_type,
+                    device_id=device_id,
+                    task_id=task.task_id,
+                    keyword=task.keyword,
+                    nv_mid=task.nv_mid,
+                    store_name=task.store_name,
+                    public_ip=getattr(task, "ip", "") or getattr(result, "ip", ""),
+                    url="SHOPPING_TAB",
+                    screenshot_path=ss_path
+                )
                 return {
                     "success": False,
                     "status": blk_type,
@@ -300,6 +327,35 @@ async def execute_shopping_stage(
 
         try:
             chk_res = await cdp.evaluate(check_next_data_js)
+            # [Fast-Fail 0] 쇼핑 서비스 일시 접속 제한(FDS IP 차단) 감지 -> 즉시 Discard
+            if chk_res and chk_res.get("isAccessBlocked"):
+                b_msg = chk_res.get("blockMessage") or "쇼핑 서비스 접속이 일시적으로 제한되었습니다"
+                logger.critical(f"🛑 [쇼핑탭 진입 직후 접속 제한 감지] {b_msg} -> 즉시 Discard")
+                ss_path = save_stage_screenshot(device_id, "shopping_access_blocked", task.task_id, output_dir)
+                cur_url = ""
+                try:
+                    cur_url = await cdp.evaluate("window.location.href") or ""
+                except Exception:
+                    pass
+                record_search_block(
+                    stage="SHOP_TAB",
+                    block_type="SHOPPING_ACCESS_BLOCKED",
+                    block_message=b_msg,
+                    device_id=device_id,
+                    task_id=task.task_id,
+                    keyword=task.keyword,
+                    nv_mid=task.nv_mid,
+                    store_name=task.store_name,
+                    public_ip=getattr(task, "ip", "") or getattr(result, "ip", ""),
+                    url=cur_url,
+                    screenshot_path=ss_path
+                )
+                return {
+                    "success": False,
+                    "status": "SHOPPING_ACCESS_BLOCKED",
+                    "error_message": b_msg
+                }
+
             if chk_res and chk_res.get("isCaptcha"):
                 logger.critical("🚨 [쇼핑탭 캡차 차단 즉시 감지] 화면에 영수증 캡차/보안확인이 노출되었습니다.")
                 captcha_png = save_stage_screenshot(device_id, "captcha_blocked_shop", task.task_id, output_dir)
@@ -337,6 +393,20 @@ async def execute_shopping_stage(
                         "captcha_details": captcha_details,
                         "screenshot": captcha_png
                     })
+                record_search_block(
+                    stage="SHOP_TAB",
+                    block_type="CAPTCHA_BLOCKED",
+                    block_message="쇼핑탭 결과 화면에서 네이버 영수증 캡차(보안 확인) 발생",
+                    device_id=device_id,
+                    task_id=task.task_id,
+                    keyword=task.keyword,
+                    nv_mid=task.nv_mid,
+                    store_name=task.store_name,
+                    public_ip=getattr(task, "ip", "") or getattr(result, "ip", ""),
+                    url=captcha_details.get("url", ""),
+                    screenshot_path=captcha_png,
+                    extra_details=captcha_details
+                )
                 return {
                     "success": False,
                     "status": "CAPTCHA_BLOCKED",

@@ -30,6 +30,7 @@ from src.pipeline.utils.serp_parser import check_serp_paged_slot
 from src.pipeline.utils.cdp_touch import cdp_real_touch, save_stage_screenshot
 from src.pipeline.utils.dom_stabilizer import wait_for_element_settled
 from src.device.adb_controller import fast_check_native_login_or_captcha
+from src.monitor.search_block_auditor import record_search_block
 
 logger = logging.getLogger("ConveyorExecutor")
 
@@ -66,10 +67,24 @@ async def execute_serp_stage(
         is_blocked, blk_type, reason = fast_check_native_login_or_captcha(device_id)
         if is_blocked:
             logger.warning(f"🚨 [통합검색 검증 중 네이티브 {blk_type} 감지] {reason}")
+            ss_path = None
             try:
-                save_stage_screenshot(device_id, blk_type.lower(), task.task_id, output_dir)
+                ss_path = save_stage_screenshot(device_id, blk_type.lower(), task.task_id, output_dir)
             except Exception:
                 pass
+            record_search_block(
+                stage="SERP_NATIVE",
+                block_type=blk_type,
+                block_message=reason or blk_type,
+                device_id=device_id,
+                task_id=task.task_id,
+                keyword=task.keyword,
+                nv_mid=task.nv_mid,
+                store_name=task.store_name,
+                public_ip=getattr(task, "ip", "") or getattr(result, "ip", ""),
+                url="",
+                screenshot_path=ss_path
+            )
             return {
                 "status": blk_type,
                 "hit_on_serp": False,
@@ -86,6 +101,36 @@ async def execute_serp_stage(
                     await cdp.evaluate("window.scrollBy(0, 600);")
                 except Exception:
                     pass
+
+        # [Fast-Fail 0] 통합검색/쇼핑 접속 제한(FDS IP 차단) 감지 -> 즉시 Discard
+        if initial_check.get("is_access_blocked"):
+            err_msg = initial_check.get("error_message") or "통합검색 접속이 일시적으로 제한되었습니다"
+            logger.critical(f"🛑 [통합검색 접속 제한 감지] {err_msg} -> 즉시 Discard")
+            ss_path = None
+            try:
+                ss_path = save_stage_screenshot(device_id, "serp_access_blocked", task.task_id, output_dir)
+            except Exception:
+                pass
+            record_search_block(
+                stage="SERP",
+                block_type="SERP_ACCESS_BLOCKED",
+                block_message=err_msg,
+                device_id=device_id,
+                task_id=task.task_id,
+                keyword=task.keyword,
+                nv_mid=task.nv_mid,
+                store_name=task.store_name,
+                public_ip=getattr(task, "ip", "") or getattr(result, "ip", ""),
+                url="",
+                screenshot_path=ss_path
+            )
+            return {
+                "status": "SERP_ACCESS_BLOCKED",
+                "hit_on_serp": False,
+                "is_catalog": False,
+                "error_message": err_msg
+            }
+
         if initial_check.get("is_network_error"):
             logger.warning(f"🌐 [통합검색 네트워크 단절 감지] {initial_check.get('error_message')}")
             if wait_iter == serp_wait_steps - 1:
