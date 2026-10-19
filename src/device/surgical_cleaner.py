@@ -75,11 +75,15 @@ def clean_session_residues(device_id: str = DEFAULT_DEVICE_ID):
         f"rm -rf /data/data/{pkg}/app_webview/Default/blob_storage/*; "
         f"rm -f /data/data/{pkg}/app_webview/Default/Network\\ Persistent\\ State; "
         f"rm -f /data/data/{pkg}/app_webview/Default/Cookies-journal /data/data/{pkg}/app_webview/Default/Cookies-wal /data/data/{pkg}/app_webview/Default/Cookies-shm; "
-        # 2. 로컬 검색 히스토리 및 오프라인 비콘 큐 삭제 (이전 검색어 누출 방지)
+        # 2. 로컬 검색 히스토리 및 오프라인 비콘 큐, 미디어 캐시 DB 삭제
         f"rm -f /data/data/{pkg}/databases/search.db*; "
         f"rm -f /data/data/{pkg}/databases/ntracker_log_v2_*.db*; "
         f"rm -f /data/data/{pkg}/databases/nelologdata*; "
-        # 3. 이전 방문 도메인 및 트래커 식별자 삭제
+        f"rm -f /data/data/{pkg}/databases/exoplayer_internal.db*; "
+        # 3. 이전 방문 세션, 탭 상태, 검색 로그 세션(slSessionId), 트래커 식별자 핀셋 삭제
+        f"rm -f /data/data/{pkg}/shared_prefs/com.nhn.android.search_preferences.xml; "
+        f"rm -f /data/data/{pkg}/shared_prefs/OPENPAGE_TAB.xml; "
+        f"rm -f /data/data/{pkg}/shared_prefs/inappshoppingstorage.xml; "
         f"rm -f /data/data/{pkg}/shared_prefs/inappwebview.xml; "
         f"rm -f /data/data/{pkg}/shared_prefs/appsflyer-data.xml; "
         f"rm -f /data/data/{pkg}/shared_prefs/XWhaleOriginVisitLoggerPrefs.xml; "
@@ -87,6 +91,8 @@ def clean_session_residues(device_id: str = DEFAULT_DEVICE_ID):
         f"rm -f /data/data/{pkg}/shared_prefs/NaverLoginPreferenceData.xml; "
         f"rm -f /data/data/{pkg}/shared_prefs/NidEncryptedSharedPreferencesData.xml; "
         f"rm -rf /data/data/{pkg}/files/AFRequestCache/*; "
+        f"rm -rf /data/data/{pkg}/files/datastore/*; "
+        f"rm -f /data/data/{pkg}/files/rList; "
         # 4. Nelo / NTracker / GFP 로컬 캐시 및 잔여 식별자 파일 핀셋 삭제 (NeloInstallID, init_ts 고정 누출 방지)
         f"rm -rf /data/data/{pkg}/files/nelo_proj_data; "
         f"rm -f /data/data/{pkg}/files/nelo2_install.id; "
@@ -178,6 +184,100 @@ def upsert_cookie(
         )
     )
 
+def write_pristine_null_xml(
+    device_id: str = DEFAULT_DEVICE_ID,
+    aged_nnb: str = "",
+    fresh_lat: Optional[float] = None,
+    fresh_lng: Optional[float] = None,
+    accuracy: float = 4.2
+) -> None:
+    """
+    null.xml을 완전 무결한 표준 상태로 재작성:
+    - 2,400+ 누적된 keyNativeHomeStockExposureIndex, log.viewCntIdpw(로그인 챌린지 잔재 플래그) 영구 소멸
+    - 온보딩 튜토리얼 팝업 및 위치 권한 동의 플래그 100% 보존
+    - 최신 aged_nnb 및 실측 위도/경도/시간 타임스탬프 동기화
+    """
+    import random
+    pkg = NAVER_APP_PACKAGE
+    now_ms = int(time.time() * 1000)
+    lat_val = fresh_lat if fresh_lat is not None else 37.566535
+    lng_val = fresh_lng if fresh_lng is not None else 126.977969
+    lat_str = f"{lat_val:.6f}"
+    lng_str = f"{lng_val:.6f}"
+    stock_idx = random.randint(3, 12)
+
+    clean_xml = f"""<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+<map>
+    <boolean name="keyBridgeLinkInAppToolbar" value="true" />
+    <boolean name="keyUniverseTutorialComplete" value="true" />
+    <string name="keyNativeHomeAreaCode">home</string>
+    <boolean name="keySecureScreenShot" value="true" />
+    <boolean name="keyRequireSendFontState" value="false" />
+    <boolean name="hasSendVisitSiteCountNelo" value="true" />
+    <int name="keyRefreshInterval" value="600" />
+    <string name="keyGlobalAbTest">{{&quot;abtInfos&quot;:[],&quot;adCustomParam&quot;:&quot;&quot;,&quot;clipCustomParam&quot;:&quot;&quot;}}</string>
+    <float name="lastLocationAccuracy" value="{accuracy:.1f}" />
+    <long name="keySearchHomeServiceCachedTime" value="{now_ms}" />
+    <boolean name="keyNextTutorialComplete" value="true" />
+    <boolean name="keyLocationUserAgreementAccepted" value="true" />
+    <boolean name="keyLocationAgree" value="true" />
+    <string name="lastLocationLongitude">{lng_str}</string>
+    <string name="lastLocationLongtitude">{lng_str}</string>
+    <string name="lastLocationLatitude">{lat_str}</string>
+    <long name="lastLocationTime" value="{now_ms}" />
+    <long name="keyMLocTimestamp" value="{now_ms}" />
+    <boolean name="keyShowNewMainTutorial" value="false" />
+    <boolean name="keyDtsStandAlone" value="true" />
+    <boolean name="keyTutorialLocProcessed" value="true" />
+    <string name="KeyPrevNClicks">nappexe.cnt</string>
+    <string name="KeyLastNClicks">nappexe.cnt</string>
+    <boolean name="keyDarkTutorialComplete" value="true" />
+    <boolean name="windowPopupBlock" value="true" />
+    <boolean name="keyXWhaleMigrated" value="true" />
+    <boolean name="keyNewmainTutorialComplete" value="true" />
+    <boolean name="keyFirstRun" value="false" />
+    <string name="keyLastNNB">{aged_nnb}</string>
+    <boolean name="keyShouldShowPayRedDotAtFirst" value="false" />
+    <boolean name="keyNaverWebEngineV2" value="true" />
+    <int name="keyCurrentInstallVersion" value="12238101" />
+    <int name="keyFirstInstallVersionCode" value="12238101" />
+    <int name="keyNativeHomeStockExposureIndex" value="{stock_idx}" />
+    <string name="keyCustomFontPath">/data/user/0/{pkg}/files/fonts/Roboto-Regular.ttf</string>
+    <string name="keyWebUserAgent">Mozilla/5.0 (Linux; Android 13; SM-F711N Build/TP1A.220624.014; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/140.0.0.0 Whale/1.0.0.0 Crosswalk/30.140.0.10 Mobile Safari/537.36 NAVER(inapp; search; 2100; 12.23.81)</string>
+    <boolean name="keyLocalSiteMigrated" value="true" />
+    <boolean name="keyBridgeLinkViewer" value="true" />
+    <boolean name="keyUniverseMigrationFinished" value="true" />
+    <boolean name="keyNotificationQuery" value="true" />
+    <boolean name="keyDtsOn" value="false" />
+    <boolean name="useOpenTabThumbnail" value="true" />
+    <int name="keyResetInterval" value="900" />
+    <boolean name="keyBridgeLinkMusic" value="true" />
+    <int name="keyHistoryDbVersion" value="1" />
+    <boolean name="keyMyTabMigrationFinished" value="true" />
+    <boolean name="keyMigrateInAppStrorage" value="true" />
+    <boolean name="keyWebEngineBuiltInV10" value="true" />
+</map>
+"""
+    local_tmp_null = Path(f"/tmp/macro_v1_null_{device_id}.xml")
+    tmp_device_null = f"/data/local/tmp/macro_v1_null_{device_id}.xml"
+    with open(local_tmp_null, "w", encoding="utf-8") as f:
+        f.write(clean_xml)
+
+    subprocess.run(["adb", "-s", device_id, "push", str(local_tmp_null), tmp_device_null], check=True, capture_output=True)
+    null_xml_path = f"/data/data/{pkg}/shared_prefs/null.xml"
+    push_cmd = (
+        f"su -c '"
+        f"cp {tmp_device_null} {null_xml_path}; "
+        f"APP_UID=$(stat -c %u /data/data/{pkg}); "
+        f"chown $APP_UID:$APP_UID {null_xml_path}; "
+        f"chmod 660 {null_xml_path}; "
+        f"rm -f {tmp_device_null}; "
+        f"'"
+    )
+    run_adb_shell(device_id, push_cmd)
+    if local_tmp_null.exists():
+        local_tmp_null.unlink()
+
 def inject_clean_cookies_and_identity(
     device_id: str,
     aged_nnb: str,
@@ -264,20 +364,13 @@ def inject_clean_cookies_and_identity(
     )
     run_adb_shell(device_id, push_cmd)
 
-    # 5. null.xml keyLastNNB 동기화 및 위치 정보 약관/좌표 동기화 + 온보딩 튜토리얼 팝업 영구 억제
-    null_xml_path = f"/data/data/{pkg}/shared_prefs/null.xml"
-    run_adb_shell(device_id, f"su -c 'sed -i \"s/keyLastNNB\\\">.*<\\/string>/keyLastNNB\\\">{aged_nnb}<\\/string>/\" {null_xml_path}'")
-    run_adb_shell(device_id, f"su -c 'sed -i \"s/keyLocationAgree\\\" value=\\\"false\\\"/keyLocationAgree\\\" value=\\\"true\\\"/\" {null_xml_path}'")
-    run_adb_shell(device_id, f"su -c 'grep -q keyLocationUserAgreementAccepted {null_xml_path} || sed -i \"s/<\\/map>/    <boolean name=\\\"keyLocationUserAgreementAccepted\\\" value=\\\"true\\\" \\/>\\n<\\/map>/\" {null_xml_path}'")
-    # 온보딩 코치마크 및 튜토리얼 팝업 방지
-    run_adb_shell(device_id, f"su -c 'grep -q keyShowNewMainTutorial {null_xml_path} && sed -i \"s/keyShowNewMainTutorial\\\" value=\\\"[^\"]*\\\"/keyShowNewMainTutorial\\\" value=\\\"false\\\"/\" {null_xml_path} || sed -i \"s/<\\/map>/    <boolean name=\\\"keyShowNewMainTutorial\\\" value=\\\"false\\\" \\/>\\n<\\/map>/\" {null_xml_path}'")
-    run_adb_shell(device_id, f"su -c 'grep -q keyNewmainTutorialComplete {null_xml_path} && sed -i \"s/keyNewmainTutorialComplete\\\" value=\\\"[^\"]*\\\"/keyNewmainTutorialComplete\\\" value=\\\"true\\\"/\" {null_xml_path} || sed -i \"s/<\\/map>/    <boolean name=\\\"keyNewmainTutorialComplete\\\" value=\\\"true\\\" \\/>\\n<\\/map>/\" {null_xml_path}'")
-    run_adb_shell(device_id, f"su -c 'grep -q keyNextTutorialComplete {null_xml_path} && sed -i \"s/keyNextTutorialComplete\\\" value=\\\"[^\"]*\\\"/keyNextTutorialComplete\\\" value=\\\"true\\\"/\" {null_xml_path} || sed -i \"s/<\\/map>/    <boolean name=\\\"keyNextTutorialComplete\\\" value=\\\"true\\\" \\/>\\n<\\/map>/\" {null_xml_path}'")
-    run_adb_shell(device_id, f"su -c 'grep -q keyDarkTutorialComplete {null_xml_path} && sed -i \"s/keyDarkTutorialComplete\\\" value=\\\"[^\"]*\\\"/keyDarkTutorialComplete\\\" value=\\\"true\\\"/\" {null_xml_path} || sed -i \"s/<\\/map>/    <boolean name=\\\"keyDarkTutorialComplete\\\" value=\\\"true\\\" \\/>\\n<\\/map>/\" {null_xml_path}'")
-    if fresh_lat and fresh_lng:
-        run_adb_shell(device_id, f"su -c 'grep -q lastLocationLatitude {null_xml_path} && sed -i \"s/lastLocationLatitude\\\">.*<\\/string>/lastLocationLatitude\\\">{fresh_lat}<\\/string>/\" {null_xml_path} || sed -i \"s/<\\/map>/    <string name=\\\"lastLocationLatitude\\\">{fresh_lat}<\\/string>\\n<\\/map>/\" {null_xml_path}'")
-        run_adb_shell(device_id, f"su -c 'grep -q lastLocationLongtitude {null_xml_path} && sed -i \"s/lastLocationLongtitude\\\">.*<\\/string>/lastLocationLongtitude\\\">{fresh_lng}<\\/string>/\" {null_xml_path} || sed -i \"s/<\\/map>/    <string name=\\\"lastLocationLongtitude\\\">{fresh_lng}<\\/string>\\n<\\/map>/\" {null_xml_path}'")
-        run_adb_shell(device_id, f"su -c 'grep -q lastLocationLongitude {null_xml_path} && sed -i \"s/lastLocationLongitude\\\">.*<\\/string>/lastLocationLongitude\\\">{fresh_lng}<\\/string>/\" {null_xml_path} || sed -i \"s/<\\/map>/    <string name=\\\"lastLocationLongitude\\\">{fresh_lng}<\\/string>\\n<\\/map>/\" {null_xml_path}'")
+    # 5. null.xml 완전 무결한 표준 템플릿 재작성 (누적된 카운터/로그인 플래그 영구 제거 + NNB/좌표/온보딩 동기화)
+    write_pristine_null_xml(
+        device_id=device_id,
+        aged_nnb=aged_nnb,
+        fresh_lat=fresh_lat,
+        fresh_lng=fresh_lng
+    )
 
     # 6. GMS ADID 동기화 (GMS 프로세스 메모리 캐시 역덮어쓰기 원천 차단)
     if fresh_dadd:

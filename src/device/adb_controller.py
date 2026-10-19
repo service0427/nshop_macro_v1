@@ -56,7 +56,7 @@ def reset_pm_clear(device_id: str = DEFAULT_DEVICE_ID):
         f"<map>\n"
         f"    <boolean name=\"keyUniverseTutorialComplete\" value=\"true\" />\n"
         f"    <boolean name=\"keyNextTutorialComplete\" value=\"true\" />\n"
-        f"    <boolean name=\"keyShowNewMainTutorial\" value=\"true\" />\n"
+        f"    <boolean name=\"keyShowNewMainTutorial\" value=\"false\" />\n"
         f"    <boolean name=\"keyDarkTutorialComplete\" value=\"true\" />\n"
         f"    <boolean name=\"keyNewmainTutorialComplete\" value=\"true\" />\n"
         f"    <boolean name=\"keyFirstRun\" value=\"false\" />\n"
