@@ -40,85 +40,81 @@ EXTERNAL_SITES = [
 
 class TaskServiceV2:
     @staticmethod
-    def extract_title_chunks(base_kw: str, real_title: str) -> List[str]:
+    def extract_title_chunks(base_kw: str, real_title: str, max_chunks: int = 10) -> List[str]:
         """
-        [실물 제목 기반 5개 마디 키워드 추출 (SSOT)]
+        [실물 제목 기반 최대 10개 마디 키워드 추출 (SSOT)]
         - '추천', '인기' 등 없는 말 절대 배제
-        - [1순위] 메인 키워드 (base_kw 또는 원천 헤드 2단어): 순위 모니터링용
-        - [2~5순위] 실물 제목에서 마디로 구분된 2~3단어 슬라이스 (롤링용)
+        - [1순위] 메인 키워드 (base_kw 또는 원천 헤드 2단어): 순위 모니터링 기준점
+        - [2~10순위] 실물 제목에서 마디로 구분된 2~3단어 슬라이스 및 유효 조합 (롤링용)
         - 100% 제목에 존재하는 실제 단어들로만 구성
         """
         clean_title = re.sub(r'\[.*?\]|\(.*?\)|【.*?】|<.*?>', ' ', real_title or base_kw or '')
         clean_title = re.sub(r'[★▲◆!~#%&*+/:;,?=_\-]', ' ', clean_title)
-        tokens = [t.strip() for t in clean_title.split() if len(t.strip()) >= 2]
+        tokens = [t.strip() for t in clean_title.split() if len(t.strip()) >= 2 and not t.isdigit()]
 
         candidates = []
-        # 1. 메인 키워드 (순위 확인용): base_kw가 유효하고 4단어 이하이면 사용, 아니면 제목 앞 2단어
+        # 1. 메인 키워드 (순위 확인용 기준점)
         main_kw = (base_kw or '').strip()
         if not main_kw or len(main_kw.split()) > 4:
             main_kw = ' '.join(tokens[:2]) if len(tokens) >= 2 else (tokens[0] if tokens else '')
         if main_kw:
             candidates.append(main_kw)
 
-        # 2. 앞 마디 (롱테일)
-        if len(tokens) >= 3:
-            candidates.append(' '.join(tokens[:3]))
-        elif len(tokens) >= 2:
-            candidates.append(' '.join(tokens[:2]))
+        # 2. 앞 마디 슬라이스
+        if len(tokens) >= 2: candidates.append(' '.join(tokens[:2]))
+        if len(tokens) >= 3: candidates.append(' '.join(tokens[:3]))
+        # 3. 중간 마디 슬라이스
+        if len(tokens) >= 4: candidates.append(' '.join(tokens[1:3]))
+        if len(tokens) >= 5: candidates.append(' '.join(tokens[2:4]))
+        if len(tokens) >= 4: candidates.append(' '.join(tokens[1:4]))
+        # 4. 건너뛰기 2단어 조합
+        if len(tokens) >= 3: candidates.append(f'{tokens[0]} {tokens[2]}')
+        if len(tokens) >= 3: candidates.append(f'{tokens[0]} {tokens[-1]}')
+        if len(tokens) >= 4: candidates.append(f'{tokens[1]} {tokens[-1]}')
+        # 5. 후반 마디 슬라이스
+        if len(tokens) >= 2: candidates.append(' '.join(tokens[-2:]))
 
-        # 3. 중간 마디 1
-        if len(tokens) >= 4:
-            candidates.append(' '.join(tokens[1:3]))
-        elif len(tokens) >= 3:
-            candidates.append(' '.join(tokens[1:3]))
-
-        # 4. 중간 마디 2
-        if len(tokens) >= 5:
-            candidates.append(' '.join(tokens[2:4]))
-        elif len(tokens) >= 4:
-            candidates.append(' '.join(tokens[2:4]))
-
-        # 5. 후반 마디
-        if len(tokens) >= 6:
-            candidates.append(' '.join(tokens[3:5]))
-        elif len(tokens) >= 3:
-            candidates.append(tokens[0] + ' ' + tokens[-1])
-
-        # 유니크 필터링
         unique = []
         for c in candidates:
             c_str = c.strip()
             if c_str and c_str not in unique:
                 unique.append(c_str)
 
-        # 5개 미만인 경우 남은 단어 조합으로 5개 채움
-        if len(unique) < 5 and len(tokens) >= 2:
+        # 10개 미만인 경우 남은 단어 조합으로 10개 채움
+        if len(unique) < max_chunks and len(tokens) >= 2:
             for i in range(len(tokens)):
-                for j in range(i + 1, min(i + 3, len(tokens))):
+                for j in range(i + 1, len(tokens)):
                     comb = f'{tokens[i]} {tokens[j]}'
                     if comb not in unique:
                         unique.append(comb)
-                    if len(unique) >= 5:
+                    if len(unique) >= max_chunks:
                         break
-                if len(unique) >= 5:
+                if len(unique) >= max_chunks:
                     break
 
-        return unique[:5] if unique else [base_kw or '상품']
+        return unique[:max_chunks] if unique else [base_kw or '상품']
 
     @staticmethod
-    def refresh_all_product_keywords() -> Dict[str, Any]:
+    def refresh_all_product_keywords(chunks_per_prod: int = 10) -> Dict[str, Any]:
         """
-        [전체 활성 상품 키워드 풀 마디 분할 5개 롤링 재생성]
+        [전체 활성 상품 키워드 풀 마디 분할 10개 롤링 재생성]
         - '추천' 등 인위적 단어 전면 제거
-        - 실물 제목(product_name)을 마디로 구분하여 5개 순수 조합 생성
-        - 1순위: 메인 키워드 (주기적 순위 확인용, 가중치 30%)
-        - 2~5순위: 제목 내 실물 2~3단어 마디 슬라이스 (롤링용, 가중치 25/20/15/10)
+        - 실물 제목(product_name) 및 원본 base_keyword로부터 10개 순수 조합 생성
+        - 1순위: 메인 키워드 (주기적 순위 확인용, 가중치 15%)
+        - 2~10순위: 제목 내 실물 2~3단어 마디 슬라이스 (롤링용, 균등 분산 가중치)
         """
+        ratios_10 = [15, 12, 11, 10, 10, 9, 9, 8, 8, 8]
         with get_db_cursor(commit=True) as (cur, conn):
             cur.execute("""
-                SELECT nv_mid, store_name, product_name
-                FROM target_products
-                WHERE is_active = 1
+                SELECT p.nv_mid, p.store_name, p.product_name, COALESCE(s.base_keyword, p.product_name) as base_kw
+                FROM target_products p
+                LEFT JOIN (
+                    SELECT nv_mid, MIN(base_keyword) as base_keyword
+                    FROM external_slots
+                    WHERE is_active = 1
+                    GROUP BY nv_mid
+                ) s ON p.nv_mid = s.nv_mid
+                WHERE p.is_active = 1
             """)
             prods = cur.fetchall()
 
@@ -126,15 +122,15 @@ class TaskServiceV2:
             cur.execute("DELETE FROM product_keyword_pool")
 
             total_keywords = 0
-            ratios = [30, 25, 20, 15, 10]
 
             for p in prods:
                 mid = str(p["nv_mid"]).strip()
                 p_title = str(p.get("product_name") or "").strip()
-                chunks = TaskServiceV2.extract_title_chunks(p_title, p_title)
+                base_kw = str(p.get("base_kw") or "").strip()
+                chunks = TaskServiceV2.extract_title_chunks(base_kw, p_title, max_chunks=chunks_per_prod)
 
                 for p_rank, kw in enumerate(chunks, start=1):
-                    ratio = ratios[p_rank - 1] if p_rank <= len(ratios) else 10
+                    ratio = ratios_10[p_rank - 1] if p_rank <= len(ratios_10) else 10
                     cur.execute("""
                         INSERT INTO product_keyword_pool (
                             nv_mid, keyword, priority_rank, traffic_ratio, is_exposed
@@ -146,7 +142,7 @@ class TaskServiceV2:
                     """, (mid, kw, p_rank, ratio))
                     total_keywords += 1
 
-            sample_chunks = TaskServiceV2.extract_title_chunks(prods[0]["product_name"], prods[0]["product_name"]) if prods else []
+            sample_chunks = TaskServiceV2.extract_title_chunks(prods[0]["base_kw"], prods[0]["product_name"], max_chunks=chunks_per_prod) if prods else []
             return {
                 "success": True,
                 "refreshed_products": len(prods),
@@ -155,7 +151,7 @@ class TaskServiceV2:
                     "product_name": prods[0]["product_name"] if prods else "",
                     "chunks": sample_chunks
                 },
-                "message": f"총 {len(prods)}개 상품에 대해 100% 제목 실물 마디 키워드 {total_keywords}개 재생성 완료 (추천/허위 단어 0건)"
+                "message": f"총 {len(prods)}개 상품에 대해 100% 실물 마디 키워드 {total_keywords}개 재생성 완료 (추천/허위 단어 0건, 상품당 최대 {chunks_per_prod}개 롤링 풀)"
             }
 
     @staticmethod
