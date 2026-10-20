@@ -25,8 +25,8 @@ if [ -n "$RUNNING_PID" ]; then
     sleep 3
 fi
 
-# 2. 마스터 러너 백그라운드 기동 (100타 상한, LTE 동글 모드, 10회 주기 리포트)
-nohup python3 -u run.py --net-mode lte --eval-interval 10 --max-hits-per-item 100 >> "${LOG_DIR}/run_master_${TODAY}.log" 2>&1 &
+# 2. 마스터 러너 백그라운드 기동 (100타 상한, 10대 축소 모드, LTE 동글 모드, 10회 주기 리포트)
+nohup python3 -u run.py --net-mode lte --count 10 --eval-interval 10 --max-hits-per-item 100 >> "${LOG_DIR}/run_master_${TODAY}.log" 2>&1 &
 NEW_PID=$!
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✅ [기동 완료] PID: ${NEW_PID} 로 run.py 기동 (로그: logs/run_master_${TODAY}.log)" >> "${LOG_DIR}/scheduler.log"
