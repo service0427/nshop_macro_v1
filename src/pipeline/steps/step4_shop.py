@@ -926,8 +926,13 @@ async def execute_shopping_stage(
         target_selector_expr='[data-macro-target="shopping_target_card"]',
         max_retries=3,
         interval_sec=1.0,
-        tolerance_px=2.0,
-        action_label="PRODUCT_CARD"
+        tolerance_px=0.0,
+        action_label="PRODUCT_CARD",
+        device_id=device_id,
+        task_id=task.task_id,
+        keyword=task.keyword,
+        nv_mid=task.nv_mid,
+        store_name=task.store_name
     )
     if not stabilize_card.get("success"):
         logger.error(f"❌ [쇼핑탭 타겟 정착 실패] 사유: {stabilize_card.get('error')}")

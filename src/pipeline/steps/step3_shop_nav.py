@@ -275,8 +275,13 @@ async def execute_shop_navigation(
         target_selector_expr='[data-macro-target="shop_more_btn"]',
         max_retries=3,
         interval_sec=1.0,
-        tolerance_px=2.0,
-        action_label="SHOPPING_MORE_BTN"
+        tolerance_px=0.0,
+        action_label="SHOPPING_MORE_BTN",
+        device_id=device_id,
+        task_id=task.task_id,
+        keyword=task.keyword,
+        nv_mid=task.nv_mid,
+        store_name=task.store_name
     )
 
     if not stabilize_res.get("success"):
@@ -346,8 +351,13 @@ async def execute_shop_navigation(
                 target_selector_expr='[data-macro-target="shop_more_btn"]',
                 max_retries=2,
                 interval_sec=1.0,
-                tolerance_px=2.0,
-                action_label="SHOPPING_MORE_RETRY"
+                tolerance_px=0.0,
+                action_label="SHOPPING_MORE_RETRY",
+                device_id=device_id,
+                task_id=task.task_id,
+                keyword=task.keyword,
+                nv_mid=task.nv_mid,
+                store_name=task.store_name
             )
             if retry_settle.get("success"):
                 rx = retry_settle["x"]

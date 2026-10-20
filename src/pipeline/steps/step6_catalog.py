@@ -439,8 +439,13 @@ async def execute_catalog_stage(
         target_selector_expr='[data-macro-target="catalog_target_seller"]',
         max_retries=3,
         interval_sec=1.0,
-        tolerance_px=2.0,
-        action_label="CATALOG_SELLER"
+        tolerance_px=0.0,
+        action_label="CATALOG_SELLER",
+        device_id=device_id,
+        task_id=task.task_id,
+        keyword=task.keyword,
+        nv_mid=task.nv_mid,
+        store_name=task.store_name
     )
     if not stabilize_res.get("success"):
         logger.error(f"❌ [카탈로그 판매처 정착 실패] 사유: {stabilize_res.get('error')}")
