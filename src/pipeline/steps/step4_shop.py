@@ -296,6 +296,7 @@ async def execute_shopping_stage(
     """
 
     next_data_steps = max(1, int(TIMINGS.SHOP_NEXT_DATA_MAX_WAIT / TIMINGS.SHOP_NEXT_DATA_POLL_INTERVAL))
+    chk_res = None
     for wait_iter in range(next_data_steps):  # __NEXT_DATA__ 적응형 완충 대기
         await asyncio.sleep(TIMINGS.SHOP_NEXT_DATA_POLL_INTERVAL)
         # 네이티브 로그인/캡차 즉시 감지 (Fast-Fail: ADB 경합 완화를 위해 6회(1.8초)마다 1회 점검)

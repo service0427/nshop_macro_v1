@@ -28,7 +28,7 @@ MAX_SESSION_AGE_SECONDS: int = 1200  # 20분 세션 수명
 def fetch_remote_nnb(
     device_id: Optional[str] = None,
     api_url: str = DEFAULT_REMOTE_URL,
-    timeout: float = 3.0
+    timeout: float = 10.0
 ) -> Optional[Dict[str, Any]]:
     """
     Fetch aged NNB and BUC packet from remote assign server (/api/v1/nnb/assign).

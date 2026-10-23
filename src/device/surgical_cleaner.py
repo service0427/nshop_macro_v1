@@ -22,29 +22,88 @@ from typing import Tuple, Optional, Dict, Any
 from config.settings import NAVER_APP_PACKAGE, DEFAULT_DEVICE_ID
 from src.device.adb_controller import run_adb_shell, force_stop_app, force_stop_gms, update_gms_adid, reset_pm_clear
 
+import logging
+
+logger = logging.getLogger("SurgicalCleaner")
+
 def is_device_initialized(device_id: str = DEFAULT_DEVICE_ID) -> bool:
-    """단말기에 Cookies DB 및 기본 캐시 구조가 존재하는지 확인"""
+    """단말기에 Cookies DB 및 기본 캐시 구조가 온전히 존재하는지 확인 (최소 4KB 이상 및 null.xml 존재)"""
     pkg = NAVER_APP_PACKAGE
-    chk = run_adb_shell(device_id, f"su -c '[ -s /data/data/{pkg}/app_xwhale/Default/Cookies ] && echo 1 || echo 0'")
+    cmd = (
+        f"su -c '"
+        f"[ -f /data/data/{pkg}/app_xwhale/Default/Cookies ] && "
+        f"[ $(wc -c < /data/data/{pkg}/app_xwhale/Default/Cookies 2>/dev/null || echo 0) -gt 4096 ] && "
+        f"[ -f /data/data/{pkg}/shared_prefs/null.xml ] && echo 1 || echo 0'"
+    )
+    chk = run_adb_shell(device_id, cmd)
     return chk.strip() == "1"
 
-def initialize_baseline(device_id: str = DEFAULT_DEVICE_ID, cdp_port: int = 9905):
+def initialize_baseline(device_id: str = DEFAULT_DEVICE_ID, cdp_port: int = 9905, timeout: float = 8.0) -> bool:
     """
-    최초 기동 시 또는 DB가 완전히 없을 때 1회성으로 baseline 골격 형성
+    [안전장치] 최초 기동 시 또는 기본 구성 미비 감지 시 1회성 '앱 열고 닫기'로 골격 및 Cookies DB 구축
+    - pm clear 완전 배제 (V8 code_cache, HTTP static asset cache 100% 보존)
+    - 1) 온보딩/위치동의 null.xml 사전 주입 (팝업 방지)
+    - 2) 네이버 앱(m.naver.com) 1회 기동으로 XWhale/Blink 엔진 및 Cookies DB 자동 형성
+    - 3) 단말기에서 발급된 순정 NNB/BUC를 로컬 풀(nnb_pool.json)에 자동 저금(Bank)
+    - 4) 앱 안전 종료 (force-stop) 및 100% 기본구성 안착 검증
     """
     pkg = NAVER_APP_PACKAGE
-    print(f"⚙️ [최초 초기화] 단말기({device_id})에 baseline 캐시 및 DB 구조 1회 형성 중...")
-    reset_pm_clear(device_id)
-    # 가벼운 메인홈 1회 오픈하여 DB 및 캐시 골격 형성
+    logger.info(f"⚙️ [베이스라인 안전장치] 단말기({device_id}) 기본 구성 미비 감지 -> 1회성 '앱 열고 닫기' 골격 형성 시작...")
+
+    # 0. 필수 런타임 권한 및 AppOps 사전 부여 (OS 팝업 원천 차단)
+    for perm in [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.POST_NOTIFICATIONS"
+    ]:
+        run_adb_shell(device_id, f"pm grant {pkg} {perm} 2>/dev/null")
+    run_adb_shell(device_id, f"cmd appops set {pkg} android:mock_location deny 2>/dev/null")
+    run_adb_shell(device_id, f"cmd appops set {pkg} FINE_LOCATION allow 2>/dev/null")
+    run_adb_shell(device_id, f"cmd appops set {pkg} COARSE_LOCATION allow 2>/dev/null")
+
+    # 1. 팝업 방지용 null.xml 사전 배치
+    try:
+        write_pristine_null_xml(device_id)
+    except Exception as e:
+        logger.warning(f"⚠️ [{device_id}] null.xml 사전 주입 예외: {e}")
+
+    # 2. pm clear 없이 순수하게 가벼운 메인홈 1회 오픈
+    force_stop_app(device_id, max_wait=2.0)
+    time.sleep(0.2)
     run_adb_shell(device_id, f"am start -a android.intent.action.VIEW -d 'https://m.naver.com' -p {pkg} -f 0x14000000")
-    for _ in range(25):
-        time.sleep(0.2)
+
+    # 3. Cookies DB 디스크 생성 폴링
+    t0 = time.time()
+    initialized = False
+    while time.time() - t0 < timeout:
+        time.sleep(0.3)
         if is_device_initialized(device_id):
-            time.sleep(0.3)  # SQLite 디스크 쓰기 완료 완충
+            time.sleep(0.5)  # 디스크 WAL flush 및 SQLite commit 완충
+            initialized = True
             break
-    force_stop_app(device_id)
+
+    # 4. 앱 안전 종료
+    force_stop_app(device_id, max_wait=3.0)
     time.sleep(0.3)
-    print(f"✅ [최초 초기화 완료] 단말기({device_id}) baseline 캐시 준비 완료")
+
+    # 5. 로컬 NNB 풀 보충 (단말기에서 발급된 순정 NNB/BUC 자동 채굴)
+    try:
+        from src.core.nnb_harvester import harvest_single_packet, bank_newborn_nnb, load_pool
+        pool = load_pool()
+        if len(pool) < 10:
+            pkt = harvest_single_packet(device_id)
+            if pkt and pkt.get("nnb"):
+                bank_newborn_nnb(pkt["nnb"], pkt.get("buc", ""), source="BASELINE_WARMUP", device_id=device_id)
+                logger.info(f"📦 [{device_id}] 베이스라인 오픈/클로즈 중 정품 NNB 채굴 완료: {pkt['nnb']}")
+    except Exception as e:
+        logger.debug(f"[{device_id}] 베이스라인 NNB 저금 예외: {e}")
+
+    if initialized:
+        logger.info(f"✅ [베이스라인 구축 완료] 단말기({device_id}) XWhale/Cookies DB 기본구성 100% 안착")
+    else:
+        logger.warning(f"⚠️ [베이스라인 구축 지연] 단말기({device_id}) 기본구성 생성 대기 시간 초과 ({timeout}s)")
+
+    return initialized
 
 def clean_session_residues(device_id: str = DEFAULT_DEVICE_ID):
     """
@@ -269,8 +328,11 @@ def write_pristine_null_xml(
     null_xml_path = f"/data/data/{pkg}/shared_prefs/null.xml"
     push_cmd = (
         f"su -c '"
-        f"cp {tmp_device_null} {null_xml_path}; "
+        f"mkdir -p /data/data/{pkg}/shared_prefs; "
         f"APP_UID=$(stat -c %u /data/data/{pkg}); "
+        f"chown $APP_UID:$APP_UID /data/data/{pkg}/shared_prefs; "
+        f"chmod 771 /data/data/{pkg}/shared_prefs; "
+        f"cp {tmp_device_null} {null_xml_path}; "
         f"chown $APP_UID:$APP_UID {null_xml_path}; "
         f"chmod 660 {null_xml_path}; "
         f"rm -f {tmp_device_null}; "

@@ -131,26 +131,30 @@ def load_recent_failure_history(logs_dir: Path, net_mode: str, lookback_cycles: 
     return failure_counts, quarantined
 
 
-def load_today_product_success_counts(logs_dir: Path) -> Dict[str, int]:
-    """오늘(당일) execution_history_{today}.jsonl 로부터 MID별 누적 유효타(SUCCESS) 성공 횟수 집계"""
+def load_today_product_success_counts(logs_dir: Path) -> Tuple[Dict[str, int], Dict[Tuple[str, str], int]]:
+    """오늘(당일) execution_history_{today}.jsonl 로부터 MID별 및 (MID, keyword)별 누적 유효타(SUCCESS) 성공 횟수 집계"""
     today = time.strftime("%Y%m%d")
     hist_file = logs_dir / f"execution_history_{today}.jsonl"
     counts: Dict[str, int] = defaultdict(int)
+    kw_counts: Dict[Tuple[str, str], int] = defaultdict(int)
     if not hist_file.exists():
-        return counts
+        return counts, kw_counts
     try:
         with open(hist_file, "r", encoding="utf-8") as f:
             for line in f:
                 try:
                     d = json.loads(line)
                     mid = str(d.get("nv_mid") or "")
+                    kw = str(d.get("keyword") or "").strip()
                     if mid and mid != "None" and (d.get("status") == "SUCCESS" or d.get("success")):
                         counts[mid] += 1
+                        if kw:
+                            kw_counts[(mid, kw)] += 1
                 except Exception:
                     pass
     except Exception:
         pass
-    return counts
+    return counts, kw_counts
 
 
 class ProcessTeeStream:
@@ -459,44 +463,66 @@ def load_campaign_config(campaign_arg: Optional[str], rolling_kws_arg: Optional[
 
 def load_today_campaign_progress(logs_dir: Path, nv_mid: str, keywords: List[str], fresh: bool = False) -> Tuple[Dict[str, int], Dict[str, Any]]:
     """
-    당일 execution_history_{today}.jsonl 에서 해당 MID의 키워드별 성공 횟수 및 순위 이력 추적
-    - fresh=True: 오늘 기존 타수 카운트를 0으로 리셋하여 새로 10회씩 시작 (순위 이력은 유지)
+    당일 execution_history_{today}.jsonl 및 직전일 이력에서 해당 MID의 키워드별 성공 횟수 및 순위 이력 추적
+    - fresh=True: 오늘 기존 타수 카운트를 0으로 리셋하여 새로 시작 (순위 이력은 유지)
     """
-    today = time.strftime("%Y%m%d")
-    hist_file = logs_dir / f"execution_history_{today}.jsonl"
     counts = {kw: 0 for kw in keywords}
     rank_history = {kw: {"initial_rank": None, "latest_rank": None, "history": []} for kw in keywords}
 
-    if not hist_file.exists():
+    if fresh:
         return counts, rank_history
 
-    try:
-        with open(hist_file, "r", encoding="utf-8") as f:
-            for line in f:
-                try:
-                    d = json.loads(line)
-                    mid = str(d.get("nv_mid") or "")
-                    if mid != str(nv_mid):
-                        continue
-                    if not fresh and kw in counts and (d.get("status") == "SUCCESS" or d.get("success")):
-                        counts[kw] += 1
+    # 1. baseline 파일이 존재하면 이전 누적 타수 및 순위 이력을 우선 완벽하게 복원
+    baselines_dir = logs_dir / "baselines"
+    if baselines_dir.exists():
+        base_files = sorted(baselines_dir.glob(f"baseline_*_{nv_mid}.json"), reverse=True)
+        if base_files:
+            try:
+                with open(base_files[0], "r", encoding="utf-8") as bf:
+                    b_data = json.load(bf)
+                    r_sum = b_data.get("rank_summary", {})
+                    for kw, r_info in r_sum.items():
+                        if kw in counts:
+                            counts[kw] = len(r_info.get("history", []))
+                            rank_history[kw] = r_info
+            except Exception:
+                pass
 
-                    s_rank = d.get("serp_rank")
-                    sh_rank = d.get("shopping_rank")
-                    js_rank = d.get("js_target_rank")
-                    cur_r = s_rank or sh_rank or js_rank
-                    if kw in rank_history and cur_r is not None:
-                        rank_str = f"SERP {cur_r}위" if s_rank else f"SHOP {cur_r}위"
-                        if rank_history[kw]["initial_rank"] is None:
-                            rank_history[kw]["initial_rank"] = rank_str
-                        rank_history[kw]["latest_rank"] = rank_str
-                        rank_history[kw]["history"].append({"ts": d.get("timestamp"), "rank": rank_str})
-                except Exception:
-                    pass
-    except Exception:
-        pass
+    # 2. 당일 execution_history 파일에서 추가 발생한 타수 반영
+    today = time.strftime("%Y%m%d")
+    hist_file = logs_dir / f"execution_history_{today}.jsonl"
+    if hist_file.exists():
+        try:
+            with open(hist_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    try:
+                        d = json.loads(line)
+                        mid = str(d.get("nv_mid") or "")
+                        if mid != str(nv_mid):
+                            continue
+                        kw = str(d.get("keyword") or "").strip()
+                        if kw in counts and (d.get("status") == "SUCCESS" or d.get("success")):
+                            ts = d.get("timestamp")
+                            existing_ts = [h.get("ts") for h in rank_history.get(kw, {}).get("history", [])]
+                            if not ts or ts not in existing_ts:
+                                counts[kw] += 1
+                                s_rank = d.get("serp_rank")
+                                sh_rank = d.get("shopping_rank")
+                                js_rank = d.get("js_target_rank")
+                                cur_r = s_rank or sh_rank or js_rank
+                                if cur_r is not None:
+                                    rank_str = f"SERP {cur_r}위" if s_rank else f"SHOP {cur_r}위"
+                                    if rank_history[kw]["initial_rank"] is None:
+                                        rank_history[kw]["initial_rank"] = rank_str
+                                    rank_history[kw]["latest_rank"] = rank_str
+                                    rank_history[kw]["history"].append({"ts": ts, "rank": rank_str})
+                    except Exception:
+                        pass
+        except Exception:
+            pass
 
     return counts, rank_history
+
 
 
 def save_campaign_baseline(baselines_dir: Path, campaign_data: Dict[str, Any], rank_data: Dict[str, Any], date_str: str):
@@ -530,7 +556,8 @@ def build_cycle_tasks(
     cycle_his: Optional[str] = None,
     exclude_mids: Optional[set] = None,
     campaign_data: Optional[Dict[str, Any]] = None,
-    campaign_kw_counts: Optional[Dict[str, int]] = None
+    campaign_kw_counts: Optional[Dict[str, int]] = None,
+    kw_success_counts: Optional[Dict[Tuple[str, str], int]] = None
 ) -> List[Dict[str, Any]]:
     """
     회차별 작업 리스트 생성:
@@ -551,6 +578,47 @@ def build_cycle_tasks(
 
     # [10개 키워드 롤링 캠페인 모드 (키워드당 10타, 총 100타 상한)]
     if campaign_data:
+        # [19대 단말기 1:1 매핑 멀티 상품 캠페인 모드]
+        if "products" in campaign_data:
+            products = campaign_data.get("products", [])
+            kw_counts = campaign_kw_counts or {}
+            prepared_tasks = []
+            for idx, dev_id in enumerate(target_devices):
+                p = products[idx % len(products)]
+                mid = str(p.get("nv_mid") or "")
+                store = str(p.get("store_name") or "")
+                kws = p.get("keywords", [])
+                hits_per_kw = int(p.get("hits_per_kw") or 10)
+
+                # 해당 상품의 미완료 키워드 선별
+                active_kws = [k for k in kws if kw_counts.get((mid, k), 0) < hits_per_kw]
+                if not active_kws:
+                    active_kws = kws  # 목표 달성 시 계속 순환
+
+                # [순환 개선] 매 회차(cycle)마다 10개 키워드를 골고루 순환 탐색 (특정 1개 키워드 미노출/차단 고착 원천 방지)
+                kw_idx = (cycle - 1) % len(active_kws) if active_kws else 0
+                target_kw = active_kws[kw_idx] if active_kws else (kws[0] if kws else "")
+                td = {
+                    "task_id": 960000 + (cycle * 100) + idx,
+                    "keyword": target_kw,
+                    "nv_mid": mid,
+                    "store_name": store,
+                    "device_id": dev_id,
+                    "ip": current_ip,
+                    "nnb": None,
+                    "buc": None,
+                    "node_id": node_id_val,
+                    "ip_c_class": c_class_val,
+                    "dwell_seconds": args.dwell,
+                    "scroll_mode": getattr(args, "scroll_mode", "real_swipe"),
+                    "cycle_ymd": cycle_ymd,
+                    "cycle_his": cycle_his,
+                    "target_cycle_dur": getattr(args, "target_cycle_dur", 60.0)
+                }
+                prepared_tasks.append(td)
+            return prepared_tasks
+
+        # 단일 상품 10개 키워드 롤링 모드
         kws = campaign_data.get("keywords", [])
         mid = str(campaign_data.get("nv_mid") or "")
         store = str(campaign_data.get("store_name") or "")
@@ -662,6 +730,7 @@ def build_cycle_tasks(
             print(f"⚠️ [중앙 API 할당 통신 예외] {e}")
 
     prepared_tasks = []
+    cur_cycle_allocated_kws: Dict[Tuple[str, str], int] = defaultdict(int)
     for idx, dev_id in enumerate(target_devices):
         if dev_id in assigned_by_dev:
             td = assigned_by_dev[dev_id].copy()
@@ -683,6 +752,37 @@ def build_cycle_tasks(
         # 사용자 CLI 오버라이딩 적용 (최우선)
         if args.keyword:
             td["keyword"] = args.keyword
+        else:
+            # [키워드당 10타 상한 캡 및 후보 키워드 자동 롤링]
+            cur_mid = str(td.get("nv_mid") or "")
+            cur_kw = str(td.get("keyword") or "").strip()
+            kw_cands = td.get("keyword_candidates") or []
+
+            # 만약 할당된 키워드가 오늘 이미 10회 이상 성공(또는 이번 사이클 내 기할당)했다면, 10회 미만인 다른 후보 키워드로 자동 교체
+            kw_key = (cur_mid, cur_kw)
+            effective_hits = (kw_success_counts.get(kw_key, 0) if kw_success_counts else 0) + cur_cycle_allocated_kws[kw_key]
+            if cur_mid and cur_kw and effective_hits >= 10:
+                rolled = False
+                for cand in kw_cands:
+                    cand_kw = cand.get("keyword", "").strip() if isinstance(cand, dict) else str(cand).strip()
+                    c_key = (cur_mid, cand_kw)
+                    cand_effective_hits = (kw_success_counts.get(c_key, 0) if kw_success_counts else 0) + cur_cycle_allocated_kws[c_key]
+                    if cand_kw and cand_effective_hits < 10:
+                        orig_hits = kw_success_counts.get(kw_key, 0) if kw_success_counts else 0
+                        cand_hits = kw_success_counts.get(c_key, 0) if kw_success_counts else 0
+                        print(f"🔄 [키워드 10타 상한 캡] '{cur_kw}'({orig_hits}타 달성) -> 미달성 후보 '{cand_kw}'({cand_hits}타)로 자동 롤링")
+                        td["keyword"] = cand_kw
+                        cur_kw = cand_kw
+                        rolled = True
+                        break
+                if not rolled:
+                    print(f"🎯 [키워드 전량 10타 상한 달성] '{cur_kw}' 및 모든 후보 키워드가 10타를 달성하여 MID {cur_mid} 타격을 건너뜁니다.")
+                    if exclude_mids is not None:
+                        exclude_mids.add(cur_mid)
+                    continue
+
+            if cur_mid and cur_kw:
+                cur_cycle_allocated_kws[(cur_mid, cur_kw)] += 1
         if args.nvmid:
             td["nv_mid"] = args.nvmid
         if getattr(args, "target_rank", None) is not None:
@@ -953,16 +1053,27 @@ def main():
         dry_campaign = load_campaign_config(getattr(args, "campaign", None), getattr(args, "rolling_keywords", None), args)
         dry_kw_counts = {}
         if dry_campaign:
-            c_mid = str(dry_campaign.get("nv_mid") or "")
-            c_kws = dry_campaign.get("keywords", [])
-            dry_kw_counts, _ = load_today_campaign_progress(LOGS_DIR, c_mid, c_kws, fresh=getattr(args, "fresh_campaign", False))
-            print(f"🎯 [캠페인 모의 계획] 상품: '{dry_campaign.get('product_name')}' (MID: {c_mid}, 키워드 {len(c_kws)}개, 목표 각 {dry_campaign.get('hits_per_kw', 10)}타)")
+            if "products" in dry_campaign:
+                prods = dry_campaign.get("products", [])
+                print(f"🎯 [19대 플릿 캠페인 모의 계획] 총 {len(prods)}개 상품 1:1 매핑 (목표 상품당 {dry_campaign.get('daily_total_hits_per_product', 100)}타)")
+                for p in prods:
+                    p_mid = str(p.get("nv_mid") or "")
+                    p_kws = p.get("keywords", [])
+                    c_cnts, _ = load_today_campaign_progress(LOGS_DIR, p_mid, p_kws, fresh=getattr(args, "fresh_campaign", False))
+                    for k, c in c_cnts.items():
+                        dry_kw_counts[(p_mid, k)] = c
+            else:
+                c_mid = str(dry_campaign.get("nv_mid") or "")
+                c_kws = dry_campaign.get("keywords", [])
+                dry_kw_counts, _ = load_today_campaign_progress(LOGS_DIR, c_mid, c_kws, fresh=getattr(args, "fresh_campaign", False))
+                print(f"🎯 [캠페인 모의 계획] 상품: '{dry_campaign.get('product_name')}' (MID: {c_mid}, 키워드 {len(c_kws)}개, 목표 각 {dry_campaign.get('hits_per_kw', 10)}타)")
         tasks = build_cycle_tasks(target_devices, curr_ip, 1, args, client, campaign_data=dry_campaign, campaign_kw_counts=dry_kw_counts)
         print(f"\n📋 [총 {len(tasks)}개 작업 할당 계획표]:")
         for t in tasks:
             rank_str = f" | rank={t['target_rank']}위" if t.get('target_rank') is not None else ""
             mid_str = f" | nv_mid={t['nv_mid']}" if t.get('nv_mid') else ""
-            print(f"  • [{t['device_id']}] TaskID={t['task_id']} | 키워드='{t['keyword']}'{rank_str}{mid_str} | 체류={t.get('dwell_seconds')}s")
+            store_str = f" | store={t['store_name']}" if t.get('store_name') else ""
+            print(f"  • [{t['device_id']}] TaskID={t['task_id']}{store_str} | 키워드='{t['keyword']}'{rank_str}{mid_str} | 체류={t.get('dwell_seconds')}s")
         print("\n✅ DRY-RUN 정상 완료: 실제 타격을 수행하지 않고 종료합니다.")
         return
 
@@ -1001,24 +1112,41 @@ def main():
     if yesterday_baselines:
         print(f"📊 [어제 순위 베이스라인 로드] 총 {len(yesterday_baselines)}개 상품의 어제 순위 데이터 매칭 준비 완료")
 
-    daily_success_counts = load_today_product_success_counts(LOGS_DIR)
+    daily_success_counts, kw_success_counts = load_today_product_success_counts(LOGS_DIR)
     max_hits_cap = getattr(args, "max_hits_per_item", 100)
     capped_today_mids = {mid for mid, count in daily_success_counts.items() if count >= max_hits_cap}
+    last_cycle_ymd = time.strftime("%Y%m%d")
     # [10개 키워드 롤링 캠페인 모드 초기화]
     campaign_data = load_campaign_config(getattr(args, "campaign", None), getattr(args, "rolling_keywords", None), args)
     campaign_kw_counts = {}
     campaign_rank_history = {}
     if campaign_data:
-        c_mid = str(campaign_data.get("nv_mid") or "")
-        c_store = str(campaign_data.get("store_name") or "")
-        c_kws = campaign_data.get("keywords", [])
-        c_hits_per_kw = int(campaign_data.get("hits_per_kw") or 10)
-        campaign_kw_counts, campaign_rank_history = load_today_campaign_progress(LOGS_DIR, c_mid, c_kws, fresh=getattr(args, "fresh_campaign", False))
-        print(f"\n🎯 [10개 키워드 롤링 캠페인 활성화] 상품: '{campaign_data.get('product_name')}' (MID: {c_mid}, 몰: {c_store})")
-        print(f"   ↳ 총 {len(c_kws)}개 키워드 x 각 {c_hits_per_kw}타 = 목표 총 {len(c_kws)*c_hits_per_kw}타")
-        for idx, kw in enumerate(c_kws, 1):
-            cnt = campaign_kw_counts.get(kw, 0)
-            print(f"     {idx:02d}. {pad_str(kw, 26)} (오늘 진행: {cnt}/{c_hits_per_kw}타)")
+        if "products" in campaign_data:
+            prods = campaign_data.get("products", [])
+            print(f"\n🎯 [19대 단말기 1:1 플릿 캠페인 활성화] 총 {len(prods)}개 신규 상품 1:1 매핑 순위 추적 가동")
+            for idx, p in enumerate(prods, 1):
+                p_mid = str(p.get("nv_mid") or "")
+                p_kws = p.get("keywords", [])
+                cnts, r_hist = load_today_campaign_progress(LOGS_DIR, p_mid, p_kws, fresh=getattr(args, "fresh_campaign", False))
+                for k, c in cnts.items():
+                    campaign_kw_counts[(p_mid, k)] = c
+                for k, r in r_hist.items():
+                    campaign_rank_history[(p_mid, k)] = r
+                tot_p_done = sum(cnts.values())
+                print(f"   ↳ {idx:02d}. [{p.get('store_name')}] {pad_str(p.get('product_name'), 28)} (MID: {p_mid}, 오늘 진행: {tot_p_done}/100타)")
+        else:
+            c_mid = str(campaign_data.get("nv_mid") or "")
+            c_store = str(campaign_data.get("store_name") or "")
+            c_kws = campaign_data.get("keywords", [])
+            c_hits_per_kw = int(campaign_data.get("hits_per_kw") or 10)
+            c_cnts, campaign_rank_history = load_today_campaign_progress(LOGS_DIR, c_mid, c_kws, fresh=getattr(args, "fresh_campaign", False))
+            for k, c in c_cnts.items():
+                campaign_kw_counts[k] = c
+            print(f"\n🎯 [10개 키워드 롤링 캠페인 활성화] 상품: '{campaign_data.get('product_name')}' (MID: {c_mid}, 몰: {c_store})")
+            print(f"   ↳ 총 {len(c_kws)}개 키워드 x 각 {c_hits_per_kw}타 = 목표 총 {len(c_kws)*c_hits_per_kw}타")
+            for idx, kw in enumerate(c_kws, 1):
+                cnt = campaign_kw_counts.get(kw, 0)
+                print(f"     {idx:02d}. {pad_str(kw, 26)} (오늘 진행: {cnt}/{c_hits_per_kw}타)")
 
     try:
         while True:
@@ -1035,6 +1163,18 @@ def main():
             cycle += 1
             cycle_ymd = time.strftime("%Y%m%d")
             cycle_his = time.strftime("%H%M%S")
+
+            # [자정 통과 및 일일 카운트 자동 리셋]
+            if last_cycle_ymd and cycle_ymd != last_cycle_ymd:
+                print("\n" + "=" * 95)
+                print(f"🌅 [자정 통과 및 일일 카운트 자동 리셋] 날짜 변경 감지 ({last_cycle_ymd} -> {cycle_ymd})")
+                print(f"   ↳ 일일 상한 카운트 및 격리 목록 리셋 -> 신규 일일 할당(키워드당 10타, 상품당 100타) 재개")
+                print("=" * 95)
+                daily_success_counts, kw_success_counts = load_today_product_success_counts(LOGS_DIR)
+                capped_today_mids = set()
+                quarantined_mids.clear()
+                # 캠페인 모드에서는 목표 100타 완료 시까지 누적 카운트 유지 (리셋하지 않음)
+            last_cycle_ymd = cycle_ymd
 
             # 2시간(7200초) 이상 경과한 격리 상품 자동 해제 (재검증 기회 부여)
             now_ts = time.time()
@@ -1152,7 +1292,8 @@ def main():
                 cycle_ymd=cycle_ymd, cycle_his=cycle_his,
                 exclude_mids=active_quarantined_mids,
                 campaign_data=campaign_data,
-                campaign_kw_counts=campaign_kw_counts
+                campaign_kw_counts=campaign_kw_counts,
+                kw_success_counts=kw_success_counts
             )
             mode_lbl = "10개 키워드 롤링 캠페인" if campaign_data else ("오버라이딩 적용" if (args.keyword or args.nvmid) else "API 기본")
             print(f"📦 [2단계: 작업 {len(prepared_tasks)}건 준비 완료] (모드: {mode_lbl})")
@@ -1182,8 +1323,12 @@ def main():
                 if capped_today_mids and len(daily_success_counts) >= 10:
                     remaining_pool = [m for m, cnt in daily_success_counts.items() if cnt < max_hits_cap]
                     if not remaining_pool:
-                        print(f"\n🎉 [당일 전 상품 {max_hits_cap}타 완료] 오늘 목표 작업량(각 100회)이 모두 소화되어 안전하게 작업을 마감합니다.")
-                        break
+                        print(f"\n💤 [당일 등록 상품 전량 {max_hits_cap}타 완료] 오늘 목표 작업량(각 100회)이 소화되어 자정 리셋 또는 미구동 상품 할당을 대기합니다 (60초 대기)...")
+                        time.sleep(60)
+                        continue
+                print("⏳ [스토어 쿨다운 대기] 다음 회차에 신규/미구동 작업 할당을 재시도합니다 (60초 대기)...")
+                time.sleep(60)
+                continue
             else:
                 print(f"⚡ [3단계: {len(prepared_tasks)}대 완전 병렬 타격 기동 (PID {len(prepared_tasks)}개 분리)]...")
                 stagger_gap = 0.5 if args.net_mode == "local" else 1.2
@@ -1222,6 +1367,11 @@ def main():
                         quarantined_mids.pop(nv_mid, None)
                     daily_success_counts[nv_mid] += 1
                     cur_hits = daily_success_counts[nv_mid]
+                    if kw and kw != "-":
+                        kw_success_counts[(nv_mid, kw)] += 1
+                        cur_kw_hits = kw_success_counts[(nv_mid, kw)]
+                        if cur_kw_hits >= 10:
+                            print(f"🎯 [키워드 10타 상한 달성] '{kw}' (MID: {nv_mid}) 오늘 10타 완료 -> 다음 회차부터 다른 후보 키워드로 자동 롤링")
                     if cur_hits >= max_hits_cap:
                         print(f"🎯 [일일 {max_hits_cap}타 상한 달성] '{kw}' (MID: {nv_mid}) 오늘 누적 {cur_hits}회 유효타 완료 -> 오늘 타격 제외 (오버플로 방지)")
                 elif st in ("NOT_FOUND", "NOT_SHOPPING_KEYWORD") or (str(st).startswith("NOT_FOUND")):
@@ -1408,44 +1558,103 @@ def main():
             except Exception:
                 pass
 
-            # [10개 키워드 롤링 캠페인 실시간 현황 집계 및 대시보드 출력]
+            # [캠페인 실시간 현황 집계 및 대시보드 출력]
             if campaign_data:
-                c_hits_target = int(campaign_data.get("hits_per_kw") or 10)
-                for r in cycle_results:
-                    if r.get("status") == "SUCCESS" or r.get("success"):
-                        kw_res = str(r.get("keyword") or "").strip()
-                        if kw_res in campaign_kw_counts:
-                            campaign_kw_counts[kw_res] += 1
-                        s_r = r.get("serp_rank")
-                        sh_r = r.get("shopping_rank")
-                        cur_r_str = f"SERP {s_r}위" if s_r else (f"SHOP {sh_r}위" if sh_r else None)
-                        if kw_res in campaign_rank_history and cur_r_str:
-                            if campaign_rank_history[kw_res]["initial_rank"] is None:
-                                campaign_rank_history[kw_res]["initial_rank"] = cur_r_str
-                            campaign_rank_history[kw_res]["latest_rank"] = cur_r_str
-                            campaign_rank_history[kw_res]["history"].append({"ts": time.time(), "rank": cur_r_str})
+                if "products" in campaign_data:
+                    prods = campaign_data.get("products", [])
+                    for r in cycle_results:
+                        if r.get("status") == "SUCCESS" or r.get("success"):
+                            r_mid = str(r.get("nv_mid") or "").strip()
+                            r_kw = str(r.get("keyword") or "").strip()
+                            if (r_mid, r_kw) in campaign_kw_counts:
+                                campaign_kw_counts[(r_mid, r_kw)] += 1
+                            s_r = r.get("serp_rank")
+                            sh_r = r.get("shopping_rank")
+                            cur_r_str = f"SERP {s_r}위" if s_r else (f"SHOP {sh_r}위" if sh_r else None)
+                            if (r_mid, r_kw) in campaign_rank_history and cur_r_str:
+                                if campaign_rank_history[(r_mid, r_kw)]["initial_rank"] is None:
+                                    campaign_rank_history[(r_mid, r_kw)]["initial_rank"] = cur_r_str
+                                campaign_rank_history[(r_mid, r_kw)]["latest_rank"] = cur_r_str
+                                campaign_rank_history[(r_mid, r_kw)]["history"].append({"ts": time.time(), "rank": cur_r_str})
 
-                tot_done = sum(campaign_kw_counts.values())
-                tot_goal = len(campaign_data["keywords"]) * c_hits_target
-                pct_done = round(tot_done / tot_goal * 100, 1) if tot_goal else 0
+                    tot_done = sum(campaign_kw_counts.values())
+                    tot_goal = sum(len(p.get("keywords", [])) * int(p.get("hits_per_kw", 10) or 10) for p in prods)
+                    pct_done = round(tot_done / tot_goal * 100, 1) if tot_goal else 0
 
-                print("\n" + "=" * 95)
-                print(f"📊 [10개 키워드 롤링 캠페인 실시간 현황: {tot_done}/{tot_goal}타 ({pct_done}%)] - MID: {campaign_data.get('nv_mid')}")
-                print("=" * 95)
-                for idx, kw in enumerate(campaign_data["keywords"], 1):
-                    cnt = campaign_kw_counts.get(kw, 0)
-                    prog_bar = "■" * cnt + "□" * max(0, c_hits_target - cnt)
-                    init_r = campaign_rank_history.get(kw, {}).get("initial_rank") or "미발견"
-                    late_r = campaign_rank_history.get(kw, {}).get("latest_rank") or "미발견"
-                    status_str = "완료 ✅" if cnt >= c_hits_target else f"진행 ({cnt}/{c_hits_target})"
-                    print(f" {idx:02d}. {pad_str(kw, 26)} | [{prog_bar}] {cnt:>2}/{c_hits_target}타 | {init_r:<10} -> {late_r:<10} | {status_str}")
-                print("=" * 95 + "\n")
+                    print("\n" + "=" * 115)
+                    print(f"📊 [19대 단말기 1:1 플릿 캠페인 실시간 현황: {tot_done}/{tot_goal}타 ({pct_done}%)]")
+                    print("=" * 115)
+                    print(f" {'#':<2} │ {'단말기 ID':<12} │ {'스토어명':<14} │ {'상품명 (MID)':<26} │ {'진행 키워드':<18} │ {'진행 타수':<10} │ {'순위 변동 (초기->최신)'}")
+                    print("-" * 115)
+                    for idx, dev_id in enumerate(target_devices, 1):
+                        p = prods[(idx - 1) % len(prods)]
+                        p_mid = str(p.get("nv_mid") or "")
+                        p_store = str(p.get("store_name") or "")
+                        p_name = str(p.get("product_name") or "")
+                        p_kws = p.get("keywords", [])
+                        p_hits_target = int(p.get("hits_per_kw", 10) or 10)
 
-                save_campaign_baseline(LOGS_DIR / "baselines", campaign_data, campaign_rank_history, cycle_ymd)
+                        active_kws = [k for k in p_kws if campaign_kw_counts.get((p_mid, k), 0) < p_hits_target]
+                        kw_idx = (cycle - 1) % len(active_kws) if active_kws else 0
+                        cur_kw = active_kws[kw_idx] if active_kws else (p_kws[0] if p_kws else "")
+                        p_tot_done = sum(campaign_kw_counts.get((p_mid, k), 0) for k in p_kws)
 
-                if all(campaign_kw_counts.get(k, 0) >= c_hits_target for k in campaign_data["keywords"]):
-                    print(f"\n🎉 [10개 키워드 롤링 캠페인 전량 완료] 모든 키워드가 목표 {c_hits_target}타(총 {tot_goal}타)를 달성하여 안전하게 마감합니다!")
-                    break
+                        init_r = campaign_rank_history.get((p_mid, cur_kw), {}).get("initial_rank") or "미발견"
+                        late_r = campaign_rank_history.get((p_mid, cur_kw), {}).get("latest_rank") or "미발견"
+
+                        print(f" {idx:02d} │ {dev_id:<12} │ {pad_str(p_store, 14)} │ {pad_str(p_name, 26)} │ {pad_str(cur_kw, 18)} │ {p_tot_done:>2}/100타      │ {init_r:<9} -> {late_r:<9}")
+                    print("=" * 115 + "\n")
+
+                    # 개별 베이스라인 저장
+                    for p in prods:
+                        p_mid = str(p.get("nv_mid") or "")
+                        p_rank_data = {k: campaign_rank_history.get((p_mid, k), {}) for k in p.get("keywords", [])}
+                        save_campaign_baseline(LOGS_DIR / "baselines", p, p_rank_data, cycle_ymd)
+
+                    all_done = all(
+                        campaign_kw_counts.get((str(p.get("nv_mid")), k), 0) >= int(p.get("hits_per_kw", 10) or 10)
+                        for p in prods for k in p.get("keywords", [])
+                    )
+                    if all_done:
+                        print(f"\n🎉 [19대 플릿 캠페인 전량 완료] 19개 모든 상품이 목표 100타(총 {tot_goal}타)를 달성하여 안전하게 마감합니다!")
+                        break
+                else:
+                    c_hits_target = int(campaign_data.get("hits_per_kw") or 10)
+                    for r in cycle_results:
+                        if r.get("status") == "SUCCESS" or r.get("success"):
+                            kw_res = str(r.get("keyword") or "").strip()
+                            if kw_res in campaign_kw_counts:
+                                campaign_kw_counts[kw_res] += 1
+                            s_r = r.get("serp_rank")
+                            sh_r = r.get("shopping_rank")
+                            cur_r_str = f"SERP {s_r}위" if s_r else (f"SHOP {sh_r}위" if sh_r else None)
+                            if kw_res in campaign_rank_history and cur_r_str:
+                                if campaign_rank_history[kw_res]["initial_rank"] is None:
+                                    campaign_rank_history[kw_res]["initial_rank"] = cur_r_str
+                                campaign_rank_history[kw_res]["latest_rank"] = cur_r_str
+                                campaign_rank_history[kw_res]["history"].append({"ts": time.time(), "rank": cur_r_str})
+
+                    tot_done = sum(campaign_kw_counts.values())
+                    tot_goal = len(campaign_data["keywords"]) * c_hits_target
+                    pct_done = round(tot_done / tot_goal * 100, 1) if tot_goal else 0
+
+                    print("\n" + "=" * 95)
+                    print(f"📊 [10개 키워드 롤링 캠페인 실시간 현황: {tot_done}/{tot_goal}타 ({pct_done}%)] - MID: {campaign_data.get('nv_mid')}")
+                    print("=" * 95)
+                    for idx, kw in enumerate(campaign_data["keywords"], 1):
+                        cnt = campaign_kw_counts.get(kw, 0)
+                        prog_bar = "■" * cnt + "□" * max(0, c_hits_target - cnt)
+                        init_r = campaign_rank_history.get(kw, {}).get("initial_rank") or "미발견"
+                        late_r = campaign_rank_history.get(kw, {}).get("latest_rank") or "미발견"
+                        status_str = "완료 ✅" if cnt >= c_hits_target else f"진행 ({cnt}/{c_hits_target})"
+                        print(f" {idx:02d}. {pad_str(kw, 26)} | [{prog_bar}] {cnt:>2}/{c_hits_target}타 | {init_r:<10} -> {late_r:<10} | {status_str}")
+                    print("=" * 95 + "\n")
+
+                    save_campaign_baseline(LOGS_DIR / "baselines", campaign_data, campaign_rank_history, cycle_ymd)
+
+                    if all(campaign_kw_counts.get(k, 0) >= c_hits_target for k in campaign_data["keywords"]):
+                        print(f"\n🎉 [10개 키워드 롤링 캠페인 전량 완료] 모든 키워드가 목표 {c_hits_target}타(총 {tot_goal}타)를 달성하여 안전하게 마감합니다!")
+                        break
 
             # [사용자 지침] 50회 구동 단위 종합 평가 리포트 자동 생성 및 출력
             if args.eval_interval > 0 and cycle % args.eval_interval == 0:

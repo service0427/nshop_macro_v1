@@ -97,10 +97,21 @@ def check_and_update_device(device_id: str, pkg: str = NAVER_APP_PACKAGE) -> Dic
         results["details"].append(f"패키지({pkg}) 미설치")
         return results
 
-    # 1-1. 고속 무결성 점검 (Fast-Path: ~0.1초)
+    # 1-1. [핵심 안전장치] 기본 구성 (Cookies DB > 4KB, null.xml) 존재 여부 정밀 감지
+    from src.device.surgical_cleaner import is_device_initialized, initialize_baseline
+    baseline_ok = is_device_initialized(device_id)
+    if not baseline_ok:
+        # 최초 1회 실행 시 또는 기본 구성 부재 시 1회성 '앱 열고 닫기'로 골격 형성
+        baseline_ok = initialize_baseline(device_id)
+        results["baseline_updated"] = True
+        results["details"].append("기본구성 오픈/클로즈 구축")
+    else:
+        results["baseline_updated"] = False
+
+    # 1-2. 고속 무결성 점검 (Fast-Path: ~0.1초)
     # 03_device_init.sh 또는 이전 회차에서 정상 세팅된 경우, 불필요한 force-stop 및 쓰기 작업 생략
     fast_loc_chk = run_adb_shell(device_id, f"dumpsys package {pkg} | grep 'ACCESS_FINE_LOCATION: granted=true'")
-    if fast_loc_chk:
+    if fast_loc_chk and baseline_ok and not results.get("baseline_updated"):
         run_adb_shell(device_id, "cmd device_state state 3 2>/dev/null; input keyevent 224; wm dismiss-keyguard")
         run_adb_shell(device_id, "su -c 'sysctl -w net.ipv6.conf.all.disable_ipv6=1 net.ipv6.conf.default.disable_ipv6=1 >/dev/null 2>&1'")
         run_adb_shell(device_id, "appops set com.genymobile.gnirehtet ACTIVATE_VPN allow 2>/dev/null; appops set com.genymobile.gnirehtet ACTIVATE_PLATFORM_VPN allow 2>/dev/null")
@@ -228,20 +239,35 @@ def run_fleet_health_check(
     total_pass = sum(1 for r in results if r["status"] == "PASS")
 
     # 콘솔 요약 테이블 출력
-    print(f"{'디바이스 ID':<16} | {'권한보정':<8} | {'GPS모드':<8} | {'AdbIME':<8} | {'null.xml':<9} | {'상태':<8} | {'소요':<6} | {'비고'}")
-    print("-" * 95)
+    print(f"{'디바이스 ID':<16} | {'권한보정':<8} | {'기본구성':<8} | {'GPS모드':<8} | {'AdbIME':<8} | {'null.xml':<9} | {'상태':<8} | {'소요':<6} | {'비고'}")
+    print("-" * 105)
     for r in results:
         perm_str = f"🔄 +{r['permissions_updated']}" if r.get("permissions_updated", 0) > 0 else "✅ 정상"
+        base_str = "🔄 신규구축" if r.get("baseline_updated") else "✅ 정상"
         gps_str = "🔄 갱신" if r.get("gps_mode_updated") else "✅ 정상"
         ime_str = "🔄 설정" if r.get("ime_updated") else "✅ 정상"
         xml_str = "🔄 갱신" if r.get("null_xml_updated") else "✅ 정상"
         status_str = "✅ PASS" if r["status"] == "PASS" else "❌ FAIL"
         time_str = f"{r.get('elapsed_sec', 0.0)}s"
         note = ", ".join(r.get("details", [])) if r.get("details") else "기존 베이스라인 유지"
-        print(f"{r['device_id']:<16} | {perm_str:<8} | {gps_str:<8} | {ime_str:<8} | {xml_str:<9} | {status_str:<8} | {time_str:<6} | {note}")
-    print("-" * 95)
+        print(f"{r['device_id']:<16} | {perm_str:<8} | {base_str:<8} | {gps_str:<8} | {ime_str:<8} | {xml_str:<9} | {status_str:<8} | {time_str:<6} | {note}")
+    print("-" * 105)
     print(f"✅ [동기화 마감] 총 {len(device_ids)}대 중 {total_pass}대 정상 통과 (권한 갱신: {total_perms_fixed}건) | 총 소요: {total_elapsed}s")
-    print("=" * 95 + "\n")
+
+    # [로컬 NNB 풀 안전장치] 로컬 풀 잔여 수량 부족 시 온라인 단말기에서 순정 NNB/BUC 자동 보충
+    try:
+        from src.core.nnb_harvester import load_pool, harvest_single_packet, bank_newborn_nnb
+        pool = load_pool()
+        if len(pool) < 5 and device_ids:
+            print(f"📦 [로컬 NNB 풀 안전장치] 로컬 풀 수량 부족({len(pool)}개) 감지 -> 온라인 기기에서 정품 NNB 보충 중...")
+            for dev in device_ids[:5]:
+                pkt = harvest_single_packet(dev)
+                if pkt and pkt.get("nnb"):
+                    bank_newborn_nnb(pkt["nnb"], pkt.get("buc", ""), source="FLEET_HEALTH_CHECK", device_id=dev)
+            print(f"✅ [로컬 NNB 풀 보충 완료] 현재 로컬 풀: {len(load_pool())}개 보유")
+    except Exception as e:
+        pass
+    print("=" * 105 + "\n")
 
     return results
 
